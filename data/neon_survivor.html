@@ -863,6 +863,18 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('rngVolM').oninput = e => document.getElementById('valVolM').innerText = Math.round(e.target.value * 100) + '%';
   document.getElementById('rngVolMus').oninput = e => document.getElementById('valVolMus').innerText = Math.round(e.target.value * 100) + '%';
   document.getElementById('rngVolSfx').oninput = e => document.getElementById('valVolSfx').innerText = Math.round(e.target.value * 100) + '%';
+
+  // Anti-Inspect & Anti-DevTools (Block Right-Click & F12 Console)
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  window.addEventListener('keydown', e => {
+    if (e.code === 'F12') { e.preventDefault(); return false; }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.code === 'KeyI' || e.code === 'KeyJ' || e.code === 'KeyC')) {
+      e.preventDefault(); return false;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyU') {
+      e.preventDefault(); return false;
+    }
+  });
 });
 </script>
 </body>

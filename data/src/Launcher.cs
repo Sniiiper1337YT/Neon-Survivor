@@ -83,6 +83,45 @@ class Launcher
     static void Main()
     {
         string dir = AppDomain.CurrentDomain.BaseDirectory;
+
+        // 1. Check if Standalone Native Game Binary exists in build folder
+        string standaloneExe = Path.Combine(dir, "build", "Neon Survivor-win32-x64", "Neon Survivor.exe");
+        if (File.Exists(standaloneExe))
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = standaloneExe,
+                    WorkingDirectory = Path.GetDirectoryName(standaloneExe),
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+                return;
+            }
+            catch { }
+        }
+
+        // 2. Check if local Electron runtime exists
+        string electronExe = Path.Combine(dir, "node_modules", "electron", "dist", "electron.exe");
+        if (File.Exists(electronExe) && File.Exists(Path.Combine(dir, "main.js")))
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = electronExe,
+                    Arguments = "\"" + dir + "\"",
+                    WorkingDirectory = dir,
+                    UseShellExecute = false
+                };
+                Process.Start(psi);
+                return;
+            }
+            catch { }
+        }
+
+        // 3. Fallback: Chrome / Edge with --app and --disable-dev-tools
         string html = Path.Combine(dir, "data", "neon_survivor.html");
         if (!File.Exists(html))
         {
@@ -135,7 +174,7 @@ class Launcher
                 var psi = new ProcessStartInfo
                 {
                     FileName = b,
-                    Arguments = "--app=\"" + url + "\" --user-data-dir=\"" + profile + "\" --window-size=1280,800 --autoplay-policy=no-user-gesture-required --no-first-run --no-default-browser-check --disable-features=Translate",
+                    Arguments = "--app=\"" + url + "\" --user-data-dir=\"" + profile + "\" --window-size=1280,800 --autoplay-policy=no-user-gesture-required --no-first-run --no-default-browser-check --disable-features=Translate --disable-dev-tools",
                     UseShellExecute = true
                 };
                 Process.Start(psi);

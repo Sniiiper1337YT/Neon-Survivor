@@ -1,0 +1,27 @@
+{
+  "name": "neon-survivor",
+  "version": "1.0.0",
+  "description": "Ein rasanter, neon-ästhetischer Sci-Fi Bullet-Heaven / Rogue-lite Survival Shooter.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --check main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sniiiper1337YT/Neon-Survivor.git"
+  },
+  "keywords": [
+    "game",
+    "roguelite",
+    "survival",
+    "bullet-heaven",
+    "neon"
+  ],
+  "author": "Sniiiper1337YT",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^45.3.2",
+    "electron-packager": "^17.1.2"
+  }
+}

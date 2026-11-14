@@ -76,17 +76,102 @@ class SaveSystem {
     };
   }
 
+  // ----------------------------------------------------
+  // TAMPER-PROOF ENCRYPTION & CHECKSUM VERIFICATION
+  // ----------------------------------------------------
+  toB64(str) {
+    if (typeof btoa === 'function') {
+      try { return btoa(unescape(encodeURIComponent(str))); } catch (e) {}
+    }
+    return typeof Buffer !== 'undefined' ? Buffer.from(str, 'utf8').toString('base64') : str;
+  }
+
+  fromB64(b64) {
+    if (typeof atob === 'function') {
+      try { return decodeURIComponent(escape(atob(b64))); } catch (e) {}
+    }
+    return typeof Buffer !== 'undefined' ? Buffer.from(b64, 'base64').toString('utf8') : b64;
+  }
+
+  computeChecksum(str) {
+    const salt = 'NEON_SURVIVOR_ANTI_TAMPER_SALT_9f82d41a7b';
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    const full = str + salt;
+    for (let i = 0; i < full.length; i++) {
+      const ch = full.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = ((h1 ^ (h1 >>> 16)) >>> 0);
+    h2 = ((h2 ^ (h2 >>> 13)) >>> 0);
+    return h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
+  }
+
+  encryptPayload(str) {
+    const key = 'NS_SECURE_PAYLOAD_CIPHER_2026';
+    let out = '';
+    for (let i = 0; i < str.length; i++) {
+      out += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+    }
+    return this.toB64(out);
+  }
+
+  decryptPayload(b64) {
+    const decoded = this.fromB64(b64);
+    const key = 'NS_SECURE_PAYLOAD_CIPHER_2026';
+    let out = '';
+    for (let i = 0; i < decoded.length; i++) {
+      out += String.fromCharCode(decoded.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+    }
+    return out;
+  }
+
   load() {
     try {
-      const raw = localStorage.getItem(this.STORAGE_KEY);
+      const raw = localStorage.getItem(this.STORAGE_KEY) || localStorage.getItem('neon_survivor_save_v1');
       if (raw) {
-        const parsed = JSON.parse(raw);
-        this.data = this.mergeDeep(this.getDefaultSave(), parsed);
-        if (!this.data.settings.discordClientId || this.data.settings.discordClientId === '1306300000000000000') {
-          this.data.settings.discordClientId = '1570824779005689919';
+        let jsonStr = null;
+        let isEnvelope = false;
+
+        // Check if saved as encrypted tamper-proof envelope
+        try {
+          const envelope = JSON.parse(raw);
+          if (envelope && envelope.v === 2 && envelope.c && envelope.p) {
+            isEnvelope = true;
+            const decrypted = this.decryptPayload(envelope.p);
+            const expectedChecksum = this.computeChecksum(decrypted);
+            if (expectedChecksum === envelope.c) {
+              jsonStr = decrypted;
+            } else {
+              console.warn('⚠️ Manipulierter Spielstand erkannt (Prüfsummen-Fehler)! Sicherer Spielstand wiederhergestellt.');
+              if (window.UI && window.UI.showToast) window.UI.showToast('⚠️ Manipulierter Spielstand abgewiesen!');
+            }
+          }
+        } catch (e) { }
+
+        // Fallback / Migration: If raw is legacy plain JSON string
+        if (!jsonStr && !isEnvelope) {
+          try {
+            const legacyParsed = JSON.parse(raw);
+            if (legacyParsed && legacyParsed.version) {
+              jsonStr = raw;
+            }
+          } catch (e) { }
         }
-        if (!this.data.unlockedModes.includes('sandbox')) {
-          this.data.unlockedModes.push('sandbox');
+
+        if (jsonStr) {
+          const parsed = JSON.parse(jsonStr);
+          this.data = this.mergeDeep(this.getDefaultSave(), parsed);
+          if (!this.data.settings.discordClientId || this.data.settings.discordClientId === '1306300000000000000') {
+            this.data.settings.discordClientId = '1570824779005689919';
+          }
+          if (!this.data.unlockedModes.includes('sandbox')) {
+            this.data.unlockedModes.push('sandbox');
+          }
+          // Immediately save with encrypted envelope
+          this.save();
+        } else {
+          this.data = this.getDefaultSave();
         }
       }
     } catch (e) {
@@ -97,7 +182,13 @@ class SaveSystem {
 
   save() {
     try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
+      const json = JSON.stringify(this.data);
+      const envelope = {
+        v: 2,
+        c: this.computeChecksum(json),
+        p: this.encryptPayload(json)
+      };
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(envelope));
     } catch (e) {
       console.error('Failed to savegame:', e);
     }
@@ -340,13 +431,37 @@ class SaveSystem {
   }
 
   exportJson() {
-    return JSON.stringify(this.data, null, 2);
+    const json = JSON.stringify(this.data);
+    const envelope = {
+      v: 2,
+      c: this.computeChecksum(json),
+      p: this.encryptPayload(json)
+    };
+    return 'NEON-SAVE-V2:' + this.toB64(JSON.stringify(envelope));
   }
 
   importJson(str) {
     try {
-      const parsed = JSON.parse(str);
-      if (parsed.version) {
+      if (!str || typeof str !== 'string') return false;
+      let jsonStr = null;
+      const trimmed = str.trim();
+      if (trimmed.startsWith('NEON-SAVE-V2:')) {
+        const b64 = trimmed.slice(13).trim();
+        const envelope = JSON.parse(this.fromB64(b64));
+        if (envelope && envelope.v === 2 && envelope.c && envelope.p) {
+          const decrypted = this.decryptPayload(envelope.p);
+          if (this.computeChecksum(decrypted) === envelope.c) {
+            jsonStr = decrypted;
+          }
+        }
+      } else {
+        // Legacy plain JSON import fallback
+        const parsed = JSON.parse(trimmed);
+        if (parsed && parsed.version) jsonStr = trimmed;
+      }
+
+      if (jsonStr) {
+        const parsed = JSON.parse(jsonStr);
         this.data = this.mergeDeep(this.getDefaultSave(), parsed);
         this.save();
         return true;
