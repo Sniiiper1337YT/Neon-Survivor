@@ -181,7 +181,9 @@ class EntityManager {
     if (window.SoundSystem) window.SoundSystem.sfx(isCrit ? 'crit' : 'hit');
 
     // Stats
-    window.SaveSystem.data.stats.totalDamage += Math.round(dmg);
+    if (window.GameState && window.GameState.selectedMode !== 'sandbox') {
+      window.SaveSystem.data.stats.totalDamage += Math.round(dmg);
+    }
 
     if (e.hp <= 0) {
       this.killEnemy(e);
@@ -193,7 +195,9 @@ class EntityManager {
     e.dead = true;
     const P = window.GameState.player;
     window.GameState.kills++;
-    window.SaveSystem.data.stats.totalKills++;
+    if (window.GameState.selectedMode !== 'sandbox') {
+      window.SaveSystem.data.stats.totalKills++;
+    }
 
     // Overload gauge charging
     const boost = P.overloadChargeRate || 1;
@@ -240,7 +244,9 @@ class EntityManager {
 
   onBossKilled(boss) {
     window.GameState.bossKills++;
-    window.SaveSystem.data.stats.totalBossKills++;
+    if (window.GameState.selectedMode !== 'sandbox') {
+      window.SaveSystem.data.stats.totalBossKills++;
+    }
     window.GameState.currentBoss = null;
 
     // Massive drops
@@ -265,10 +271,12 @@ class EntityManager {
     if (window.UI) {
       window.UI.showBanner('👑 ' + boss.name.toUpperCase() + ' BESIEGT!', '#ffd23f');
     }
-    window.SaveSystem.checkAchievements();
+    if (window.GameState.selectedMode !== 'sandbox') {
+      window.SaveSystem.checkAchievements();
+    }
 
-    // Victory check for 30m Arch-Sentinel (or 6th boss in Boss Rush) in finite modes
-    if (boss.id === 'arch_sentinel' && window.GameState.selectedMode !== 'endless') {
+    // Victory check for 30m Arch-Sentinel (or 6th boss in Boss Rush) in finite modes (NEVER in sandbox/test mode)
+    if (boss.id === 'arch_sentinel' && window.GameState.selectedMode !== 'endless' && window.GameState.selectedMode !== 'sandbox') {
       window.GameState.triggerVictory();
     }
   }
@@ -1129,7 +1137,7 @@ class EntityManager {
   collectPowerup(pu) {
     const P = window.GameState.player;
     if (window.SoundSystem) window.SoundSystem.sfx('pickup');
-    if (window.SaveSystem && window.SaveSystem.data.stats) {
+    if (window.SaveSystem && window.SaveSystem.data.stats && (!window.GameState || window.GameState.selectedMode !== 'sandbox')) {
       window.SaveSystem.data.stats.powerupsCollected = (window.SaveSystem.data.stats.powerupsCollected || 0) + 1;
     }
 

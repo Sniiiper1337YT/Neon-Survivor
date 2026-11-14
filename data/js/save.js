@@ -322,6 +322,7 @@ class SaveSystem {
   }
 
   unlockAchievement(id) {
+    if (window.GameState && window.GameState.selectedMode === 'sandbox') return false;
     if (this.data.achievements[id]) return false;
     this.data.achievements[id] = Date.now();
     this.save();
@@ -339,6 +340,7 @@ class SaveSystem {
   }
 
   checkAchievements() {
+    if (window.GameState && window.GameState.selectedMode === 'sandbox') return;
     const s = this.data.stats;
     const a = this.data.achievements;
     const u = (id, cond) => { if (!a[id] && cond) this.unlockAchievement(id); };

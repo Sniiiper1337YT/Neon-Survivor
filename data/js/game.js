@@ -52,9 +52,11 @@ class GameController {
   initMenuControls() {
     window.addEventListener('keydown', e => {
       if ((e.code === 'Tab' || e.code === 'F2') && this.state === 'play') {
-        e.preventDefault();
-        if (window.UI && window.UI.toggleSandboxPanel) {
-          window.UI.toggleSandboxPanel();
+        if (this.selectedMode === 'sandbox') {
+          e.preventDefault();
+          if (window.UI && window.UI.toggleSandboxPanel) {
+            window.UI.toggleSandboxPanel();
+          }
         }
         return;
       }
@@ -204,7 +206,17 @@ class GameController {
       this.sandboxPauseSpawns = true;
       window.UI.showBanner('TEST-LABOR (TAB / F2 DRÜCKEN)', '#ffd23f');
     } else {
+      this.sandboxGodMode = false;
+      this.sandboxPauseSpawns = false;
+      if (window.UI) {
+        window.UI.isSandboxOpen = false;
+        const p = document.getElementById('sandboxPanel');
+        if (p) p.classList.remove('open');
+      }
       window.UI.showBanner('ÜBERLEBE!', '#3dfcff');
+      window.SaveSystem.data.stats.runsStarted++;
+      window.SaveSystem.save();
+      window.SaveSystem.checkAchievements();
     }
     if (window.SoundSystem) {
       window.SoundSystem.init();
@@ -212,9 +224,6 @@ class GameController {
       window.SoundSystem.setTheme('normal');
     }
 
-    window.SaveSystem.data.stats.runsStarted++;
-    window.SaveSystem.save();
-    window.SaveSystem.checkAchievements();
     if (window.DiscordRPC) window.DiscordRPC.startRun(this.selectedCharacter, this.selectedMap, this.selectedMode);
   }
 
@@ -252,7 +261,9 @@ class GameController {
   gainXp(v) {
     const mult = (this.player.xpMultiplierTimer > 0 ? 2 : 1) * (this.player.xpMul || 1) * (this.activeChaosEvent === 'turbo_horde' ? 1.3 : 1);
     this.player.xp += v * mult;
-    window.SaveSystem.data.stats.totalGemsCollected += v;
+    if (this.selectedMode !== 'sandbox') {
+      window.SaveSystem.data.stats.totalGemsCollected += v;
+    }
 
     while (this.player.xp >= this.player.next) {
       this.player.xp -= this.player.next;
@@ -260,8 +271,8 @@ class GameController {
       this.player.next = Math.floor(4 + this.player.lvl * 3.2 + Math.pow(this.player.lvl, 1.45) * 0.6);
       if (this.selectedMode !== 'sandbox') {
         this.pendingLevels++;
+        window.SaveSystem.data.stats.highestLevel = Math.max(window.SaveSystem.data.stats.highestLevel, this.player.lvl);
       }
-      window.SaveSystem.data.stats.highestLevel = Math.max(window.SaveSystem.data.stats.highestLevel, this.player.lvl);
     }
   }
 
@@ -279,8 +290,10 @@ class GameController {
     if (window.UI) window.UI.showBanner('⚡ NEON OVERLOAD! ⚡', '#ffd23f');
     if (window.Input) window.Input.vibrate(300, 0.8, 1.0);
 
-    window.SaveSystem.data.stats.overloadsUsed++;
-    window.SaveSystem.checkAchievements();
+    if (this.selectedMode !== 'sandbox') {
+      window.SaveSystem.data.stats.overloadsUsed++;
+      window.SaveSystem.checkAchievements();
+    }
   }
 
   update(dt) {
@@ -290,7 +303,9 @@ class GameController {
     }
 
     this.time += dt;
-    window.SaveSystem.data.stats.totalTime += dt;
+    if (this.selectedMode !== 'sandbox') {
+      window.SaveSystem.data.stats.totalTime += dt;
+    }
 
     const P = this.player;
 
@@ -377,7 +392,9 @@ class GameController {
       }
     }
     const stepDist = Math.hypot(P.x - oldPx, P.y - oldPy);
-    window.SaveSystem.data.stats.distanceTraveled = (window.SaveSystem.data.stats.distanceTraveled || 0) + stepDist;
+    if (this.selectedMode !== 'sandbox') {
+      window.SaveSystem.data.stats.distanceTraveled = (window.SaveSystem.data.stats.distanceTraveled || 0) + stepDist;
+    }
 
     // Chronos-X slow aura
     if (P.slowAura > 0) {
@@ -682,16 +699,18 @@ class GameController {
     if (c.kind === 'evo') {
       this.weapons[c.baseWeapon].evolved = true;
       if (window.SoundSystem) window.SoundSystem.sfx('evolution');
-      window.SaveSystem.data.stats.evolutionsMade++;
-      const evoAchMap = {
-        hyper_gatling: 'blaster_max',
-        photonic_beam: 'laser_max',
-        event_horizon: 'vortex_max',
-        hellfire_dragon: 'flame_max',
-        chronos_matrix: 'emp_max'
-      };
-      if (evoAchMap[c.id]) window.SaveSystem.unlockAchievement(evoAchMap[c.id]);
-      window.SaveSystem.checkAchievements();
+      if (this.selectedMode !== 'sandbox') {
+        window.SaveSystem.data.stats.evolutionsMade++;
+        const evoAchMap = {
+          hyper_gatling: 'blaster_max',
+          photonic_beam: 'laser_max',
+          event_horizon: 'vortex_max',
+          hellfire_dragon: 'flame_max',
+          chronos_matrix: 'emp_max'
+        };
+        if (evoAchMap[c.id]) window.SaveSystem.unlockAchievement(evoAchMap[c.id]);
+        window.SaveSystem.checkAchievements();
+      }
     } else if (c.kind === 'w') {
       this.weapons[c.id].lv++;
       this.weapons[c.id].t = Math.min(this.weapons[c.id].t, 0.2);
@@ -796,6 +815,20 @@ class GameController {
       window.SoundSystem.setTheme('normal');
     }
 
+    if (this.selectedMode === 'sandbox') {
+      const overStatsEl = document.getElementById('ostats');
+      if (overStatsEl) {
+        overStatsEl.innerHTML = `
+          Modus: <b style="color:#ffd23f;">TEST-LABOR (SANDBOX)</b><br>
+          Überlebt: <b>${Math.floor(this.time / 60)}m ${Math.floor(this.time % 60)}s</b><br>
+          Kills: <b>${this.kills}</b> &nbsp;·&nbsp; Wächter: <b>${this.bossKills}</b><br>
+          <span style="font-size:13px;color:#aaa;">(Im Test-Labor werden keine Ranglisten-Stats gespeichert)</span>
+        `;
+      }
+      setTimeout(() => window.UI.showScreen('over'), 1000);
+      return;
+    }
+
     const finalCredits = window.SaveSystem.addCredits(this.creditsEarned + Math.floor(this.time / 5));
     const score = Math.floor(this.time) * 10 + this.kills * 10 + this.bossKills * 2500 + this.bonusScore;
     window.SaveSystem.data.stats.highestScore = Math.max(window.SaveSystem.data.stats.highestScore, score);
@@ -817,6 +850,7 @@ class GameController {
   }
 
   triggerVictory() {
+    if (this.selectedMode === 'sandbox') return; // Victory is NEVER awarded in test/sandbox mode!
     this.state = 'victory';
     if (window.SoundSystem) {
       window.SoundSystem.sfx('victory');

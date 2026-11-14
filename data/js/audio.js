@@ -82,6 +82,9 @@ class SoundSystem {
     g.connect(dest);
     o.start(t);
     o.stop(t + dur + 0.03);
+    o.onended = () => {
+      try { n.disconnect(); g.disconnect(); } catch (e) {}
+    };
   }
 
   noise(t, dur, vol, freq, type, dest) {
@@ -99,6 +102,9 @@ class SoundSystem {
     g.connect(dest);
     s.start(t, Math.random() * 0.5);
     s.stop(t + dur + 0.03);
+    s.onended = () => {
+      try { s.disconnect(); f.disconnect(); g.disconnect(); } catch (e) {}
+    };
   }
 
   sfx(name) {

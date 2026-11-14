@@ -467,6 +467,12 @@ class UIEngine {
   }
 
   toggleSandboxPanel() {
+    if (!window.GameState || window.GameState.selectedMode !== 'sandbox') {
+      const p = document.getElementById('sandboxPanel');
+      if (p) p.classList.remove('open');
+      this.isSandboxOpen = false;
+      return;
+    }
     let p = document.getElementById('sandboxPanel');
     if (!p) {
       p = document.createElement('div');
@@ -486,6 +492,11 @@ class UIEngine {
     const p = document.getElementById('sandboxPanel');
     if (!p) return;
     const gs = window.GameState;
+    if (!gs || gs.selectedMode !== 'sandbox') {
+      p.classList.remove('open');
+      this.isSandboxOpen = false;
+      return;
+    }
     const P = gs.player;
     if (!this.sandboxActiveTab) this.sandboxActiveTab = 'weapons';
     const tab = this.sandboxActiveTab;
