@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('NeonNative', {
   appVersion: appVersion || '1.0.1',
   discordSetActivity: (activity, clientId) => ipcRenderer.invoke('discord:setActivity', { activity, clientId }),
   discordStatus: () => ipcRenderer.invoke('discord:status'),
+  discordReconnect: () => ipcRenderer.invoke('discord:reconnect'),
   checkForUpdates: () => ipcRenderer.invoke('app:checkUpdate'),
   openExternal: (url) => ipcRenderer.invoke('app:openExternal', url)
 });

@@ -34,78 +34,172 @@ class DiscordIPC {
     this.socket = null;
     this.ready = false;
     this.connecting = false;
-    this.status = 'discord_offline'; // connected | discord_offline | invalid_client_id
+    this.status = 'discord_offline'; // connected | connecting | discord_offline | invalid_client_id
     this.lastActivity = null;
     this.buffer = Buffer.alloc(0);
-    this.retryTimer = null;
+    this.watchdogTimer = null;
     this.destroyed = false;
   }
 
   start() {
+    this.destroyed = false;
     this.connect();
+    // Robuster Hintergrunddienst: Überwacht dauerhaft den Verbindungsstatus & wiederholt automatisch
+    if (!this.watchdogTimer) {
+      this.watchdogTimer = setInterval(() => this.watchdog(), 3000);
+    }
   }
 
-  scheduleRetry(ms = 10000) {
-    if (this.destroyed || this.retryTimer) return;
-    this.retryTimer = setTimeout(() => {
-      this.retryTimer = null;
+  watchdog() {
+    if (this.destroyed) return;
+    // 1. Wenn nicht verbunden und nicht gerade im Verbindungsaufbau: sofort versuchen zu verbinden!
+    if (!this.socket && !this.connecting) {
       this.connect();
-    }, ms);
+      return;
+    }
+    // 2. Wenn verbunden und bereit: periodischer Heartbeat / Refresh, damit Discord den Status nie verwirft
+    if (this.socket && this.ready && this.lastActivity) {
+      this.sendActivity(this.lastActivity);
+    }
   }
 
-  pipePath(i) {
-    if (process.platform === 'win32') return `\\\\?\\pipe\\discord-ipc-${i}`;
+  pipePaths(i) {
+    if (process.platform === 'win32') {
+      return [
+        `\\\\.\\pipe\\discord-ipc-${i}`,
+        `\\\\?\\pipe\\discord-ipc-${i}`
+      ];
+    }
     const base = process.env.XDG_RUNTIME_DIR || process.env.TMPDIR || process.env.TMP || process.env.TEMP || '/tmp';
-    return path.join(base, `discord-ipc-${i}`);
+    return [path.join(base, `discord-ipc-${i}`)];
   }
 
-  // Try pipes 0..9 sequentially (no parallel race conditions)
+  // Versucht alle Pipes 0..9 mit Timeout nacheinander
   connect() {
     if (this.destroyed || this.connecting || this.socket) return;
     this.connecting = true;
-    const tryPipe = (i) => {
-      if (this.destroyed) { this.connecting = false; return; }
-      if (i >= 10) {
+    this.status = 'connecting';
+
+    const pipesToTry = [];
+    for (let i = 0; i < 10; i++) {
+      for (const p of this.pipePaths(i)) {
+        pipesToTry.push(p);
+      }
+    }
+
+    let pipeIdx = 0;
+
+    const tryNext = () => {
+      if (this.destroyed) {
         this.connecting = false;
-        this.status = this.status === 'invalid_client_id' ? this.status : 'discord_offline';
-        this.scheduleRetry(15000);
         return;
       }
-      const sock = net.createConnection(this.pipePath(i));
-      let opened = false;
-      const onError = () => {
-        sock.removeAllListeners();
-        try { sock.destroy(); } catch (e) { /* ignore */ }
-        if (!opened) tryPipe(i + 1);
+      if (pipeIdx >= pipesToTry.length) {
+        this.connecting = false;
+        if (this.status !== 'invalid_client_id') {
+          this.status = 'discord_offline';
+        }
+        return;
+      }
+
+      const currentPath = pipesToTry[pipeIdx++];
+      let done = false;
+      let timer = null;
+      let sock = null;
+
+      const cleanup = () => {
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (sock) {
+          sock.removeAllListeners();
+          try { sock.destroy(); } catch (e) {}
+        }
       };
-      sock.once('error', onError);
+
+      const fail = () => {
+        if (done) return;
+        done = true;
+        cleanup();
+        tryNext();
+      };
+
+      try {
+        sock = net.createConnection(currentPath);
+      } catch (e) {
+        fail();
+        return;
+      }
+
+      // 1200ms Timeout pro Pipe-Versuch (verhindert Hänger bei toten Pipes)
+      timer = setTimeout(() => {
+        fail();
+      }, 1200);
+
+      sock.once('error', () => {
+        fail();
+      });
+
       sock.once('connect', () => {
-        opened = true;
-        sock.removeListener('error', onError);
+        if (done) {
+          try { sock.destroy(); } catch (e) {}
+          return;
+        }
+        done = true;
+        if (timer) { clearTimeout(timer); timer = null; }
+        sock.removeAllListeners('error');
         this.attach(sock);
         this.connecting = false;
       });
     };
-    tryPipe(0);
+
+    tryNext();
   }
 
   attach(sock) {
     this.socket = sock;
     this.ready = false;
     this.buffer = Buffer.alloc(0);
-    sock.on('data', (chunk) => this.onData(chunk));
-    sock.on('error', () => this.onClose());
-    sock.on('close', () => this.onClose());
+
+    // Handshake Timeout: falls Discord nicht innerhalb von 4s mit READY antwortet
+    let handshakeTimer = setTimeout(() => {
+      if (!this.ready && this.socket === sock) {
+        this.onClose();
+      }
+    }, 4000);
+
+    sock.on('data', (chunk) => {
+      this.onData(chunk);
+      if (this.ready && handshakeTimer) {
+        clearTimeout(handshakeTimer);
+        handshakeTimer = null;
+      }
+    });
+
+    sock.on('error', () => {
+      if (handshakeTimer) { clearTimeout(handshakeTimer); handshakeTimer = null; }
+      this.onClose();
+    });
+
+    sock.on('close', () => {
+      if (handshakeTimer) { clearTimeout(handshakeTimer); handshakeTimer = null; }
+      this.onClose();
+    });
+
     this.writeFrame(0, { v: 1, client_id: this.clientId });
   }
 
   onClose() {
-    if (!this.socket) return;
-    try { this.socket.removeAllListeners(); this.socket.destroy(); } catch (e) { /* ignore */ }
-    this.socket = null;
+    if (this.socket) {
+      try {
+        this.socket.removeAllListeners();
+        this.socket.destroy();
+      } catch (e) {}
+      this.socket = null;
+    }
     this.ready = false;
-    if (this.status === 'connected') this.status = 'discord_offline';
-    this.scheduleRetry(this.status === 'invalid_client_id' ? 60000 : 8000);
+    if (this.status === 'connected' || this.status === 'connecting') {
+      this.status = 'discord_offline';
+    }
+    // Der Watchdog-Timer versucht automatisch innerhalb von 3s erneut zu verbinden!
   }
 
   onData(chunk) {
@@ -123,12 +217,16 @@ class DiscordIPC {
   }
 
   handleMessage(op, msg) {
-    if (op === 1 && msg && msg.cmd === 'DISPATCH' && msg.evt === 'READY') {
-      this.ready = true;
-      this.status = 'connected';
-      if (this.lastActivity) this.sendActivity(this.lastActivity);
+    if (op === 1 && msg) {
+      if (msg.cmd === 'DISPATCH' && msg.evt === 'READY') {
+        this.ready = true;
+        this.status = 'connected';
+        if (this.lastActivity) {
+          this.sendActivity(this.lastActivity);
+        }
+      }
     } else if (op === 2) {
-      // CLOSE frame (e.g. invalid client id = code 4000)
+      // CLOSE frame (z. B. ungültige Client-ID = Code 4000)
       if (msg && (msg.code === 4000 || /client id/i.test(String(msg.message || '')))) {
         this.status = 'invalid_client_id';
       }
@@ -175,8 +273,11 @@ class DiscordIPC {
     const clean = this.sanitizeActivity(activity);
     if (!clean) return;
     this.lastActivity = clean;
-    if (!this.socket) { this.connect(); return; }
-    if (this.ready) this.sendActivity(clean);
+    if (!this.socket || !this.ready) {
+      if (!this.connecting) this.connect();
+      return;
+    }
+    this.sendActivity(clean);
   }
 
   sendActivity(activity) {
@@ -187,17 +288,22 @@ class DiscordIPC {
     });
   }
 
+  reconnect() {
+    if (this.socket) {
+      try { this.socket.destroy(); } catch (e) {}
+      this.socket = null;
+    }
+    this.ready = false;
+    this.connecting = false;
+    this.status = 'connecting';
+    this.connect();
+  }
+
   setClientId(id) {
     if (!isValidClientId(id) || id === this.clientId) return;
     this.clientId = id;
-    this.status = 'discord_offline';
-    if (this.socket) {
-      try { this.socket.removeAllListeners(); this.socket.destroy(); } catch (e) { /* ignore */ }
-      this.socket = null;
-      this.ready = false;
-    }
-    if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null; }
-    this.connect();
+    this.status = 'connecting';
+    this.reconnect();
   }
 
   clear() {
@@ -208,9 +314,15 @@ class DiscordIPC {
 
   destroy() {
     this.destroyed = true;
+    if (this.watchdogTimer) {
+      clearInterval(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
     this.clear();
-    if (this.retryTimer) clearTimeout(this.retryTimer);
-    if (this.socket) { try { this.socket.end(); } catch (e) { /* ignore */ } }
+    if (this.socket) {
+      try { this.socket.destroy(); } catch (e) {}
+      this.socket = null;
+    }
   }
 }
 
@@ -221,10 +333,20 @@ ipcMain.handle('discord:setActivity', (_e, payload) => {
     if (payload.clientId) discord.setClientId(String(payload.clientId));
     if (payload.activity) discord.setActivity(payload.activity);
   }
-  return { status: 'ok', discord: discord.status, clientId: discord.clientId };
+  return { status: 'ok', discord: discord.status, ready: discord.ready, clientId: discord.clientId };
 });
 
-ipcMain.handle('discord:status', () => ({ status: 'ok', discord: discord.status, clientId: discord.clientId }));
+ipcMain.handle('discord:status', () => ({
+  status: 'ok',
+  discord: discord.status,
+  ready: discord.ready,
+  clientId: discord.clientId
+}));
+
+ipcMain.handle('discord:reconnect', () => {
+  discord.reconnect();
+  return { status: 'ok', discord: discord.status, ready: discord.ready, clientId: discord.clientId };
+});
 
 // ==========================================
 // GITHUB AUTO-UPDATE CHECKER

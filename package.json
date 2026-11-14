@@ -1,7 +1,7 @@
 {
   "name": "neon-survivor",
   "productName": "Neon Survivor",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Ein rasanter Neon Sci-Fi Bullet-Heaven / Rogue-lite Survival Shooter.",
   "main": "main.js",

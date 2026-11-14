@@ -688,7 +688,10 @@ canvas { display: block; }
       <div style="margin-top:14px;padding:12px;background:rgba(88,101,242,0.15);border:1px solid rgba(88,101,242,0.4);border-radius:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
           <div style="font-weight:900;color:#5865F2;">🎮 DISCORD RICH PRESENCE</div>
-          <div id="discordStatusBadge" style="font-size:12px;font-weight:800;color:#aaa;">○ Prüfe Verbindung...</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div id="discordStatusBadge" style="font-size:12px;font-weight:800;color:#aaa;">○ Prüfe Verbindung...</div>
+            <button id="btnDiscordReconnect" type="button" class="btn sec" style="padding:2px 8px;font-size:11px;margin:0;line-height:1.2;">🔄 Neu verbinden</button>
+          </div>
         </div>
         <label style="font-size:13px;opacity:0.9;">Discord Application ID (Client ID):</label><br>
         <input type="text" id="txtDiscordId" placeholder="z. B. 1306300000000000000" style="width:100%;background:#090218;color:#3dfcff;border:1px solid #5865F2;padding:7px;border-radius:6px;font-family:monospace;box-sizing:border-box;margin-top:4px;">
@@ -783,9 +786,41 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('chkDamageNumbers').checked = s.damageNumbers !== false;
     document.getElementById('txtDiscordId').value = (s.discordClientId && s.discordClientId !== '1306300000000000000') ? s.discordClientId : '1570824779005689919';
     window.UI.renderKeybindings();
-    if (window.DiscordRPC) window.UI.updateDiscordStatusBadge(window.DiscordRPC.bridgeStatus, s.discordClientId);
+    if (window.NeonNative && window.NeonNative.discordStatus) {
+      window.NeonNative.discordStatus().then(data => {
+        if (data && data.discord && window.UI) {
+          window.UI.updateDiscordStatusBadge(data.discord, data.clientId);
+        }
+      }).catch(() => {});
+    } else if (window.DiscordRPC) {
+      window.UI.updateDiscordStatusBadge(window.DiscordRPC.bridgeStatus, s.discordClientId);
+    }
     window.UI.showScreen('settingsModal');
   };
+
+  const btnDiscordRec = document.getElementById('btnDiscordReconnect');
+  if (btnDiscordRec) {
+    btnDiscordRec.onclick = () => {
+      const s = window.SaveSystem.getSettings();
+      const inputId = document.getElementById('txtDiscordId').value.trim();
+      s.discordClientId = inputId;
+      window.SaveSystem.saveSettings(s);
+      if (window.UI) window.UI.updateDiscordStatusBadge('connecting');
+      if (window.NeonNative && window.NeonNative.discordReconnect) {
+        window.NeonNative.discordReconnect().then(d => {
+          if (d && window.UI) window.UI.updateDiscordStatusBadge(d.discord, d.clientId);
+        }).catch(() => {});
+      }
+      if (window.DiscordRPC) {
+        try {
+          window.DiscordRPC.send(JSON.parse(window.DiscordRPC.lastPayload || '{}'), true);
+        } catch (e) {
+          window.DiscordRPC.setMenu();
+        }
+      }
+      if (window.UI && window.UI.showToast) window.UI.showToast('Discord-Verbindung wird neu aufgebaut...');
+    };
+  }
 
   document.getElementById('selLang').onchange = e => {
     const newLang = e.target.value;

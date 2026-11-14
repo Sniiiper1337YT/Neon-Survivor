@@ -44,7 +44,10 @@ class DiscordPresence {
 
     // Native Electron build: talk to the main process over secure IPC
     if (window.NeonNative && window.NeonNative.discordSetActivity) {
-      if (isSame && !force) return; // Discord keeps the activity; no heartbeat needed
+      if (isSame && !force && this.bridgeStatus === 'connected' && (now - this.lastBeatTime) < 8000) {
+        return;
+      }
+      this.lastBeatTime = now;
       window.NeonNative.discordSetActivity(payload, clientId)
         .then(data => {
           if (data && data.discord) {
@@ -54,7 +57,12 @@ class DiscordPresence {
             }
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          this.bridgeStatus = 'discord_offline';
+          if (window.UI && window.UI.updateDiscordStatusBadge) {
+            window.UI.updateDiscordStatusBadge('discord_offline');
+          }
+        });
       return;
     }
 
@@ -173,9 +181,15 @@ class DiscordPresence {
   tick() {
     if (window.NeonNative && window.NeonNative.discordStatus) {
       window.NeonNative.discordStatus().then(data => {
-        if (data && data.discord && window.UI && window.UI.updateDiscordStatusBadge) {
+        if (data && data.discord) {
+          const oldStatus = this.bridgeStatus;
           this.bridgeStatus = data.discord;
-          window.UI.updateDiscordStatusBadge(data.discord, data.clientId);
+          if (window.UI && window.UI.updateDiscordStatusBadge) {
+            window.UI.updateDiscordStatusBadge(data.discord, data.clientId);
+          }
+          if (oldStatus !== 'connected' && data.discord === 'connected' && this.lastPayload) {
+            try { this.send(JSON.parse(this.lastPayload), true); } catch (e) {}
+          }
         }
       }).catch(() => {});
     }
@@ -186,11 +200,14 @@ class DiscordPresence {
         window.GameState.selectedMap,
         window.GameState.selectedMode
       );
-    } else if (Date.now() - this.lastBeatTime >= 5000 && this.lastPayload) {
-      try {
-        this.send(JSON.parse(this.lastPayload));
-      } catch (e) {
-        this.setMenu();
+    } else if (this.lastPayload) {
+      const elapsed = Date.now() - this.lastBeatTime;
+      if (elapsed >= 6000 || this.bridgeStatus !== 'connected') {
+        try {
+          this.send(JSON.parse(this.lastPayload));
+        } catch (e) {
+          this.setMenu();
+        }
       }
     }
   }

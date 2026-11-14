@@ -565,15 +565,18 @@ class UIEngine {
     if (status === 'connected') {
       el.style.color = '#5dff6a';
       el.innerText = '● Verbunden mit Discord';
+    } else if (status === 'connecting') {
+      el.style.color = '#3dfcff';
+      el.innerText = '🔄 Verbinde mit Discord (Wiederholung aktiv)...';
     } else if (status === 'invalid_client_id') {
       el.style.color = '#ffd23f';
-      el.innerText = '⚠ Client-ID ungültig (eigene ID eintragen)';
+      el.innerText = '⚠ Client-ID ungültig (Wiederholt im Hintergrund...)';
     } else if (status === 'discord_offline') {
-      el.style.color = '#ff7788';
-      el.innerText = '○ Discord-Desktop-App nicht gefunden';
+      el.style.color = '#ff9966';
+      el.innerText = '○ Discord nicht aktiv (Wiederholt im Hintergrund alle 3s...)';
     } else {
       el.style.color = '#aaa';
-      el.innerText = '○ Nur aktiv über Neon Survivor.exe';
+      el.innerText = '○ Verbindung zum Discord-Dienst wird aufgebaut...';
     }
   }
 
