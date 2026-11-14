@@ -1,6 +1,7 @@
 // ==========================================
 // NEON SURVIVOR - AUDIO SYSTEM (Web Audio API)
 // Procedural Synthwave Music & Neon SFX
+// Master Limiter, Polyphony Management & Ear-Friendly Acoustics
 // ==========================================
 'use strict';
 
@@ -8,10 +9,14 @@ class SoundSystem {
   constructor() {
     this.ac = null;
     this.master = null;
+    this.limiter = null;
+    this.sfxFilter = null;
     this.sfxGain = null;
     this.musicGain = null;
     this.noiseBuf = null;
     this.lastSfx = {};
+    this.recentSfx = [];
+    this.gemStep = 0;
     this.musicNext = 0;
     this.musicStep = 0;
     this.musicInterval = null;
@@ -31,13 +36,34 @@ class SoundSystem {
       return;
     }
 
+    // 1. Audio Nodes
     this.master = this.ac.createGain();
     this.sfxGain = this.ac.createGain();
     this.musicGain = this.ac.createGain();
 
-    this.sfxGain.connect(this.master);
+    // 2. SFX Bus Low-Pass Filter: entfernt schneidende, schmerzhafte Frequenzen über 4500 Hz
+    this.sfxFilter = this.ac.createBiquadFilter();
+    this.sfxFilter.type = 'lowpass';
+    this.sfxFilter.frequency.value = 4500;
+    this.sfxFilter.Q.value = 0.7;
+
+    // 3. Master Dynamics Compressor / Brickwall Limiter
+    // Verhindert digitales Clipping, Übersteuerung und laute Lautstärke-Spitzen bei Massenangriffen!
+    this.limiter = this.ac.createDynamicsCompressor();
+    this.limiter.threshold.value = -12; // Greift frühzeitig sanft ein
+    this.limiter.knee.value = 10;        // Weicher Übergang
+    this.limiter.ratio.value = 16;       // Starker Schutz gegen Übersteuerung
+    this.limiter.attack.value = 0.002;   // Blitzschnelle 2ms Reaktionszeit
+    this.limiter.release.value = 0.12;   // Schnelles, natürliches Abklingen
+
+    // Signalfluss:
+    // [SFX] -> sfxGain -> sfxFilter -> master ↘
+    // [Musik] ----------> musicGain -> master -> limiter -> Lautsprecher / Kopfhörer
+    this.sfxGain.connect(this.sfxFilter);
+    this.sfxFilter.connect(this.master);
     this.musicGain.connect(this.master);
-    this.master.connect(this.ac.destination);
+    this.master.connect(this.limiter);
+    this.limiter.connect(this.ac.destination);
 
     this.applyVolumes();
 
@@ -57,8 +83,8 @@ class SoundSystem {
     if (!this.master) return;
     const settings = window.SaveSystem ? window.SaveSystem.getSettings() : { volMaster: 0.8, volMusic: 0.6, volSfx: 0.7 };
     this.master.gain.value = settings.volMaster;
-    this.musicGain.gain.value = settings.volMusic * 0.45;
-    this.sfxGain.gain.value = settings.volSfx * 0.75;
+    this.musicGain.gain.value = settings.volMusic * 0.40;
+    this.sfxGain.gain.value = settings.volSfx * 0.55;
   }
 
   note(t, f, dur, type, vol, dest, slide = 1, filt = 0) {
@@ -110,112 +136,196 @@ class SoundSystem {
   sfx(name) {
     if (!this.ac) return;
     const t = this.ac.currentTime;
+
+    // 1. Voice-Throttling Gaps (verhindert das Überlagern von Dutzenden identischen Sounds im selben Frame)
     const gap = {
-      shoot: 0.05, hit: 0.03, gem: 0.03, kill: 0.04, zap: 0.05,
-      boom: 0.06, laser: 0.08, flak: 0.07, saw: 0.07, fire: 0.06
-    }[name] || 0;
-    if (gap && this.lastSfx[name] && t - this.lastSfx[name] < gap) return;
+      shoot: 0.065,
+      hit: 0.050,
+      crit: 0.065,
+      kill: 0.048,
+      gem: 0.040,
+      zap: 0.070,
+      boom: 0.080,
+      laser: 0.080,
+      flak: 0.075,
+      saw: 0.075,
+      fire: 0.065,
+      dash: 0.120,
+      hurt: 0.150,
+      freeze: 0.090,
+      pickup: 0.080,
+      nova: 0.090,
+      magnet: 0.100,
+      heal: 0.100,
+      shield: 0.120,
+      shield_break: 0.150,
+      click: 0.035
+    }[name] || 0.045;
+
+    if (this.lastSfx[name] && t - this.lastSfx[name] < gap) return;
     this.lastSfx[name] = t;
+
+    // 2. Dynamisches Dichtigkeit-Ducking (Combat Burst Scaling):
+    // Misst die Anzahl der SFX-Aufrufe in einem rollenden 140ms-Fenster.
+    // Wenn in einer Sekunde viele Gegner getroffen werden, skaliert die Einzellautstärke automatisch sanft ab,
+    // sodass der Soundmix sauber, differenziert und angenehm für die Ohren bleibt.
+    if (!this.recentSfx) this.recentSfx = [];
+    this.recentSfx = this.recentSfx.filter(stamp => t - stamp < 0.14);
+    this.recentSfx.push(t);
+    const density = this.recentSfx.length;
+    const scale = density > 2 ? Math.max(0.40, 1 / (1 + (density - 2) * 0.16)) : 1.0;
+
     const D = this.sfxGain;
 
     switch (name) {
       case 'shoot':
-        this.note(t, 920, 0.06, 'square', 0.04, D, 0.4);
+        this.note(t, 760, 0.05, 'triangle', 0.038 * scale, D, 0.35, 1900);
         break;
+
       case 'hit':
-        this.noise(t, 0.04, 0.06, 2800, 'lowpass', D);
+        // Weicher, dumpfer Treffertick statt kratzigem Rauschen
+        this.noise(t, 0.025, 0.030 * scale, 1200, 'lowpass', D);
+        this.note(t, 150, 0.025, 'triangle', 0.025 * scale, D, 0.45);
         break;
+
       case 'crit':
-        this.note(t, 1400, 0.08, 'sawtooth', 0.12, D, 1.8);
-        this.noise(t, 0.06, 0.08, 4500, 'bandpass', D);
+        // Harmonischer, belohnender Doppelton (880 Hz / 1320 Hz) statt stechendem 2500Hz-Sägezahn
+        this.note(t, 880, 0.065, 'sine', 0.060 * scale, D, 0.85);
+        this.note(t + 0.01, 1320, 0.055, 'triangle', 0.040 * scale, D, 0.90);
+        this.noise(t, 0.025, 0.025 * scale, 1800, 'bandpass', D);
         break;
+
       case 'kill':
-        this.note(t, 340, 0.11, 'triangle', 0.12, D, 0.3);
-        this.noise(t, 0.08, 0.07, 1400, 'lowpass', D);
+        // Satte, trockene Pop-Explosion
+        this.note(t, 220, 0.075, 'triangle', 0.075 * scale, D, 0.32);
+        this.noise(t, 0.045, 0.035 * scale, 900, 'lowpass', D);
         break;
-      case 'gem':
-        this.note(t, 1100 + Math.random() * 600, 0.06, 'sine', 0.07, D, 1.5);
+
+      case 'gem': {
+        // Pentatonische Tonleiter (C - E - G - C - E) für funkelnden, melodischen Klang
+        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+        this.gemStep = ((this.gemStep || 0) + 1) % notes.length;
+        const f = notes[this.gemStep];
+        this.note(t, f, 0.045, 'sine', 0.035 * scale, D, 1.05);
         break;
+      }
+
       case 'hurt':
-        this.note(t, 160, 0.28, 'sawtooth', 0.24, D, 0.35);
-        this.noise(t, 0.2, 0.22, 900, 'lowpass', D);
+        this.note(t, 140, 0.22, 'sawtooth', 0.16 * scale, D, 0.35, 900);
+        this.noise(t, 0.16, 0.13 * scale, 750, 'lowpass', D);
         break;
+
       case 'dash':
-        this.noise(t, 0.2, 0.18, 2600, 'bandpass', D);
-        this.note(t, 420, 0.14, 'sine', 0.08, D, 2.5);
+        this.noise(t, 0.15, 0.11 * scale, 2100, 'bandpass', D);
+        this.note(t, 360, 0.11, 'sine', 0.055 * scale, D, 2.0);
         break;
+
       case 'laser':
-        this.note(t, 1800, 0.14, 'sawtooth', 0.06, D, 0.5, 3000);
+        this.note(t, 1100, 0.09, 'sawtooth', 0.045 * scale, D, 0.45, 2300);
         break;
+
       case 'zap':
-        this.note(t, 1600, 0.12, 'sawtooth', 0.08, D, 0.3);
-        this.noise(t, 0.08, 0.09, 4500, 'highpass', D);
+        this.note(t, 920, 0.07, 'triangle', 0.050 * scale, D, 0.35, 2200);
+        this.noise(t, 0.04, 0.030 * scale, 2200, 'bandpass', D);
         break;
+
       case 'boom':
-        this.note(t, 120, 0.38, 'sine', 0.32, D, 0.25);
-        this.noise(t, 0.32, 0.24, 1100, 'lowpass', D);
+        this.note(t, 105, 0.26, 'sine', 0.19 * scale, D, 0.25);
+        this.noise(t, 0.22, 0.13 * scale, 850, 'lowpass', D);
         break;
+
       case 'missile':
-        this.note(t, 360, 0.16, 'sawtooth', 0.08, D, 1.8, 1600);
-        this.noise(t, 0.14, 0.08, 1400, 'bandpass', D);
+        this.note(t, 320, 0.14, 'sawtooth', 0.055 * scale, D, 1.6, 1500);
+        this.noise(t, 0.12, 0.055 * scale, 1200, 'bandpass', D);
         break;
+
       case 'flak':
-        this.noise(t, 0.12, 0.2, 800, 'lowpass', D);
-        this.note(t, 220, 0.1, 'square', 0.08, D, 0.4);
+        this.noise(t, 0.08, 0.11 * scale, 650, 'lowpass', D);
+        this.note(t, 180, 0.07, 'triangle', 0.055 * scale, D, 0.4);
         break;
+
       case 'saw':
-        this.note(t, 480, 0.08, 'sawtooth', 0.05, D, 1.2, 2000);
+        this.note(t, 400, 0.07, 'sawtooth', 0.032 * scale, D, 1.1, 1500);
         break;
+
       case 'fire':
-        this.noise(t, 0.09, 0.08, 1200, 'bandpass', D);
+        this.noise(t, 0.07, 0.055 * scale, 950, 'bandpass', D);
         break;
+
       case 'freeze':
-        this.note(t, 1200, 0.35, 'sine', 0.15, D, 0.4);
-        this.noise(t, 0.25, 0.1, 5000, 'highpass', D);
+        this.note(t, 850, 0.22, 'sine', 0.09 * scale, D, 0.4);
+        this.noise(t, 0.16, 0.055 * scale, 3000, 'bandpass', D);
         break;
+
+      case 'nova':
+        this.note(t, 240, 0.22, 'sine', 0.12 * scale, D, 2.5);
+        this.noise(t, 0.18, 0.08 * scale, 1700, 'bandpass', D);
+        break;
+
+      case 'magnet':
+        this.note(t, 520, 0.12, 'sine', 0.07 * scale, D, 2.0);
+        break;
+
+      case 'heal':
+        this.note(t, 440, 0.15, 'sine', 0.08 * scale, D, 1.5);
+        this.note(t + 0.05, 660, 0.18, 'sine', 0.08 * scale, D, 1.2);
+        break;
+
       case 'nuke':
-        this.note(t, 90, 1.2, 'sawtooth', 0.4, D, 0.2, 600);
-        this.noise(t, 1.0, 0.35, 800, 'lowpass', D);
+        this.note(t, 85, 1.0, 'sawtooth', 0.28, D, 0.2, 550);
+        this.noise(t, 0.8, 0.24, 750, 'lowpass', D);
         break;
+
       case 'shield':
-        this.note(t, 600, 0.2, 'sine', 0.18, D, 1.8);
-        this.note(t + 0.08, 900, 0.25, 'sine', 0.15, D, 1.2);
+        this.note(t, 550, 0.18, 'sine', 0.14, D, 1.6);
+        this.note(t + 0.07, 820, 0.22, 'sine', 0.12, D, 1.2);
         break;
+
       case 'shield_break':
-        this.note(t, 450, 0.2, 'square', 0.2, D, 0.3);
-        this.noise(t, 0.15, 0.25, 3000, 'bandpass', D);
+        this.note(t, 380, 0.18, 'square', 0.14, D, 0.3, 1400);
+        this.noise(t, 0.13, 0.16, 2400, 'bandpass', D);
         break;
+
       case 'overload':
-        [220, 440, 880, 1760].forEach((f, i) => this.note(t + i * 0.05, f, 0.4, 'sawtooth', 0.12, D, 1.2));
-        this.noise(t, 0.5, 0.25, 3000, 'bandpass', D);
+        [220, 440, 880, 1320].forEach((f, i) => this.note(t + i * 0.05, f, 0.35, 'triangle', 0.09, D, 1.1));
+        this.noise(t, 0.4, 0.18, 2500, 'bandpass', D);
         break;
+
       case 'level':
-        [523, 659, 784, 1047].forEach((f, i) => this.note(t + i * 0.07, f, 0.22, 'square', 0.08, D));
+      case 'levelup':
+        [523, 659, 784, 1047].forEach((f, i) => this.note(t + i * 0.07, f, 0.18, 'triangle', 0.065, D));
         break;
+
       case 'evolution':
-        [440, 554, 659, 880, 1108].forEach((f, i) => this.note(t + i * 0.09, f, 0.35, 'square', 0.12, D));
-        this.noise(t, 0.6, 0.2, 3500, 'bandpass', D);
+        [440, 554, 659, 880, 1108].forEach((f, i) => this.note(t + i * 0.08, f, 0.28, 'triangle', 0.09, D));
+        this.noise(t, 0.5, 0.14, 2800, 'bandpass', D);
         break;
+
       case 'boss':
-        this.note(t, 85, 1.5, 'sawtooth', 0.3, D, 0.4, 700);
-        this.note(t, 65, 1.5, 'square', 0.2, D, 0.4, 500);
+        this.note(t, 80, 1.4, 'sawtooth', 0.24, D, 0.4, 600);
+        this.note(t, 60, 1.4, 'square', 0.16, D, 0.4, 450);
         break;
+
       case 'victory':
-        [523, 659, 784, 1047, 1318].forEach((f, i) => this.note(t + i * 0.1, f, 0.6, 'sine', 0.15, D));
+        [523, 659, 784, 1047, 1318].forEach((f, i) => this.note(t + i * 0.1, f, 0.5, 'sine', 0.12, D));
         break;
+
       case 'over':
-        this.note(t, 440, 1.2, 'sawtooth', 0.22, D, 0.2, 1200);
-        this.note(t + 0.15, 330, 1.2, 'sawtooth', 0.18, D, 0.2, 900);
+        this.note(t, 380, 1.0, 'sawtooth', 0.17, D, 0.2, 1000);
+        this.note(t + 0.14, 280, 1.0, 'sawtooth', 0.14, D, 0.2, 800);
         break;
+
       case 'click':
-        this.note(t, 750, 0.05, 'square', 0.06, D, 1.3);
+        this.note(t, 680, 0.04, 'sine', 0.05, D, 1.2);
         break;
+
       case 'pickup':
-        this.note(t, 660, 0.12, 'sine', 0.14, D, 1.8);
-        this.note(t + 0.07, 990, 0.12, 'sine', 0.12, D, 1.4);
+        this.note(t, 620, 0.10, 'sine', 0.11, D, 1.6);
+        this.note(t + 0.06, 930, 0.10, 'sine', 0.09, D, 1.3);
         break;
+
       case 'achievement':
-        [659, 880, 1175, 1318].forEach((f, i) => this.note(t + i * 0.08, f, 0.3, 'sine', 0.1, D));
+        [659, 880, 1175, 1318].forEach((f, i) => this.note(t + i * 0.08, f, 0.25, 'sine', 0.08, D));
         break;
     }
   }
@@ -252,31 +362,31 @@ class SoundSystem {
 
     // Kick
     if (st % 4 === 0 && (isPlaying || this.theme === 'boss')) {
-      const kickVol = isOverload ? 0.9 : 0.7;
+      const kickVol = isOverload ? 0.65 : 0.50;
       this.note(t, 160, 0.16, 'sine', kickVol, M, 0.28);
     }
 
     // Hi-hat
     if (st % 2 === 1) {
-      this.noise(t, 0.03, isOverload ? 0.08 : 0.04, 7500, 'highpass', M);
+      this.noise(t, 0.03, isOverload ? 0.06 : 0.035, 6000, 'highpass', M);
     }
 
     // Snare / Clap
     if ((st === 4 || st === 12) && isPlaying) {
-      this.noise(t, 0.13, isOverload ? 0.22 : 0.16, 2000, 'bandpass', M);
+      this.noise(t, 0.12, isOverload ? 0.18 : 0.13, 1900, 'bandpass', M);
     }
 
     // Bassline
     if (st % 2 === 0 || st === 7 || st === 15) {
       const root = ch[0] + (st % 8 === 6 ? 12 : 0);
       const f = 55 * Math.pow(2, root / 12);
-      this.note(t, f, STEP * 0.95, 'sawtooth', isOverload ? 0.32 : 0.22, M, 1, isOverload ? 800 : 500);
+      this.note(t, f, STEP * 0.95, 'sawtooth', isOverload ? 0.26 : 0.18, M, 1, isOverload ? 800 : 500);
     }
 
     // Arpeggio melody
     const n = ch[st % 3] + 12 * (1 + (Math.floor(st / 3) % 2));
-    const arpVol = isOverload ? 0.06 : 0.03;
-    this.note(t, 220 * Math.pow(2, n / 12), STEP * 0.8, 'square', arpVol, M, 1, 2600);
+    const arpVol = isOverload ? 0.05 : 0.028;
+    this.note(t, 220 * Math.pow(2, n / 12), STEP * 0.8, 'square', arpVol, M, 1, 2400);
   }
 }
 
