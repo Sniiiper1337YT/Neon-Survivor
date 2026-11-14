@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:39182; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:39182 https://api.github.com; object-src 'none'; base-uri 'none'">
 <title>Neon Survivor</title>
 <style>
 /* ================= GLOBAL STYLES ================= */
@@ -521,6 +521,20 @@ canvas { display: block; }
   <div class="logo">NEON<br><span>SURVIVOR</span></div>
   <div class="sub">15 Waffen · 6 Bosse · 50 Erfolge · Meta-Progression</div>
 
+  <!-- DYNAMIC GITHUB UPDATE BANNER -->
+  <div id="updateBanner" style="display:none; max-width:540px; margin: 12px auto 16px auto; background: rgba(0, 255, 204, 0.08); border: 1.5px solid #00ffcc; border-radius: 8px; padding: 10px 18px; box-shadow: 0 0 20px rgba(0, 255, 204, 0.25); text-align: center;">
+    <div style="font-weight:900; color:#00ffcc; font-size:15px; letter-spacing:1px;">
+      🚀 NEUES UPDATE VERFÜGBAR: <span id="updateTag">v1.0.1</span>
+    </div>
+    <div style="font-size:12px; color:#aaa; margin: 4px 0 8px 0;" id="updateNotes">
+      Eine neue Version von Neon Survivor steht zum Download bereit!
+    </div>
+    <div style="display:flex; justify-content:center; gap:10px;">
+      <button class="btn act" id="btnUpdateDownload" style="padding:6px 16px; font-size:12px; margin:0;">⬇️ Jetzt Aktualisieren</button>
+      <button class="btn sec" id="btnUpdateDismiss" style="padding:6px 12px; font-size:12px; margin:0; border-color:#555; color:#888;">Später</button>
+    </div>
+  </div>
+
   <div style="margin-bottom:18px;">
     <button class="btn gold" id="btnPlay" style="font-size:24px;padding:16px 54px;">▶ SPIELEN</button>
   </div>
@@ -537,6 +551,9 @@ canvas { display: block; }
 
   <div style="margin-top:25px;font-size:15px;opacity:0.8;">
     <b>WASD / Maus / Gamepad</b> Bewegen &nbsp;·&nbsp; <b>Leertaste / Linksklick</b> Dash &nbsp;·&nbsp; <b>E / Rechtsklick</b> Neon Overload
+  </div>
+  <div style="margin-top:14px;font-size:12px;color:#556;">
+    Neon Survivor <span id="lblCurrentVer">v1.0.0</span> &nbsp;·&nbsp; Entwickelt von Sniiiper1337YT
   </div>
 </div>
 
@@ -884,6 +901,77 @@ window.addEventListener('DOMContentLoaded', () => {
       e.preventDefault(); return false;
     }
   });
+
+  // ==========================================
+  // GITHUB AUTO-UPDATE CHECKER
+  // ==========================================
+  const checkUpdates = async () => {
+    try {
+      const currentVer = (window.NeonNative && window.NeonNative.appVersion) || '1.0.0';
+      const lblVer = document.getElementById('lblCurrentVer');
+      if (lblVer) lblVer.innerText = 'v' + currentVer;
+
+      let info = null;
+      if (window.NeonNative && window.NeonNative.checkForUpdates) {
+        info = await window.NeonNative.checkForUpdates();
+      } else {
+        const res = await fetch('https://api.github.com/repos/Sniiiper1337YT/Neon-Survivor/releases/latest');
+        if (res.ok) {
+          const rel = await res.json();
+          const remoteVer = rel.tag_name || rel.name || '';
+          const parse = v => (v || '').replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+          const r = parse(remoteVer), c = parse(currentVer);
+          let isNewer = false;
+          for (let i = 0; i < 3; i++) {
+            if ((r[i] || 0) > (c[i] || 0)) { isNewer = true; break; }
+            if ((r[i] || 0) < (c[i] || 0)) break;
+          }
+          if (isNewer) {
+            let dl = rel.html_url;
+            if (Array.isArray(rel.assets) && rel.assets.length > 0) {
+              const zipAsset = rel.assets.find(a => a.name && a.name.endsWith('.zip')) || rel.assets[0];
+              if (zipAsset && zipAsset.browser_download_url) dl = zipAsset.browser_download_url;
+            }
+            info = {
+              updateAvailable: true,
+              latestVersion: remoteVer,
+              downloadUrl: dl,
+              notes: rel.name || 'Neues Update verfügbar!'
+            };
+          }
+        }
+      }
+
+      if (info && info.updateAvailable) {
+        const banner = document.getElementById('updateBanner');
+        const tag = document.getElementById('updateTag');
+        const notes = document.getElementById('updateNotes');
+        if (tag && info.latestVersion) tag.innerText = info.latestVersion;
+        if (notes && info.notes) notes.innerText = info.notes;
+        if (banner) banner.style.display = 'block';
+
+        const btnDl = document.getElementById('btnUpdateDownload');
+        if (btnDl) {
+          btnDl.onclick = () => {
+            const targetUrl = info.downloadUrl || 'https://github.com/Sniiiper1337YT/Neon-Survivor/releases';
+            if (window.NeonNative && window.NeonNative.openExternal) {
+              window.NeonNative.openExternal(targetUrl);
+            } else {
+              window.open(targetUrl, '_blank');
+            }
+          };
+        }
+        const btnDismiss = document.getElementById('btnUpdateDismiss');
+        if (btnDismiss) {
+          btnDismiss.onclick = () => { if (banner) banner.style.display = 'none'; };
+        }
+      }
+    } catch (err) {
+      console.log('Update-Check übersprungen:', err.message);
+    }
+  };
+
+  setTimeout(checkUpdates, 1500);
 });
 </script>
 </body>

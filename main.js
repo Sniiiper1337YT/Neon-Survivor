@@ -227,6 +227,65 @@ ipcMain.handle('discord:setActivity', (_e, payload) => {
 ipcMain.handle('discord:status', () => ({ status: 'ok', discord: discord.status, clientId: discord.clientId }));
 
 // ==========================================
+// GITHUB AUTO-UPDATE CHECKER
+// ==========================================
+function parseSemver(v) {
+  if (!v || typeof v !== 'string') return [0, 0, 0];
+  const cleaned = v.replace(/^v/i, '').trim();
+  const parts = cleaned.split('.').map(n => parseInt(n, 10) || 0);
+  while (parts.length < 3) parts.push(0);
+  return parts;
+}
+
+function compareSemver(remote, current) {
+  const r = parseSemver(remote);
+  const c = parseSemver(current);
+  for (let i = 0; i < 3; i++) {
+    if (r[i] > c[i]) return 1;
+    if (r[i] < c[i]) return -1;
+  }
+  return 0;
+}
+
+ipcMain.handle('app:checkUpdate', async () => {
+  try {
+    const res = await fetch('https://api.github.com/repos/Sniiiper1337YT/Neon-Survivor/releases/latest', {
+      headers: { 'User-Agent': 'Neon-Survivor-Game' }
+    });
+    if (!res.ok) return { updateAvailable: false };
+    const rel = await res.json();
+    const remoteVer = rel.tag_name || rel.name || '';
+    const currentVer = app.getVersion() || require('./package.json').version || '1.0.0';
+    const isNewer = compareSemver(remoteVer, currentVer) > 0;
+    let downloadUrl = rel.html_url;
+    if (Array.isArray(rel.assets) && rel.assets.length > 0) {
+      const zipAsset = rel.assets.find(a => a.name && a.name.endsWith('.zip')) || rel.assets[0];
+      if (zipAsset && zipAsset.browser_download_url) {
+        downloadUrl = zipAsset.browser_download_url;
+      }
+    }
+    return {
+      updateAvailable: isNewer,
+      currentVersion: currentVer,
+      latestVersion: remoteVer,
+      downloadUrl,
+      title: rel.name || remoteVer,
+      notes: rel.body ? rel.body.slice(0, 200) : ''
+    };
+  } catch (e) {
+    return { updateAvailable: false };
+  }
+});
+
+ipcMain.handle('app:openExternal', (_e, url) => {
+  if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+    shell.openExternal(url);
+    return true;
+  }
+  return false;
+});
+
+// ==========================================
 // ELECTRON GAME WINDOW
 // ==========================================
 let mainWindow = null;
