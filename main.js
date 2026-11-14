@@ -229,6 +229,21 @@ ipcMain.handle('discord:status', () => ({ status: 'ok', discord: discord.status,
 // ==========================================
 // GITHUB AUTO-UPDATE CHECKER
 // ==========================================
+function getAppVersion() {
+  try {
+    const pkgPath = path.join(__dirname, 'package.json');
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      if (pkg && pkg.version) return pkg.version;
+    }
+  } catch (e) {}
+  return app.getVersion() || '1.0.1';
+}
+
+ipcMain.on('app:getVersionSync', (event) => {
+  event.returnValue = getAppVersion();
+});
+
 function parseSemver(v) {
   if (!v || typeof v !== 'string') return [0, 0, 0];
   const cleaned = v.replace(/^v/i, '').trim();
@@ -255,7 +270,7 @@ ipcMain.handle('app:checkUpdate', async () => {
     if (!res.ok) return { updateAvailable: false };
     const rel = await res.json();
     const remoteVer = rel.tag_name || rel.name || '';
-    const currentVer = app.getVersion() || require('./package.json').version || '1.0.0';
+    const currentVer = getAppVersion();
     const isNewer = compareSemver(remoteVer, currentVer) > 0;
     let downloadUrl = rel.html_url;
     if (Array.isArray(rel.assets) && rel.assets.length > 0) {

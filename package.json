@@ -1,14 +1,14 @@
 {
   "name": "neon-survivor",
   "productName": "Neon Survivor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Ein rasanter Neon Sci-Fi Bullet-Heaven / Rogue-lite Survival Shooter.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "test": "node --check main.js && node --check preload.js",
-    "build": "electron-packager . \"Neon Survivor\" --platform=win32 --arch=x64 --out=build --icon=data/src/icon.ico --overwrite --asar --prune --app-version=1.0.0 --win32metadata.CompanyName=Sniiiper1337YT --win32metadata.ProductName=\"Neon Survivor\" --win32metadata.FileDescription=\"Neon Survivor\" --app-copyright=\"Copyright (c) 2026 Sniiiper1337YT\" --ignore=\"^/build\" --ignore=\"^/data/src/Launcher\\.cs$\" --ignore=\"^/Neon Survivor\\.exe$\" --ignore=\"^/README\\.md$\" --ignore=\"^/\\.git\""
+    "build": "electron-packager . \"Neon Survivor\" --platform=win32 --arch=x64 --out=build --icon=data/src/icon.ico --overwrite --asar --prune --win32metadata.CompanyName=Sniiiper1337YT --win32metadata.ProductName=\"Neon Survivor\" --win32metadata.FileDescription=\"Neon Survivor\" --app-copyright=\"Copyright (c) 2026 Sniiiper1337YT\" --ignore=\"^/build\" --ignore=\"^/data/src/Launcher\\.cs$\" --ignore=\"^/Neon Survivor\\.exe$\" --ignore=\"^/README\\.md$\" --ignore=\"^/\\.git\""
   },
   "repository": {
     "type": "git",
