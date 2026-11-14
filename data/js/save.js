@@ -463,6 +463,19 @@ class SaveSystem {
     if (a['boss_final']) this.unlockMode('chaos');
   }
 
+  resetAll() {
+    this.testSnapshot = null;
+    const settings = JSON.parse(JSON.stringify(this.data.settings));
+    this.data = this.getDefaultSave();
+    this.data.settings = settings; // retain user settings (volume, keys)
+    try {
+      localStorage.removeItem(this.STORAGE_KEY);
+      localStorage.removeItem(this.STORAGE_KEY + '_bak');
+    } catch (e) { /* ignore */ }
+    this.save();
+    return true;
+  }
+
   exportJson() {
     const json = JSON.stringify(this.getPersistData());
     const envelope = {
