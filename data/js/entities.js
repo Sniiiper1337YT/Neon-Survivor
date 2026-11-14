@@ -422,9 +422,9 @@ class EntityManager {
             this.spawnParticle(h.x, h.y, '#00d5ff', 22, 240, 4, 0.6);
             this.fx.push({ type: 'ring', x: h.x, y: h.y, r0: h.r * 0.5, r1: h.r * 2.1, life: 0.35, max: 0.35, col: '#00d5ff' });
             for (let g = 0; g < 3; g++) this.dropGem(h.x + (Math.random() * 26 - 13), h.y + (Math.random() * 26 - 13), 3);
-            window.GameState.creditsEarned += 5;
-            window.SaveSystem.addCredits(5);
-            this.addText(h.x, h.y, '+5 💎', '#00ffcc', false);
+            const gotCr = window.SaveSystem.addCredits(5);
+            window.GameState.creditsEarned += gotCr;
+            if (gotCr) this.addText(h.x, h.y, `+${gotCr} 💎`, '#00ffcc', false);
             if (window.SoundSystem) window.SoundSystem.sfx('boom');
           }
         }
@@ -1184,17 +1184,19 @@ class EntityManager {
         this.addText(P.x, P.y - 20, '⚡ OVERDRIVE!', '#ffd23f', true);
         window.SaveSystem.unlockAchievement('overdrive_used');
         break;
-      case 'credit_cache':
-        window.GameState.creditsEarned += 50;
-        window.SaveSystem.addCredits(50);
-        this.addText(P.x, P.y - 20, '+50 CREDITS', '#00ffcc', true);
+      case 'credit_cache': {
+        const got = window.SaveSystem.addCredits(50);
+        window.GameState.creditsEarned += got;
+        this.addText(P.x, P.y - 20, got ? `+${got} CREDITS` : 'CREDITS (TEST)', '#00ffcc', true);
         break;
-      case 'credit_vault':
-        window.GameState.creditsEarned += 200;
-        window.SaveSystem.addCredits(200);
-        this.addText(P.x, P.y - 20, '👑 +200 CREDITS!', '#ffd700', true);
+      }
+      case 'credit_vault': {
+        const got = window.SaveSystem.addCredits(200);
+        window.GameState.creditsEarned += got;
+        this.addText(P.x, P.y - 20, got ? `👑 +${got} CREDITS!` : '👑 VAULT (TEST)', '#ffd700', true);
         window.SaveSystem.unlockAchievement('vault_found');
         break;
+      }
       case 'xp_boost':
         P.xpMultiplierTimer = 15.0;
         this.addText(P.x, P.y - 20, '2x XP BOOST!', '#b44dff', true);

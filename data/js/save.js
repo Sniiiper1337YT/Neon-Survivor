@@ -7,6 +7,7 @@
 class SaveSystem {
   constructor() {
     this.STORAGE_KEY = 'neon_survivor_save_v2';
+    this.testSnapshot = null;
     this.data = this.getDefaultSave();
     this.load();
   }
@@ -128,51 +129,32 @@ class SaveSystem {
 
   load() {
     try {
-      const raw = localStorage.getItem(this.STORAGE_KEY) || localStorage.getItem('neon_survivor_save_v1');
-      if (raw) {
-        let jsonStr = null;
-        let isEnvelope = false;
+      const rawV2 = localStorage.getItem(this.STORAGE_KEY);
+      const rawBak = localStorage.getItem(this.STORAGE_KEY + '_bak');
+      const rawV1 = localStorage.getItem('neon_survivor_save_v1');
 
-        // Check if saved as encrypted tamper-proof envelope
+      // 1) Regular encrypted save, 2) automatic backup, 3) one-time migration of the old v1 format
+      let jsonStr = this.readEnvelope(rawV2);
+      if (!jsonStr && rawV2) {
+        console.warn('⚠️ Spielstand ungültig oder manipuliert – Backup wird geladen.');
+        jsonStr = this.readEnvelope(rawBak);
+        if (window.UI && window.UI.showToast) window.UI.showToast('⚠️ Ungültiger Spielstand abgewiesen – Backup geladen.');
+      }
+      if (!jsonStr && !rawV2 && rawV1) {
         try {
-          const envelope = JSON.parse(raw);
-          if (envelope && envelope.v === 2 && envelope.c && envelope.p) {
-            isEnvelope = true;
-            const decrypted = this.decryptPayload(envelope.p);
-            const expectedChecksum = this.computeChecksum(decrypted);
-            if (expectedChecksum === envelope.c) {
-              jsonStr = decrypted;
-            } else {
-              console.warn('⚠️ Manipulierter Spielstand erkannt (Prüfsummen-Fehler)! Sicherer Spielstand wiederhergestellt.');
-              if (window.UI && window.UI.showToast) window.UI.showToast('⚠️ Manipulierter Spielstand abgewiesen!');
-            }
-          }
-        } catch (e) { }
+          const legacyParsed = JSON.parse(rawV1);
+          if (legacyParsed && legacyParsed.version) jsonStr = rawV1;
+        } catch (e) { /* ignore */ }
+      }
 
-        // Fallback / Migration: If raw is legacy plain JSON string
-        if (!jsonStr && !isEnvelope) {
-          try {
-            const legacyParsed = JSON.parse(raw);
-            if (legacyParsed && legacyParsed.version) {
-              jsonStr = raw;
-            }
-          } catch (e) { }
-        }
-
-        if (jsonStr) {
-          const parsed = JSON.parse(jsonStr);
-          this.data = this.mergeDeep(this.getDefaultSave(), parsed);
-          if (!this.data.settings.discordClientId || this.data.settings.discordClientId === '1306300000000000000') {
-            this.data.settings.discordClientId = '1570824779005689919';
-          }
-          if (!this.data.unlockedModes.includes('sandbox')) {
-            this.data.unlockedModes.push('sandbox');
-          }
-          // Immediately save with encrypted envelope
-          this.save();
-        } else {
-          this.data = this.getDefaultSave();
-        }
+      if (jsonStr) {
+        const parsed = JSON.parse(jsonStr);
+        this.data = this.mergeDeep(this.getDefaultSave(), parsed);
+        this.sanitize();
+        this.save();
+        if (rawV1) localStorage.removeItem('neon_survivor_save_v1');
+      } else {
+        this.data = this.getDefaultSave();
       }
     } catch (e) {
       console.error('Failed to load savegame, using defaults:', e);
@@ -180,15 +162,81 @@ class SaveSystem {
     }
   }
 
+  // Decrypts + verifies a stored envelope. Returns the JSON string or null.
+  readEnvelope(raw) {
+    if (!raw) return null;
+    try {
+      const envelope = JSON.parse(raw);
+      if (envelope && envelope.v === 2 && envelope.c && envelope.p) {
+        const decrypted = this.decryptPayload(envelope.p);
+        if (this.computeChecksum(decrypted) === envelope.c) return decrypted;
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  // Clamp values to legal ranges so broken/old saves can never produce impossible states
+  sanitize() {
+    const d = this.data;
+    const num = (v, min, max) => { v = Number(v); if (!Number.isFinite(v)) v = min; return Math.max(min, Math.min(max, v)); };
+    d.credits = Math.floor(num(d.credits, 0, 1e9));
+    d.lifetimeCredits = Math.floor(num(d.lifetimeCredits, 0, 1e10));
+    const maxRanks = { maxHp: 10, damage: 10 };
+    for (const k of Object.keys(this.getDefaultSave().skilltree)) {
+      d.skilltree[k] = Math.floor(num(d.skilltree[k], 0, maxRanks[k] || 5));
+    }
+    for (const k of Object.keys(d.stats)) d.stats[k] = num(d.stats[k], 0, 1e12);
+    if (!d.settings.discordClientId || d.settings.discordClientId === '1306300000000000000') {
+      d.settings.discordClientId = '1570824779005689919';
+    }
+    if (!Array.isArray(d.unlockedModes)) d.unlockedModes = ['classic', 'sandbox'];
+    if (!d.unlockedModes.includes('sandbox')) d.unlockedModes.push('sandbox');
+  }
+
+  // ----------------------------------------------------
+  // TEST-LAB ISOLATION: nothing done in test mode is ever persisted
+  // (credits, skills, stats, achievements, unlocks). Only settings survive.
+  // ----------------------------------------------------
+  isTestSession() {
+    return Boolean(this.testSnapshot);
+  }
+
+  beginTestSession() {
+    if (!this.testSnapshot) this.testSnapshot = JSON.stringify(this.data);
+  }
+
+  endTestSession() {
+    if (!this.testSnapshot) return;
+    this.data = this.getPersistData();
+    this.testSnapshot = null;
+    this.save();
+  }
+
+  // The data that may be written to disk: during a test session this is the
+  // pre-test snapshot plus the current settings / menu selections.
+  getPersistData() {
+    if (!this.testSnapshot) return this.data;
+    const snap = JSON.parse(this.testSnapshot);
+    snap.settings = JSON.parse(JSON.stringify(this.data.settings));
+    snap.selectedCharacter = this.data.selectedCharacter;
+    snap.selectedMap = this.data.selectedMap;
+    snap.selectedMode = this.data.selectedMode;
+    return snap;
+  }
+
   save() {
     try {
-      const json = JSON.stringify(this.data);
-      const envelope = {
+      const json = JSON.stringify(this.getPersistData());
+      const envelope = JSON.stringify({
         v: 2,
         c: this.computeChecksum(json),
         p: this.encryptPayload(json)
-      };
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(envelope));
+      });
+      const prev = localStorage.getItem(this.STORAGE_KEY);
+      if (prev && prev !== envelope && this.readEnvelope(prev)) {
+        localStorage.setItem(this.STORAGE_KEY + '_bak', prev);
+      }
+      localStorage.setItem(this.STORAGE_KEY, envelope);
     } catch (e) {
       console.error('Failed to savegame:', e);
     }
@@ -209,7 +257,8 @@ class SaveSystem {
   }
 
   addCredits(amount) {
-    if (amount <= 0) return;
+    if (this.isTestSession()) return 0; // No credits in the test lab
+    if (!(amount > 0)) return 0;
     const bonus = 1 + (this.data.skilltree.creditBoost * 0.1);
     const finalAmount = Math.round(amount * bonus);
     this.data.credits += finalAmount;
@@ -237,6 +286,7 @@ class SaveSystem {
   }
 
   upgradeSkill(skillId) {
+    if (this.isTestSession()) return false;
     const info = this.getSkillCosts(skillId);
     if (!info) return false;
     if (this.data.credits < info.cost) return false;
@@ -245,25 +295,6 @@ class SaveSystem {
     this.save();
     this.checkAchievements();
     return true;
-  }
-
-  refundSkilltree() {
-    let refundAmount = 0;
-    const baseCosts = {
-      maxHp: 100, regen: 150, damage: 120, armor: 150, speed: 100,
-      attackSpeed: 120, crit: 140, magnet: 80, xpBoost: 110,
-      rerolls: 200, overloadRate: 160, creditBoost: 150
-    };
-    for (const skillId in this.data.skilltree) {
-      const rank = this.data.skilltree[skillId];
-      for (let r = 0; r < rank; r++) {
-        refundAmount += Math.round(baseCosts[skillId] * Math.pow(1.5, r));
-      }
-      this.data.skilltree[skillId] = 0;
-    }
-    this.data.credits += refundAmount;
-    this.save();
-    return refundAmount;
   }
 
   getSkillModifiers() {
@@ -322,7 +353,7 @@ class SaveSystem {
   }
 
   unlockAchievement(id) {
-    if (window.GameState && window.GameState.selectedMode === 'sandbox') return false;
+    if (this.isTestSession()) return false;
     if (this.data.achievements[id]) return false;
     this.data.achievements[id] = Date.now();
     this.save();
@@ -340,7 +371,7 @@ class SaveSystem {
   }
 
   checkAchievements() {
-    if (window.GameState && window.GameState.selectedMode === 'sandbox') return;
+    if (this.isTestSession()) return;
     const s = this.data.stats;
     const a = this.data.achievements;
     const u = (id, cond) => { if (!a[id] && cond) this.unlockAchievement(id); };
@@ -433,7 +464,7 @@ class SaveSystem {
   }
 
   exportJson() {
-    const json = JSON.stringify(this.data);
+    const json = JSON.stringify(this.getPersistData());
     const envelope = {
       v: 2,
       c: this.computeChecksum(json),
@@ -444,27 +475,20 @@ class SaveSystem {
 
   importJson(str) {
     try {
+      if (this.isTestSession()) return false; // never import during a test run
       if (!str || typeof str !== 'string') return false;
       let jsonStr = null;
       const trimmed = str.trim();
+      // Only signed + encrypted save files are accepted (plain JSON would allow cheating)
       if (trimmed.startsWith('NEON-SAVE-V2:')) {
         const b64 = trimmed.slice(13).trim();
-        const envelope = JSON.parse(this.fromB64(b64));
-        if (envelope && envelope.v === 2 && envelope.c && envelope.p) {
-          const decrypted = this.decryptPayload(envelope.p);
-          if (this.computeChecksum(decrypted) === envelope.c) {
-            jsonStr = decrypted;
-          }
-        }
-      } else {
-        // Legacy plain JSON import fallback
-        const parsed = JSON.parse(trimmed);
-        if (parsed && parsed.version) jsonStr = trimmed;
+        jsonStr = this.readEnvelope(this.fromB64(b64));
       }
 
       if (jsonStr) {
         const parsed = JSON.parse(jsonStr);
         this.data = this.mergeDeep(this.getDefaultSave(), parsed);
+        this.sanitize();
         this.save();
         return true;
       }

@@ -199,6 +199,10 @@ class GameController {
     this.selectedMap = window.SaveSystem.data.selectedMap;
     this.selectedMode = window.SaveSystem.data.selectedMode;
 
+    // Test lab: freeze the real savegame. Normal run: make sure no test data is active.
+    if (this.selectedMode === 'sandbox') window.SaveSystem.beginTestSession();
+    else window.SaveSystem.endTestSession();
+
     this.resetGame();
     this.state = 'play';
     window.UI.showScreen(null);
@@ -720,8 +724,7 @@ class GameController {
     } else if (c.id === 'heal') {
       P.hp = Math.min(P.maxHp, P.hp + 50);
     } else {
-      this.creditsEarned += 100;
-      window.SaveSystem.addCredits(100);
+      this.creditsEarned += window.SaveSystem.addCredits(100) || 0;
     }
 
     if (window.SoundSystem) window.SoundSystem.sfx('click');
@@ -822,14 +825,17 @@ class GameController {
           Modus: <b style="color:#ffd23f;">TEST-LABOR (SANDBOX)</b><br>
           Überlebt: <b>${Math.floor(this.time / 60)}m ${Math.floor(this.time % 60)}s</b><br>
           Kills: <b>${this.kills}</b> &nbsp;·&nbsp; Wächter: <b>${this.bossKills}</b><br>
-          <span style="font-size:13px;color:#aaa;">(Im Test-Labor werden keine Ranglisten-Stats gespeichert)</span>
+          <span style="font-size:13px;color:#aaa;">(Test-Labor: Es werden keine Credits, Statistiken oder Erfolge gespeichert)</span>
         `;
       }
+      window.SaveSystem.endTestSession();
+      if (window.DiscordRPC) window.DiscordRPC.setMenu();
       setTimeout(() => window.UI.showScreen('over'), 1000);
       return;
     }
 
-    const finalCredits = window.SaveSystem.addCredits(this.creditsEarned + Math.floor(this.time / 5));
+    // In-run credits were already credited on pickup; only the survival bonus is added here
+    const finalCredits = (this.creditsEarned || 0) + (window.SaveSystem.addCredits(Math.floor(this.time / 5)) || 0);
     const score = Math.floor(this.time) * 10 + this.kills * 10 + this.bossKills * 2500 + this.bonusScore;
     window.SaveSystem.data.stats.highestScore = Math.max(window.SaveSystem.data.stats.highestScore, score);
     window.SaveSystem.data.stats.bestSurvivalTime = Math.max(window.SaveSystem.data.stats.bestSurvivalTime || 0, this.time);
@@ -858,7 +864,7 @@ class GameController {
     }
     window.SaveSystem.data.stats.runsWon++;
     window.SaveSystem.data.stats.bestSurvivalTime = Math.max(window.SaveSystem.data.stats.bestSurvivalTime || 0, this.time);
-    const bonusCredits = window.SaveSystem.addCredits(1000 + this.creditsEarned);
+    const bonusCredits = window.SaveSystem.addCredits(1000) || 0;
     window.SaveSystem.save();
     window.SaveSystem.checkAchievements();
     if (window.DiscordRPC) window.DiscordRPC.setVictory(bonusCredits);

@@ -1,0 +1,20 @@
+Neon Survivor
+Copyright (c) 2026 Sniiiper1337YT. Alle Rechte vorbehalten / All rights reserved.
+
+Dieses Spiel einschließlich Quellcode, Grafiken, Sounds und sonstiger Inhalte ist
+urheberrechtlich geschützt. Ohne vorherige schriftliche Genehmigung des Rechteinhabers
+ist es nicht gestattet, das Spiel oder Teile davon zu kopieren, zu verändern, zu
+verbreiten, weiterzuverkaufen, öffentlich zugänglich zu machen oder abgeleitete Werke
+zu erstellen.
+
+Der Erwerb einer Spiellizenz berechtigt ausschließlich zur privaten, nicht-kommerziellen
+Nutzung des Spiels.
+
+This game, including its source code, graphics, audio and all other content, is
+proprietary. No part of it may be copied, modified, distributed, resold, published or
+used to create derivative works without prior written permission of the copyright
+holder. A purchased license grants personal, non-commercial use only.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ARISING FROM THE USE OF THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW.

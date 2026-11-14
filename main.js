@@ -1,114 +1,256 @@
-const { app, BrowserWindow, globalShortcut } = require('electron');
+'use strict';
+// ==========================================
+// NEON SURVIVOR - Electron Main Process
+// ==========================================
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
-const http = require('http');
 const net = require('net');
 const fs = require('fs');
+const crypto = require('crypto');
 
-let mainWindow = null;
-let discordSocket = null;
-let discordClientId = '1570824779005689919';
+const DEFAULT_CLIENT_ID = '1570824779005689919';
 
-// Load configured Discord Client ID if available
-try {
-  const cfgPath = path.join(__dirname, 'data', 'discord_config.json');
-  if (fs.existsSync(cfgPath)) {
-    const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-    if (cfg && cfg.client_id) discordClientId = cfg.client_id;
-  }
-} catch (e) {}
-
-// ==========================================
-// BUILT-IN DISCORD RPC PIPE BRIDGE (Node.js)
-// ==========================================
-function connectDiscordPipe() {
-  if (discordSocket) return;
-  for (let i = 0; i < 10; i++) {
-    try {
-      const pipePath = `\\\\.\\pipe\\discord-ipc-${i}`;
-      const sock = net.connect(pipePath, () => {
-        discordSocket = sock;
-        // Handshake Opcode 0
-        const handshake = JSON.stringify({ v: 1, client_id: discordClientId });
-        const buf = Buffer.alloc(8 + Buffer.byteLength(handshake));
-        buf.writeInt32LE(0, 0); // Opcode 0 = HANDSHAKE
-        buf.writeInt32LE(Buffer.byteLength(handshake), 4);
-        buf.write(handshake, 8);
-        sock.write(buf);
-      });
-
-      sock.on('error', () => {
-        discordSocket = null;
-      });
-      sock.on('close', () => {
-        discordSocket = null;
-      });
-      if (discordSocket) break;
-    } catch (e) {}
-  }
+function isValidClientId(id) {
+  return typeof id === 'string' && /^\d{10,25}$/.test(id) && id !== '1306300000000000000';
 }
 
-function sendDiscordFrame(opcode, jsonStr) {
-  if (!discordSocket) connectDiscordPipe();
-  if (!discordSocket) return;
+function loadClientId() {
   try {
-    const payloadLen = Buffer.byteLength(jsonStr);
-    const buf = Buffer.alloc(8 + payloadLen);
-    buf.writeInt32LE(opcode, 0);
-    buf.writeInt32LE(payloadLen, 4);
-    buf.write(jsonStr, 8);
-    discordSocket.write(buf);
-  } catch (e) {
-    discordSocket = null;
+    const cfgPath = path.join(__dirname, 'data', 'discord_config.json');
+    if (fs.existsSync(cfgPath)) {
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      if (cfg && isValidClientId(String(cfg.client_id))) return String(cfg.client_id);
+    }
+  } catch (e) { /* ignore */ }
+  return DEFAULT_CLIENT_ID;
+}
+
+// ==========================================
+// DISCORD RICH PRESENCE (native IPC over named pipe)
+// ==========================================
+class DiscordIPC {
+  constructor(clientId) {
+    this.clientId = clientId;
+    this.socket = null;
+    this.ready = false;
+    this.connecting = false;
+    this.status = 'discord_offline'; // connected | discord_offline | invalid_client_id
+    this.lastActivity = null;
+    this.buffer = Buffer.alloc(0);
+    this.retryTimer = null;
+    this.destroyed = false;
+  }
+
+  start() {
+    this.connect();
+  }
+
+  scheduleRetry(ms = 10000) {
+    if (this.destroyed || this.retryTimer) return;
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      this.connect();
+    }, ms);
+  }
+
+  pipePath(i) {
+    if (process.platform === 'win32') return `\\\\?\\pipe\\discord-ipc-${i}`;
+    const base = process.env.XDG_RUNTIME_DIR || process.env.TMPDIR || process.env.TMP || process.env.TEMP || '/tmp';
+    return path.join(base, `discord-ipc-${i}`);
+  }
+
+  // Try pipes 0..9 sequentially (no parallel race conditions)
+  connect() {
+    if (this.destroyed || this.connecting || this.socket) return;
+    this.connecting = true;
+    const tryPipe = (i) => {
+      if (this.destroyed) { this.connecting = false; return; }
+      if (i >= 10) {
+        this.connecting = false;
+        this.status = this.status === 'invalid_client_id' ? this.status : 'discord_offline';
+        this.scheduleRetry(15000);
+        return;
+      }
+      const sock = net.createConnection(this.pipePath(i));
+      let opened = false;
+      const onError = () => {
+        sock.removeAllListeners();
+        try { sock.destroy(); } catch (e) { /* ignore */ }
+        if (!opened) tryPipe(i + 1);
+      };
+      sock.once('error', onError);
+      sock.once('connect', () => {
+        opened = true;
+        sock.removeListener('error', onError);
+        this.attach(sock);
+        this.connecting = false;
+      });
+    };
+    tryPipe(0);
+  }
+
+  attach(sock) {
+    this.socket = sock;
+    this.ready = false;
+    this.buffer = Buffer.alloc(0);
+    sock.on('data', (chunk) => this.onData(chunk));
+    sock.on('error', () => this.onClose());
+    sock.on('close', () => this.onClose());
+    this.writeFrame(0, { v: 1, client_id: this.clientId });
+  }
+
+  onClose() {
+    if (!this.socket) return;
+    try { this.socket.removeAllListeners(); this.socket.destroy(); } catch (e) { /* ignore */ }
+    this.socket = null;
+    this.ready = false;
+    if (this.status === 'connected') this.status = 'discord_offline';
+    this.scheduleRetry(this.status === 'invalid_client_id' ? 60000 : 8000);
+  }
+
+  onData(chunk) {
+    this.buffer = Buffer.concat([this.buffer, chunk]);
+    while (this.buffer.length >= 8) {
+      const op = this.buffer.readInt32LE(0);
+      const len = this.buffer.readInt32LE(4);
+      if (this.buffer.length < 8 + len) break;
+      const body = this.buffer.slice(8, 8 + len).toString('utf8');
+      this.buffer = this.buffer.slice(8 + len);
+      let msg = null;
+      try { msg = JSON.parse(body); } catch (e) { /* ignore */ }
+      this.handleMessage(op, msg);
+    }
+  }
+
+  handleMessage(op, msg) {
+    if (op === 1 && msg && msg.cmd === 'DISPATCH' && msg.evt === 'READY') {
+      this.ready = true;
+      this.status = 'connected';
+      if (this.lastActivity) this.sendActivity(this.lastActivity);
+    } else if (op === 2) {
+      // CLOSE frame (e.g. invalid client id = code 4000)
+      if (msg && (msg.code === 4000 || /client id/i.test(String(msg.message || '')))) {
+        this.status = 'invalid_client_id';
+      }
+      this.onClose();
+    } else if (op === 3 && this.socket) {
+      // PING -> PONG
+      this.writeFrame(4, msg || {});
+    }
+  }
+
+  writeFrame(op, obj) {
+    if (!this.socket) return;
+    try {
+      const json = JSON.stringify(obj);
+      const len = Buffer.byteLength(json);
+      const buf = Buffer.alloc(8 + len);
+      buf.writeInt32LE(op, 0);
+      buf.writeInt32LE(len, 4);
+      buf.write(json, 8);
+      this.socket.write(buf);
+    } catch (e) {
+      this.onClose();
+    }
+  }
+
+  sanitizeActivity(a) {
+    if (!a || typeof a !== 'object') return null;
+    const clip = (s, n = 128) => (typeof s === 'string' ? s.slice(0, n) : undefined);
+    const out = {};
+    if (a.state) out.state = clip(a.state);
+    if (a.details) out.details = clip(a.details);
+    if (a.timestamps && Number.isFinite(a.timestamps.start)) out.timestamps = { start: Math.floor(a.timestamps.start) };
+    if (a.assets && typeof a.assets === 'object') {
+      out.assets = {};
+      for (const k of ['large_image', 'large_text', 'small_image', 'small_text']) {
+        if (a.assets[k]) out.assets[k] = clip(String(a.assets[k]));
+      }
+    }
+    out.instance = false;
+    return out;
+  }
+
+  setActivity(activity) {
+    const clean = this.sanitizeActivity(activity);
+    if (!clean) return;
+    this.lastActivity = clean;
+    if (!this.socket) { this.connect(); return; }
+    if (this.ready) this.sendActivity(clean);
+  }
+
+  sendActivity(activity) {
+    this.writeFrame(1, {
+      cmd: 'SET_ACTIVITY',
+      args: { pid: process.pid, activity },
+      nonce: crypto.randomUUID()
+    });
+  }
+
+  setClientId(id) {
+    if (!isValidClientId(id) || id === this.clientId) return;
+    this.clientId = id;
+    this.status = 'discord_offline';
+    if (this.socket) {
+      try { this.socket.removeAllListeners(); this.socket.destroy(); } catch (e) { /* ignore */ }
+      this.socket = null;
+      this.ready = false;
+    }
+    if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null; }
+    this.connect();
+  }
+
+  clear() {
+    if (this.socket && this.ready) {
+      this.writeFrame(1, { cmd: 'SET_ACTIVITY', args: { pid: process.pid }, nonce: crypto.randomUUID() });
+    }
+  }
+
+  destroy() {
+    this.destroyed = true;
+    this.clear();
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    if (this.socket) { try { this.socket.end(); } catch (e) { /* ignore */ } }
   }
 }
 
-// Local RPC Server listening on port 39182 for game activity updates
-const rpcServer = http.createServer((req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-  if (req.method === 'OPTIONS') {
-    res.writeHead(200);
-    res.end();
-    return;
+const discord = new DiscordIPC(loadClientId());
+
+ipcMain.handle('discord:setActivity', (_e, payload) => {
+  if (payload && typeof payload === 'object') {
+    if (payload.clientId) discord.setClientId(String(payload.clientId));
+    if (payload.activity) discord.setActivity(payload.activity);
   }
-  if (req.method === 'POST') {
-    let body = '';
-    req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
-      try {
-        const parsed = JSON.parse(body);
-        if (parsed.set_client_id) {
-          discordClientId = parsed.set_client_id;
-          if (discordSocket) {
-            try { discordSocket.destroy(); } catch (e) {}
-            discordSocket = null;
-          }
-          connectDiscordPipe();
-        } else if (parsed.activity) {
-          const frame = JSON.stringify({
-            cmd: 'SET_ACTIVITY',
-            args: { pid: process.pid, activity: parsed.activity },
-            nonce: Math.random().toString(36).substring(2)
-          });
-          sendDiscordFrame(1, frame); // Opcode 1 = FRAME
-        }
-      } catch (e) {}
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end('{"status":"ok"}');
+  return { status: 'ok', discord: discord.status, clientId: discord.clientId };
+});
+
+ipcMain.handle('discord:status', () => ({ status: 'ok', discord: discord.status, clientId: discord.clientId }));
+
+// ==========================================
+// ELECTRON GAME WINDOW
+// ==========================================
+let mainWindow = null;
+
+// Only allow one running instance of the game
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(() => {
+    createWindow();
+    discord.start();
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
-  } else {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end('{"status":"running","discord_connected":' + Boolean(discordSocket) + '}');
-  }
-});
+  });
+}
 
-rpcServer.listen(39182, '127.0.0.1', () => {
-  connectDiscordPipe();
-});
-
-// ==========================================
-// ELECTRON GAME WINDOW (Native Standalone)
-// ==========================================
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -119,36 +261,50 @@ function createWindow() {
     backgroundColor: '#080216',
     autoHideMenuBar: true,
     fullscreenable: true,
+    show: false,
     icon: path.join(__dirname, 'data', 'src', 'icon.ico'),
     webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      devTools: false // DevTools disabled so players cannot inspect or cheat
+      sandbox: true,
+      devTools: !app.isPackaged,
+      backgroundThrottling: false,
+      spellcheck: false
     }
   });
 
   mainWindow.removeMenu();
   mainWindow.loadFile(path.join(__dirname, 'data', 'neon_survivor.html'));
+  mainWindow.once('ready-to-show', () => mainWindow.show());
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
-}
-
-app.whenReady().then(() => {
-  createWindow();
-
-  // Fullscreen shortcut F11
-  globalShortcut.register('F11', () => {
-    if (mainWindow) {
+  // F11 fullscreen toggle (window-local, does not hijack the key system-wide)
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'F11') {
       mainWindow.setFullScreen(!mainWindow.isFullScreen());
+      event.preventDefault();
+    }
+    // Block reload / devtools shortcuts in release builds
+    if (app.isPackaged && input.type === 'keyDown') {
+      const k = String(input.key).toLowerCase();
+      if ((input.control || input.meta) && (k === 'r' || (input.shift && (k === 'i' || k === 'j' || k === 'c')))) event.preventDefault();
+      if (k === 'f5' || k === 'f12') event.preventDefault();
     }
   });
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  // Never navigate away from the game or open in-app popups; external links go to the system browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https:\/\//i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
   });
-});
+  mainWindow.webContents.on('will-navigate', (e, url) => {
+    if (!url.startsWith('file://')) e.preventDefault();
+  });
+
+  mainWindow.on('closed', () => { mainWindow = null; });
+}
+
+app.on('before-quit', () => discord.destroy());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

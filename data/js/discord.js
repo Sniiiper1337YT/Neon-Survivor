@@ -42,6 +42,22 @@ class DiscordPresence {
     this.lastPayload = activityJson;
     this.lastBeatTime = now;
 
+    // Native Electron build: talk to the main process over secure IPC
+    if (window.NeonNative && window.NeonNative.discordSetActivity) {
+      if (isSame && !force) return; // Discord keeps the activity; no heartbeat needed
+      window.NeonNative.discordSetActivity(payload, clientId)
+        .then(data => {
+          if (data && data.discord) {
+            this.bridgeStatus = data.discord;
+            if (window.UI && window.UI.updateDiscordStatusBadge) {
+              window.UI.updateDiscordStatusBadge(data.discord, data.clientId);
+            }
+          }
+        })
+        .catch(() => {});
+      return;
+    }
+
     const envelope = isSame && !force
       ? JSON.stringify({ heartbeat: true, client_id: clientId })
       : JSON.stringify({ client_id: clientId, activity: payload });
@@ -155,6 +171,14 @@ class DiscordPresence {
   }
 
   tick() {
+    if (window.NeonNative && window.NeonNative.discordStatus) {
+      window.NeonNative.discordStatus().then(data => {
+        if (data && data.discord && window.UI && window.UI.updateDiscordStatusBadge) {
+          this.bridgeStatus = data.discord;
+          window.UI.updateDiscordStatusBadge(data.discord, data.clientId);
+        }
+      }).catch(() => {});
+    }
     if (!window.GameState) return;
     if (window.GameState.state === 'play') {
       this.updateInGame(

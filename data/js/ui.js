@@ -580,7 +580,6 @@ class UIEngine {
           <button class="sb-btn" id="sbHealBtn">❤️ Volle HP & 5x Schild</button>
           <button class="sb-btn" id="sbOverloadBtn">⚡ Neon Overload zünden</button>
           <button class="sb-btn" id="sbOverdriveBuff">⏩ +50% Tempo (15s)</button>
-          <button class="sb-btn" id="sbAddCredits">💎 +1.000 Neon Credits</button>
           <button class="sb-btn" id="sbClearEnemiesBtn2" style="border-color:#ff2d95;color:#ff88aa;">💥 Mobs löschen</button>
         </div>
       `;
@@ -991,13 +990,6 @@ class UIEngine {
           this.showToast('⏩ Overdrive Boost aktiv für 15 Sekunden!');
           if (window.SoundSystem) window.SoundSystem.sfx('overload');
         }
-      };
-      document.getElementById('sbAddCredits').onclick = () => {
-        window.SaveSystem.addCredits(1000);
-        gs.creditsEarned += 1000;
-        window.SaveSystem.save();
-        this.showToast('💎 +1.000 Neon Credits hinzugefügt!');
-        if (window.SoundSystem) window.SoundSystem.sfx('pickup');
       };
       document.getElementById('sbClearEnemiesBtn2').onclick = () => {
         for (const e of window.Entities.enemies) e.dead = true;

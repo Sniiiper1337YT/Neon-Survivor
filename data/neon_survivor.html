@@ -2,7 +2,8 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>NEON SURVIVOR - Steam Edition</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:39182; object-src 'none'; base-uri 'none'">
+<title>Neon Survivor</title>
 <style>
 /* ================= GLOBAL STYLES ================= */
 html, body {
@@ -518,7 +519,7 @@ canvas { display: block; }
 <!-- 1. TITLE SCREEN -->
 <div id="title" class="ov on">
   <div class="logo">NEON<br><span>SURVIVOR</span></div>
-  <div class="sub">Steam Edition · 15 Waffen · 6 Bosse · 50 Erfolge · Meta-Progression</div>
+  <div class="sub">15 Waffen · 6 Bosse · 50 Erfolge · Meta-Progression</div>
 
   <div style="margin-bottom:18px;">
     <button class="btn gold" id="btnPlay" style="font-size:24px;padding:16px 54px;">▶ SPIELEN</button>
@@ -582,8 +583,7 @@ canvas { display: block; }
       </div>
     </div>
     <div id="skillGrid" class="skill-grid"></div>
-    <div style="margin-top:25px;display:flex;justify-content:space-between;">
-      <button class="btn sec" id="btnRefundSkills" style="color:#ff5577;border-color:#ff5577;">↺ Alle Talente zurücksetzen</button>
+    <div style="margin-top:25px;display:flex;justify-content:flex-end;">
       <button class="btn" id="btnSkillBack">FERTIG</button>
     </div>
   </div>
@@ -593,7 +593,7 @@ canvas { display: block; }
 <div id="achModal" class="ov">
   <div class="modal-content">
     <div style="display:flex;justify-content:space-between;align-items:center;">
-      <h2 style="font-size:30px;color:#ffd23f;margin:0;">50 STEAM-ERFOLGE</h2>
+      <h2 style="font-size:30px;color:#ffd23f;margin:0;">50 ERFOLGE</h2>
       <div style="font-size:20px;font-weight:900;color:#ffd23f;" id="achCount">0 / 50</div>
     </div>
     <div id="achGrid" class="ach-grid"></div>
@@ -841,23 +841,24 @@ window.addEventListener('DOMContentLoaded', () => {
     reader.readAsText(file);
   };
 
-  // Reroll Skills
-  document.getElementById('btnRefundSkills').onclick = () => {
-    if (confirm('Möchtest du wirklich alle investierten Credits zurückerhalten?')) {
-      const refunded = window.SaveSystem.refundSkilltree();
-      window.UI.renderSkilltree();
-      window.UI.showToast(`+${refunded} Credits zurückerstattet!`);
-    }
-  };
-
   // In-Game UI Buttons
+  const backToTitle = () => {
+    if (window.UI && window.UI.isSandboxOpen) window.UI.toggleSandboxPanel();
+    const sbp = document.getElementById('sandboxPanel');
+    if (sbp) sbp.classList.remove('open');
+    if (window.UI) window.UI.isSandboxOpen = false;
+    window.SaveSystem.endTestSession();
+    window.GameState.state = 'title';
+    window.UI.showScreen('title');
+    if (window.DiscordRPC) window.DiscordRPC.setMenu();
+  };
   document.getElementById('rerollBtn').onclick = () => window.GameState.rerollChoices();
   document.getElementById('btnResume').onclick = () => window.GameState.resumeGame();
   document.getElementById('btnPauseSettings').onclick = () => openSettings('pause');
-  document.getElementById('btnQuit').onclick = () => { window.GameState.state = 'title'; window.UI.showScreen('title'); if(window.DiscordRPC) window.DiscordRPC.setMenu(); };
+  document.getElementById('btnQuit').onclick = backToTitle;
   document.getElementById('btnAgain').onclick = () => window.GameState.startRun();
-  document.getElementById('btnOverMenu').onclick = () => { window.UI.showScreen('title'); if(window.DiscordRPC) window.DiscordRPC.setMenu(); };
-  document.getElementById('btnVicAgain').onclick = () => { window.UI.showScreen('title'); if(window.DiscordRPC) window.DiscordRPC.setMenu(); };
+  document.getElementById('btnOverMenu').onclick = backToTitle;
+  document.getElementById('btnVicAgain').onclick = backToTitle;
 
   // Volume Sliders
   document.getElementById('rngVolM').oninput = e => document.getElementById('valVolM').innerText = Math.round(e.target.value * 100) + '%';
