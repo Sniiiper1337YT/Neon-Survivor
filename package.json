@@ -22,7 +22,7 @@
     "neon"
   ],
   "author": "Sniiiper1337YT",
-  "license": "UNLICENSED",
+  "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
     "electron": "^45.3.2",
     "electron-packager": "^17.1.2"

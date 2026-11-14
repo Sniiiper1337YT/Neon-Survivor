@@ -47,3 +47,11 @@ Ein rasanter, neon-ästhetischer Sci-Fi Bullet-Heaven / Rogue-lite Survival Shoo
 
 1. Starte direkt die `Neon Survivor.exe`.
 2. Alternativ kann die `data/neon_survivor.html` in jedem modernen Webbrowser (Chrome, Edge, Firefox) geöffnet werden.
+
+---
+
+## 📜 Lizenz & Urheberrecht / License
+
+Copyright © 2026 **Sniiiper1337YT**. Alle Rechte vorbehalten (All rights reserved).
+
+Dieses Spiel sowie sämtliche enthaltene Komponenten (Quellcode, Grafiken, Sounds, Musik) sind urheberrechtlich geschützt. Ohne ausdrückliche schriftliche Genehmigung ist das Kopieren, Verändern, Weiterverbreiten oder die kommerzielle Nutzung untersagt. Weitere Details findest du in der [LICENSE](LICENSE)-Datei.

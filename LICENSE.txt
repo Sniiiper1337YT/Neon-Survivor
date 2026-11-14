@@ -1,20 +1,46 @@
 Neon Survivor
 Copyright (c) 2026 Sniiiper1337YT. Alle Rechte vorbehalten / All rights reserved.
 
-Dieses Spiel einschließlich Quellcode, Grafiken, Sounds und sonstiger Inhalte ist
-urheberrechtlich geschützt. Ohne vorherige schriftliche Genehmigung des Rechteinhabers
-ist es nicht gestattet, das Spiel oder Teile davon zu kopieren, zu verändern, zu
-verbreiten, weiterzuverkaufen, öffentlich zugänglich zu machen oder abgeleitete Werke
-zu erstellen.
+================================================================================
+DEUTSCH / GERMAN
+================================================================================
+Dieses Spiel einschließlich Quellcode, Grafiken, Sounds, Musik und sonstiger Inhalte
+ist urheberrechtlich geschützt (Proprietäre Lizenz / All Rights Reserved).
 
-Der Erwerb einer Spiellizenz berechtigt ausschließlich zur privaten, nicht-kommerziellen
-Nutzung des Spiels.
+Ohne vorherige ausdrückliche und schriftliche Genehmigung des Urhebers und Rechteinhabers
+(Sniiiper1337YT) ist es strengstens untersagt:
+- Das Spiel, den Quellcode oder Teile davon zu kopieren, zu verändern oder zu dekompilieren.
+- Das Spiel oder abgeleitete Werke öffentlich zu verbreiten, weiterzuverkaufen oder zu lizenzieren.
+- Assets (Grafiken, Sounds, Code) in anderen Projekten kommerziell oder nicht-kommerziell zu verwenden.
 
-This game, including its source code, graphics, audio and all other content, is
-proprietary. No part of it may be copied, modified, distributed, resold, published or
-used to create derivative works without prior written permission of the copyright
-holder. A purchased license grants personal, non-commercial use only.
+Die Nutzung ist ausschließlich für den privaten, nicht-kommerziellen Gebrauch bestimmt.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
-IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
-ARISING FROM THE USE OF THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW.
+HAFTUNGSAUSSCHLUSS:
+DIE SOFTWARE WIRD "WIE BESEHEN" (AS IS) OHNE JEGLICHE AUSDRÜCKLICHE ODER STILLSCHWEIGENDE
+GEWÄHRLEISTUNG BEREITGESTELLT. IN KEINEM FALL HAFTET DER AUTOR FÜR SCHÄDEN ODER ANSPRÜCHE,
+DIE AUS DER NUTZUNG DIESER SOFTWARE ENTSTEHEN, SOWEIT DIES GESETZLICH ZULÄSSIG IST.
+
+================================================================================
+ENGLISH
+================================================================================
+This software, including all source code, graphics, sound effects, music, and related
+materials, is proprietary and confidential.
+
+Copyright (c) 2026 Sniiiper1337YT. All rights reserved.
+
+Without prior explicit written permission from the copyright owner (Sniiiper1337YT),
+it is strictly prohibited to:
+- Copy, modify, decompile, reverse engineer, or disassemble the game or any portion thereof.
+- Distribute, redistribute, resell, sub-license, publish, or make publicly available the
+  software or any derivative works.
+- Use any assets (graphics, sound, audio, code) in other projects, commercially or non-commercially.
+
+Permission is granted solely for personal, non-commercial gameplay and entertainment.
+
+DISCLAIMER:
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
