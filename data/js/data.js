@@ -601,7 +601,29 @@ window.GAME_DATA = {
       updateAvailable: '🚀 NEUES UPDATE VERFÜGBAR:',
       updateSub: 'Eine neue Version von Neon Survivor steht zum Download bereit!',
       updateDlBtn: '⬇️ Jetzt Aktualisieren',
-      updateDismissBtn: 'Später'
+      updateDismissBtn: 'Später',
+
+      reconnectBtn: '🔄 Neu verbinden',
+      discordChecking: '○ Prüfe Verbindung...',
+      discordConnected: '● Verbunden mit Discord',
+      discordDisconnected: '○ Nicht verbunden',
+      keybindHeader: '⌨️ TASTENBELEGUNG (Klicken zum Ändern)',
+      discordHeader: '🎮 DISCORD RICH PRESENCE',
+      newWeapon: 'NEUE WAFFE',
+      newPassive: 'NEU',
+      bonusRepair: 'Reparatur',
+      bonusRepairDesc: 'Heilt 50 HP',
+      bonusCredits: 'Neon Credits',
+      bonusCreditsDesc: '+100 Neon Credits für den Skilltree',
+      timeLabel: 'Zeit:',
+      levelLabel: 'Level:',
+      speedLabel: 'Tempo:',
+      shipWeaponLabel: 'Waffe:',
+      nextBossIn: (t, name) => `💀 NÄCHSTER BOSS IN ${t} · ${name}`,
+      bossApproaching: (t, name) => `⚠ BOSS NAHT IN ${t} (${name})`,
+      bossHunting: ' · ⚡ JAGT!',
+      swarmIncoming: '⚡ SCHWARM NAHT! ⚡',
+      antiAfkWarning: '⚠ BEWEGUNG ERFORDERLICH! HORDE FORMIERT SICH!'
     },
     en: {
       subTitle: '15 Weapons · 6 Bosses · 50 Achievements · Meta-Progression',
@@ -681,7 +703,29 @@ window.GAME_DATA = {
       updateAvailable: '🚀 NEW UPDATE AVAILABLE:',
       updateSub: 'A new version of Neon Survivor is available for download!',
       updateDlBtn: '⬇️ Update Now',
-      updateDismissBtn: 'Later'
+      updateDismissBtn: 'Later',
+
+      reconnectBtn: '🔄 Reconnect',
+      discordChecking: '○ Checking connection...',
+      discordConnected: '● Connected to Discord',
+      discordDisconnected: '○ Not connected',
+      keybindHeader: '⌨️ KEYBINDINGS (Click to rebind)',
+      discordHeader: '🎮 DISCORD RICH PRESENCE',
+      newWeapon: 'NEW WEAPON',
+      newPassive: 'NEW',
+      bonusRepair: 'Repair',
+      bonusRepairDesc: 'Restores 50 HP',
+      bonusCredits: 'Neon Credits',
+      bonusCreditsDesc: '+100 Neon Credits for the Skill Tree',
+      timeLabel: 'Time:',
+      levelLabel: 'Level:',
+      speedLabel: 'Speed:',
+      shipWeaponLabel: 'Weapon:',
+      nextBossIn: (t, name) => `💀 NEXT BOSS IN ${t} · ${name}`,
+      bossApproaching: (t, name) => `⚠ BOSS APPROACHING IN ${t} (${name})`,
+      bossHunting: ' · ⚡ HUNTING!',
+      swarmIncoming: '⚡ SWARM INCOMING! ⚡',
+      antiAfkWarning: '⚠ MOVE! SWARM INCOMING!'
     }
   }
 };

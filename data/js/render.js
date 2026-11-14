@@ -417,8 +417,22 @@ class RenderEngine {
         ctx.fill();
       }
 
-      // Elite pulsing golden aura
-      if (e.isElite && !e.isBoss) {
+      // Overcharged Champion aura (crimson & cyan energetic double ring)
+      if (e.isOvercharged && !e.isBoss) {
+        ctx.save();
+        ctx.strokeStyle = '#ff0055';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, e.r * 1.55 + Math.sin(now * 10) * 3, 0, this.TAU);
+        ctx.stroke();
+        ctx.strokeStyle = '#3dfcff';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(0, 0, e.r * 1.35 - Math.cos(now * 10) * 2, 0, this.TAU);
+        ctx.stroke();
+        ctx.restore();
+      } else if (e.isElite && !e.isBoss) {
         ctx.save();
         ctx.strokeStyle = '#ffd23f';
         ctx.lineWidth = 2.0;
@@ -979,9 +993,10 @@ class RenderEngine {
       this.rrect(ox, oy, Math.max(6, overBarW * cdPct), 10, 5);
       ctx.fill();
 
+      const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
       ctx.font = '700 10px Segoe UI';
       ctx.fillStyle = '#6495ed';
-      ctx.fillText(`COOLDOWN ${Math.ceil(P.overloadCooldown)}s`, ox + overBarW + 8, oy + 9);
+      ctx.fillText(`${lang === 'en' ? 'COOLDOWN' : 'ABKLINGZEIT'} ${Math.ceil(P.overloadCooldown)}s`, ox + overBarW + 8, oy + 9);
     } else {
       const overPct = Math.min(1, (P.overloadGauge || 0) / 100);
       const isOverReady = overPct >= 1;
@@ -1015,10 +1030,11 @@ class RenderEngine {
         const nbTimeStr = `${String(nbM).padStart(2, '0')}:${String(nbS).padStart(2, '0')}`;
         const isImminent = nb.timeUntil <= 30;
 
+        const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
         ctx.font = isImminent ? '900 13px Segoe UI' : '700 12px Segoe UI';
         const bossText = isImminent
-          ? `⚠ BOSS NAHT IN ${nbTimeStr} (${nb.name.toUpperCase()})`
-          : `💀 NÄCHSTER BOSS IN ${nbTimeStr} · ${nb.name}`;
+          ? (lang === 'en' ? `⚠ BOSS APPROACHING IN ${nbTimeStr} (${nb.name.toUpperCase()})` : `⚠ BOSS NAHT IN ${nbTimeStr} (${nb.name.toUpperCase()})`)
+          : (lang === 'en' ? `💀 NEXT BOSS IN ${nbTimeStr} · ${nb.name}` : `💀 NÄCHSTER BOSS IN ${nbTimeStr} · ${nb.name}`);
         const pillW = ctx.measureText(bossText).width + 24;
         const pillX = (W - pillW) / 2;
         const pillY = 58;
@@ -1092,7 +1108,9 @@ class RenderEngine {
       ctx.textAlign = 'center';
       ctx.font = '900 14px Segoe UI';
       ctx.fillStyle = '#ffffff';
-      ctx.fillText('👑 ' + boss.name.toUpperCase() + ' · ' + bossDistM + 'm' + (boss.isSurging ? ' · ⚡ JAGT!' : ''), W / 2, by + 30);
+      const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+      const huntingSuffix = boss.isSurging ? (lang === 'en' ? ' · ⚡ HUNTING!' : ' · ⚡ JAGT!') : '';
+      ctx.fillText('👑 ' + boss.name.toUpperCase() + ' · ' + bossDistM + 'm' + huntingSuffix, W / 2, by + 30);
 
       // Off-screen boss directional edge indicator
       const scrX = (boss.x - window.GameState.cam.x) + W / 2;

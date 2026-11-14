@@ -310,7 +310,8 @@ class GameController {
     const P = this.player;
     if (!P) return;
 
-    if (window.UI) window.UI.showBanner('⚠ BEWEGUNG ERFORDERLICH! HORDE FORMIERT SICH!', '#ff0055');
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+    if (window.UI) window.UI.showBanner(lang === 'en' ? '⚠ MOVE! SWARM INCOMING!' : '⚠ BEWEGUNG ERFORDERLICH! HORDE FORMIERT SICH!', '#ff0055');
     if (window.SoundSystem) window.SoundSystem.sfx('nova');
 
     // Spawne 4-6 Eliten & Hetzer, die direkt auf die AFK-Position zustürmen
@@ -640,25 +641,30 @@ class GameController {
 
   spawnSwarm() {
     if (this.selectedMode === 'sandbox') return;
-    const n = Math.min(12 + Math.floor(this.time / 25), 45);
+    const powerScore = (window.Entities && window.Entities.getPlayerPowerScore) ? window.Entities.getPlayerPowerScore() : 0;
+    const n = Math.min(65, 12 + Math.floor(this.time / 25) + Math.floor(powerScore * 2.5));
     const R = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 50;
-    const type = this.time > 120 ? 'runner' : 'grunt';
+    const type = (this.time > 120 || powerScore >= 4) ? 'runner' : 'grunt';
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
       const e = window.Entities.createEnemy(type, this.player.x + Math.cos(a) * R, this.player.y + Math.sin(a) * R);
       window.Entities.enemies.push(e);
     }
-    window.UI.showBanner('⚡ SCHWARM NAHT! ⚡', '#ffd23f');
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+    window.UI.showBanner(lang === 'en' ? '⚡ SWARM INCOMING! ⚡' : '⚡ SCHWARM NAHT! ⚡', '#ffd23f');
     if (window.SoundSystem) window.SoundSystem.sfx('nova');
   }
 
   updateSpawning(dt) {
     if (this.selectedMode === 'sandbox' || this.sandboxPauseSpawns) return;
-    if (window.Entities.enemies.length >= 220) return;
+    const powerScore = (window.Entities && window.Entities.getPlayerPowerScore) ? window.Entities.getPlayerPowerScore() : 0;
+    const maxEnemies = Math.min(300, 220 + Math.floor(powerScore * 4));
+    if (window.Entities.enemies.length >= maxEnemies) return;
     const m = this.time / 60;
     const chaosMul = this.activeChaosEvent === 'turbo_horde' ? 2.0 : 1.0;
     const glitchMul = this.selectedMap === 'glitch' ? 1.25 : 1.0;
-    const spawnRate = (0.75 + m * 1.45 + m * m * 0.42) * chaosMul * glitchMul * dt;
+    const powerSpawnMul = 1.0 + Math.min(1.5, powerScore * 0.08);
+    const spawnRate = (0.75 + m * 1.45 + m * m * 0.42) * chaosMul * glitchMul * powerSpawnMul * dt;
     if (Math.random() < spawnRate) {
       const type = this.pickSpawnType();
       const a = Math.random() * Math.PI * 2;
@@ -669,7 +675,8 @@ class GameController {
   }
 
   pickSpawnType() {
-    const t = this.time + (this.selectedMap === 'glitch' ? 120 : 0);
+    const powerScore = (window.Entities && window.Entities.getPlayerPowerScore) ? window.Entities.getPlayerPowerScore() : 0;
+    const t = this.time + (this.selectedMap === 'glitch' ? 120 : 0) + (powerScore * 18);
     const pool = [['grunt', 10]];
     if (t > 30) pool.push(['runner', 4]);
     if (t > 70) pool.push(['dasher', 3]);

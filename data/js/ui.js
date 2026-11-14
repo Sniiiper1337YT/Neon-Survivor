@@ -47,13 +47,15 @@ class UIEngine {
     const titleDivs = document.querySelectorAll('#title > div');
     if (titleDivs.length >= 2) {
       titleDivs[titleDivs.length - 2].innerHTML = t.controlsHint;
-      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.0.3';
+      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.1.0';
       titleDivs[titleDivs.length - 1].innerHTML = `Neon Survivor <span id="lblCurrentVer">v${ver}</span> &nbsp;·&nbsp; ${t.footerDev}`;
     }
 
     // Modal Titles
     const setModalH2 = (id, text) => { const el = document.querySelector(`#${id} h2`); if (el) el.innerText = text; };
     const setModalH1 = (id, text) => { const el = document.querySelector(`#${id} h1`); if (el) el.innerText = text; };
+    const setHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+
     setModalH2('charModal', t.charModalTitle);
     setModalH2('mapModal', t.mapModalTitle);
     setModalH2('modeModal', t.modeModalTitle);
@@ -71,7 +73,24 @@ class UIEngine {
     setT('btnStatsBack', t.doneBtn);
     setT('btnSettingsBack', t.saveBackBtn);
 
-    // Settings elements & options
+    // Settings labels & options
+    const valM = document.getElementById('valVolM') ? document.getElementById('valVolM').innerText : '80%';
+    const valMus = document.getElementById('valVolMus') ? document.getElementById('valVolMus').innerText : '60%';
+    const valSfx = document.getElementById('valVolSfx') ? document.getElementById('valVolSfx').innerText : '70%';
+    setHtml('lblVolMText', `${t.lblVolM} <span id="valVolM">${valM}</span>`);
+    setHtml('lblVolMusText', `${t.lblVolMus} <span id="valVolMus">${valMus}</span>`);
+    setHtml('lblVolSfxText', `${t.lblVolSfx} <span id="valVolSfx">${valSfx}</span>`);
+    setT('lblQualityText', t.lblQuality + ' ');
+    setT('lblFpsText', t.lblFps + ' ');
+    setT('lblLangText', t.lblLang + ' ');
+    setT('lblShakeText', t.lblShake);
+    setT('lblDamageNumbersText', t.lblDamageNumbers);
+    setT('lblKeybindHeader', t.keybindHeader);
+    setT('lblDiscordHeader', t.discordHeader);
+    setT('lblDiscordIdText', t.lblDiscordId);
+    setHtml('lblDiscordDescText', t.lblDiscordDesc);
+    setT('btnDiscordReconnect', t.reconnectBtn);
+
     setT('btnFullscreen', t.fullscreenBtn);
     setT('btnExportSave', t.exportSaveBtn);
     setT('btnImportSave', t.importSaveBtn);
@@ -189,7 +208,7 @@ class UIEngine {
         <div class="card-title">${c.name}</div>
         <div class="card-tag" style="background:${c.col}44">${c.role[lang] || c.role.de}</div>
         <div class="card-desc">
-          <b>Waffe:</b> ${window.GAME_DATA.WEAPONS[c.weapon].name[lang]}<br>
+          <b>${lang === 'en' ? 'Weapon' : 'Waffe'}:</b> ${window.GAME_DATA.WEAPONS[c.weapon].name[lang]}<br>
           <b>HP:</b> ${c.stats.hp} &nbsp;·&nbsp; <b>SPD:</b> ${c.stats.spd}
         </div>
         ${!isUnlocked ? `<div class="lock-req">🔒 ${c.unlock[lang] || c.unlock.de}</div>` : ''}
@@ -359,6 +378,8 @@ class UIEngine {
     box.innerHTML = '';
     const lang = window.SaveSystem.getSettings().lang || 'de';
 
+    const t = window.GAME_DATA.UI_TEXTS[lang] || window.GAME_DATA.UI_TEXTS.de;
+
     choices.forEach((c, i) => {
       let icon, name, tag, tagCls, desc;
       const isEvolution = c.kind === 'evo';
@@ -368,7 +389,7 @@ class UIEngine {
         const l = window.GameState.weapons[c.id].lv;
         icon = def.icon;
         name = def.name[lang];
-        tag = l === 0 ? 'NEUE WAFFE' : `Lv ${l} → ${l + 1}`;
+        tag = l === 0 ? t.newWeapon : `Lv ${l} → ${l + 1}`;
         tagCls = l === 0 ? '' : 'up';
         desc = def.desc[lang](l + 1);
       } else if (c.kind === 'evo') {
@@ -383,21 +404,21 @@ class UIEngine {
         const l = window.GameState.passives[c.id];
         icon = def.icon;
         name = def.name[lang];
-        tag = l === 0 ? 'NEU' : `Lv ${l} → ${l + 1}`;
+        tag = l === 0 ? t.newPassive : `Lv ${l} → ${l + 1}`;
         tagCls = l === 0 ? '' : 'up';
         desc = def.desc[lang];
       } else if (c.id === 'heal') {
         icon = '🔧';
-        name = 'Reparatur';
+        name = t.bonusRepair;
         tag = 'BONUS';
         tagCls = 'up';
-        desc = 'Heilt 50 HP';
+        desc = t.bonusRepairDesc;
       } else {
         icon = '💎';
-        name = 'Neon Credits';
+        name = t.bonusCredits;
         tag = 'BONUS';
         tagCls = 'up';
-        desc = '+100 Neon Credits für den Skilltree';
+        desc = t.bonusCreditsDesc;
       }
 
       const d = document.createElement('div');
@@ -415,7 +436,7 @@ class UIEngine {
 
     const rerollBtn = document.getElementById('rerollBtn');
     if (rerollBtn) {
-      rerollBtn.innerText = `🎲 Neu auswürfeln (${window.GameState.rerollsLeft}x)`;
+      rerollBtn.innerText = lang === 'en' ? `🎲 Reroll (${window.GameState.rerollsLeft}x)` : `🎲 Neu auswürfeln (${window.GameState.rerollsLeft}x)`;
       rerollBtn.disabled = window.GameState.rerollsLeft <= 0;
     }
   }
@@ -454,8 +475,8 @@ class UIEngine {
     }
 
     el.innerHTML = `
-      <div>Zeit: <b style="color:#3dfcff">${timeStr}</b> &nbsp;·&nbsp; Level: <b style="color:#ffd23f">${P.lvl}</b> &nbsp;·&nbsp; Kills: <b style="color:#ff3366">${gs.kills}</b></div>
-      <div style="font-size:15px;opacity:0.9;">HP: <b>${Math.ceil(P.hp)}/${P.maxHp}</b> &nbsp;·&nbsp; DMG: <b>${Math.round(P.dmgMul * 100)}%</b> &nbsp;·&nbsp; Tempo: <b>${Math.round(P.rateMul * 100)}%</b></div>
+      <div>${lang === 'en' ? 'Time:' : 'Zeit:'} <b style="color:#3dfcff">${timeStr}</b> &nbsp;·&nbsp; Level: <b style="color:#ffd23f">${P.lvl}</b> &nbsp;·&nbsp; Kills: <b style="color:#ff3366">${gs.kills}</b></div>
+      <div style="font-size:15px;opacity:0.9;">HP: <b>${Math.ceil(P.hp)}/${P.maxHp}</b> &nbsp;·&nbsp; DMG: <b>${Math.round(P.dmgMul * 100)}%</b> &nbsp;·&nbsp; ${lang === 'en' ? 'Speed:' : 'Tempo:'} <b>${Math.round(P.rateMul * 100)}%</b></div>
       <div class="sum-row">${weaponChips.join('')}</div>
       ${passiveChips.length ? `<div class="sum-row">${passiveChips.join('')}</div>` : ''}
     `;

@@ -173,7 +173,7 @@ class EntityManager {
     e.hp -= dmg;
     e.flash = 0.08;
 
-    const kb = e.isBoss ? 0.04 : (e.isElite ? 0.35 : 1.0) * (12 / e.r);
+    const kb = e.isBoss ? 0.04 : (e.isOvercharged ? 0.18 : (e.isElite ? 0.35 : 1.0)) * (12 / e.r);
     e.kx += (kx || 0) * kb;
     e.ky += (ky || 0) * kb;
 
@@ -285,38 +285,72 @@ class EntityManager {
     }
   }
 
+  getPlayerPowerScore() {
+    if (!window.GameState) return 0;
+    const P = window.GameState.player;
+    let weaponLevels = 0;
+    let evoCount = 0;
+    if (window.GameState.weapons) {
+      for (const k in window.GameState.weapons) {
+        const w = window.GameState.weapons[k];
+        if (w && w.lv > 0) {
+          weaponLevels += w.lv;
+          if (w.evolved) evoCount++;
+        }
+      }
+    }
+    let passiveLevels = 0;
+    if (window.GameState.passives) {
+      for (const k in window.GameState.passives) {
+        passiveLevels += (window.GameState.passives[k] || 0);
+      }
+    }
+    const pLvl = P ? P.lvl : 1;
+    const pDmg = P ? (P.dmgMul || 1.0) : 1.0;
+    const pRate = P ? (P.rateMul || 1.0) : 1.0;
+
+    // Power Score: bildet das tatsächliche Zerstörungspotenzial des Spielers ab
+    return Math.max(0,
+      (pLvl - 1) * 0.04 +
+      weaponLevels * 0.05 +
+      passiveLevels * 0.04 +
+      evoCount * 1.35 +
+      (pDmg - 1.0) * 1.5 +
+      (pRate - 1.0) * 1.0
+    );
+  }
+
   createEnemy(type, x, y, forceElite = false) {
     const def = window.GAME_DATA.ENEMIES[type] || window.GAME_DATA.ENEMIES.grunt;
     const m = (window.GameState ? window.GameState.time : 0) / 60;
+    const powerScore = this.getPlayerPowerScore();
 
-    // Zähle aktive Waffen-Evolutionen (EVOs) des Spielers
-    let evoCount = 0;
-    if (window.GameState && window.GameState.weapons) {
-      for (const k in window.GameState.weapons) {
-        if (window.GameState.weapons[k] && window.GameState.weapons[k].evolved) evoCount++;
-      }
-    }
-
-    // Dynamische Skalierung gegen AFK-Standing:
-    // Je mehr EVOs der Spieler besitzt, desto zäher und schneller rücken Gegner nach
-    const evoHpMul = 1 + evoCount * 0.45;
-    const evoSpdMul = 1 + Math.min(0.50, evoCount * 0.10);
+    // Dynamische Skalierung basierend auf Spieler-Stärke:
+    // Wenn der Spieler viele Waffen, EVOs und Buffs hat, skalieren HP und Tempo progressiv mit,
+    // damit Gegner nicht schon off-screen verpuffen und der Spieler immer packende Kämpfe hat.
+    const adaptiveHpMul = 1.0 + Math.pow(powerScore, 1.35) * 0.65;
+    const adaptiveSpdMul = 1.0 + Math.min(0.65, Math.pow(powerScore, 0.75) * 0.08);
+    const adaptiveDmgMul = 1.0 + Math.min(2.5, powerScore * 0.09);
 
     // Zeitbasierte Pacing-Skalierung
-    const baseHpMul = 0.90 + m * 0.55 + Math.pow(m, 2.1) * 0.08;
-    const baseSpdMul = 1 + Math.min(m * 0.035, 0.55);
+    const baseHpMul = 0.90 + m * 0.55 + Math.pow(m, 2.05) * 0.08;
+    const baseSpdMul = 1.0 + Math.min(m * 0.035, 0.55);
 
-    const hpMul = baseHpMul * evoHpMul;
-    const spdMul = baseSpdMul * evoSpdMul;
+    const hpMul = baseHpMul * adaptiveHpMul;
+    const spdMul = baseSpdMul * adaptiveSpdMul;
 
-    // Elite / Champion Chance (steigt mit Zeit und EVOs)
-    const eliteChance = Math.min(0.30, 0.04 + m * 0.015 + evoCount * 0.04);
-    const isElite = forceElite || (m >= 2.0 && Math.random() < eliteChance && type !== 'mini');
+    // Elite & Overcharged Champion Chance:
+    // Steigt mit Spielzeit und Spieler-Stärke deutlich an
+    const eliteChance = Math.min(0.40, 0.04 + m * 0.015 + (powerScore * 0.02));
+    const isElite = forceElite || (m >= 1.5 && Math.random() < eliteChance && type !== 'mini');
 
-    const finalHpMul = hpMul * (isElite ? 3.5 : 1.0);
-    const finalSpdMul = spdMul * (isElite ? 1.25 : 1.0);
-    const finalR = isElite ? def.r * 1.35 : def.r;
-    const finalCol = isElite ? '#ffd23f' : def.col;
+    // Wenn der Spieler besonders stark ist (PowerScore >= 6), können Eliten zu Overcharged Champions mutieren
+    const isOvercharged = isElite && (powerScore >= 6.0) && (Math.random() < Math.min(0.55, (powerScore - 5.0) * 0.08));
+
+    const finalHpMul = hpMul * (isOvercharged ? 6.0 : (isElite ? 3.5 : 1.0));
+    const finalSpdMul = spdMul * (isOvercharged ? 1.35 : (isElite ? 1.25 : 1.0));
+    const finalR = isOvercharged ? def.r * 1.5 : (isElite ? def.r * 1.35 : def.r);
+    const finalCol = isOvercharged ? '#ff0055' : (isElite ? '#ffd23f' : def.col);
 
     return {
       type,
@@ -325,8 +359,8 @@ class EntityManager {
       hp: def.hp * finalHpMul,
       maxHp: def.hp * finalHpMul,
       spd: def.spd * finalSpdMul * (0.92 + Math.random() * 0.16),
-      dmg: def.dmg * (1 + m * 0.08 + evoCount * 0.15) * (isElite ? 1.4 : 1.0),
-      xp: def.xp * (isElite ? 3 : 1),
+      dmg: def.dmg * (1 + m * 0.08) * adaptiveDmgMul * (isOvercharged ? 1.8 : (isElite ? 1.4 : 1.0)),
+      xp: def.xp * (isOvercharged ? 6 : (isElite ? 3 : 1)),
       col: finalCol,
       shape: def.shape,
       flash: 0,
@@ -337,7 +371,9 @@ class EntityManager {
       telegraph: 0,
       oc: 0, frozen: 0, stunned: 0,
       isBoss: false,
-      isElite: !!isElite
+      isElite: !!isElite,
+      isOvercharged: !!isOvercharged,
+      powerScore
     };
   }
 
@@ -345,7 +381,9 @@ class EntityManager {
     const def = window.GAME_DATA.BOSSES[bossKey];
     if (!def) return null;
     const m = window.GameState.time / 60;
-    const hp = def.hp * (1 + m * 0.06);
+    const powerScore = this.getPlayerPowerScore();
+    const bossPowerHp = 1.0 + Math.pow(powerScore, 1.2) * 0.35;
+    const hp = def.hp * (1 + m * 0.08) * bossPowerHp;
 
     const b = {
       id: bossKey,
