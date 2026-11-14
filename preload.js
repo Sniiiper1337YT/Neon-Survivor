@@ -2,7 +2,7 @@
 // Secure bridge between the game (renderer) and the native Electron process.
 const { contextBridge, ipcRenderer } = require('electron');
 
-let appVersion = '1.0.1';
+let appVersion = '1.0.3';
 try {
   appVersion = ipcRenderer.sendSync('app:getVersionSync') || require('./package.json').version;
 } catch (e) {
@@ -11,7 +11,7 @@ try {
 
 contextBridge.exposeInMainWorld('NeonNative', {
   isNative: true,
-  appVersion: appVersion || '1.0.1',
+  appVersion: appVersion || '1.0.3',
   discordSetActivity: (activity, clientId) => ipcRenderer.invoke('discord:setActivity', { activity, clientId }),
   discordStatus: () => ipcRenderer.invoke('discord:status'),
   discordReconnect: () => ipcRenderer.invoke('discord:reconnect'),

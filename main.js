@@ -359,7 +359,7 @@ function getAppVersion() {
       if (pkg && pkg.version) return pkg.version;
     }
   } catch (e) {}
-  return app.getVersion() || '1.0.1';
+  return app.getVersion() || '1.0.3';
 }
 
 ipcMain.on('app:getVersionSync', (event) => {
