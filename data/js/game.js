@@ -1,0 +1,888 @@
+// ==========================================
+// NEON SURVIVOR - CORE GAME LOOP & CONTROLLER
+// Pacing, Spawning, Neon Overload, Evolutions,
+// 30-Min Finale, Victory & Payout System
+// ==========================================
+'use strict';
+
+class GameController {
+  constructor() {
+    this.state = 'title';
+    this.time = 0;
+    this.kills = 0;
+    this.bossKills = 0;
+    this.creditsEarned = 0;
+    this.bonusScore = 0;
+    this.pendingLevels = 0;
+    this.shake = 0;
+    this.hurtFlash = 0;
+    this.banner = { text: '', t: 0, col: '#3dfcff' };
+    this.resumeWait = 0;
+    this.rerollsLeft = 1;
+    this.isOverload = false;
+    this.overloadTimer = 0;
+
+    this.selectedCharacter = 'apex';
+    this.selectedMap = 'void';
+    this.selectedMode = 'classic';
+    this.currentBoss = null;
+    this.sandboxGodMode = false;
+    this.sandboxPauseSpawns = false;
+
+    this.cam = { x: 0, y: 0 };
+    this.player = null;
+    this.weapons = {};
+    this.passives = {};
+    this.choices = [];
+
+    this.nextBossIdx = 0;
+    this.nextBossTime = 300;
+    this.nextSwarmTime = 60;
+    this.chaosTimer = 45;
+    this.activeChaosEvent = null;
+    this.chaosEventEndTime = 0;
+    this.chaosSubTimer = 0;
+    this.levelUpFocus = 0;
+    this.dashHitSet = new Set();
+    this.lastFrame = performance.now();
+    this.lastRender = performance.now();
+    this.initMenuControls();
+  }
+
+  initMenuControls() {
+    window.addEventListener('keydown', e => {
+      if ((e.code === 'Tab' || e.code === 'F2') && this.state === 'play') {
+        e.preventDefault();
+        if (window.UI && window.UI.toggleSandboxPanel) {
+          window.UI.toggleSandboxPanel();
+        }
+        return;
+      }
+      if (e.code === 'Escape' && window.UI && window.UI.isSandboxOpen) {
+        e.preventDefault();
+        window.UI.toggleSandboxPanel();
+        return;
+      }
+      if (this.state === 'pause') {
+        const tag = e.target && e.target.tagName;
+        const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+        const isPauseKey = e.code === 'Escape' || (!isTyping && window.Input && window.Input.isActionCode && window.Input.isActionCode(e.code, 'pause'));
+        if (isPauseKey) {
+          e.preventDefault();
+          if (window.Input) window.Input.pausePressed = false;
+          if (window.UI && window.UI.activeScreen === 'settingsModal') {
+            const backBtn = document.getElementById('btnSettingsBack');
+            if (backBtn) backBtn.click();
+            else {
+              if (window.UI.renderPauseSummary) window.UI.renderPauseSummary();
+              window.UI.showScreen('pause');
+            }
+          } else {
+            this.resumeGame();
+          }
+          return;
+        }
+      }
+      if (this.state !== 'levelup') return;
+      if (e.code === 'Digit1' || e.code === 'Numpad1') this.chooseUpgrade(0);
+      else if (e.code === 'Digit2' || e.code === 'Numpad2') this.chooseUpgrade(1);
+      else if (e.code === 'Digit3' || e.code === 'Numpad3') this.chooseUpgrade(2);
+      else if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        this.levelUpFocus = (this.levelUpFocus + Math.max(1, this.choices.length) - 1) % Math.max(1, this.choices.length);
+        if (window.UI && window.UI.highlightLevelCard) window.UI.highlightLevelCard(this.levelUpFocus);
+      } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        this.levelUpFocus = (this.levelUpFocus + 1) % Math.max(1, this.choices.length);
+        if (window.UI && window.UI.highlightLevelCard) window.UI.highlightLevelCard(this.levelUpFocus);
+      } else if (e.code === 'Enter' || e.code === 'Space') {
+        e.preventDefault();
+        this.chooseUpgrade(this.levelUpFocus || 0);
+      } else if (e.code === 'KeyR') {
+        this.rerollChoices();
+      }
+    });
+  }
+
+  init() {
+    this.selectedCharacter = window.SaveSystem.data.selectedCharacter || 'apex';
+    this.selectedMap = window.SaveSystem.data.selectedMap || 'void';
+    this.selectedMode = window.SaveSystem.data.selectedMode || 'classic';
+    this.resetGame();
+    if (window.DiscordRPC) window.DiscordRPC.init();
+    this.loop();
+  }
+
+  resetGame() {
+    const charDef = window.GAME_DATA.CHARACTERS[this.selectedCharacter] || window.GAME_DATA.CHARACTERS.apex;
+    const skillMods = window.SaveSystem.getSkillModifiers();
+
+    const maxHp = (charDef.stats.hp + skillMods.hp);
+    this.player = {
+      x: 0, y: 0, r: 14,
+      hp: maxHp,
+      maxHp: maxHp,
+      speed: (charDef.stats.spd * skillMods.speed),
+      speedModifier: 1,
+      xp: 0, lvl: 1, next: 5,
+      xpMul: skillMods.xp || 1,
+      magnet: (115 * skillMods.magnet),
+      dmgMul: (charDef.stats.dmg * skillMods.dmg),
+      rateMul: (1.0 * skillMods.rate),
+      armor: (charDef.stats.armor + skillMods.armor),
+      regen: (charDef.stats.regen + skillMods.regen),
+      crit: (charDef.stats.crit + skillMods.crit),
+      multi: 0,
+      dashCd: 0, dashMaxCd: charDef.stats.dashBonus ? 0.65 : 1.0,
+      dashBonus: !!charDef.stats.dashBonus,
+      phasedDash: !!charDef.stats.phasedDash,
+      aoeBonus: charDef.stats.aoeBonus || 0,
+      slowAura: charDef.stats.slowAura || 0,
+      dashT: 0, dvx: 0, dvy: 0, inv: 0,
+      face: -Math.PI / 2, mx: 0, my: -1, moving: false,
+      overloadGauge: 0,
+      overloadChargeRate: (skillMods.overloadRate || 1) * (charDef.stats.overloadRate || 1),
+      overloadDurMul: 1.0,
+      shieldHits: 0,
+      overdriveTimer: 0,
+      doubleDamageTimer: 0,
+      xpMultiplierTimer: 0
+    };
+
+    if (this.selectedMode === 'hardcore') {
+      this.player.hp = 1;
+      this.player.maxHp = 1;
+    }
+
+    this.time = 0;
+    this.kills = 0;
+    this.bossKills = 0;
+    this.creditsEarned = 0;
+    this.bonusScore = 0;
+    this.pendingLevels = 0;
+    this.shake = 0;
+    this.hurtFlash = 0;
+    this.banner = { text: '', t: 0, col: '#3dfcff' };
+    this.resumeWait = 0;
+    this.rerollsLeft = 1 + skillMods.rerolls;
+    this.isOverload = false;
+    this.overloadTimer = 0;
+    this.nextBossIdx = 0;
+    this.nextBossTime = this.selectedMode === 'bossrush' ? 60 : 300;
+    this.nextSwarmTime = 60;
+    this.chaosTimer = 35;
+    this.activeChaosEvent = null;
+    this.chaosEventEndTime = 0;
+    this.chaosSubTimer = 0;
+    this.currentBoss = null;
+    this.cam.x = 0;
+    this.cam.y = 0;
+
+    // Reset weapons & passives
+    this.weapons = {};
+    for (const k in window.GAME_DATA.WEAPONS) {
+      this.weapons[k] = { lv: 0, t: 0.3, evolved: false };
+    }
+    // Starting weapon of character
+    this.weapons[charDef.weapon].lv = 1;
+
+    this.passives = {};
+    for (const k in window.GAME_DATA.PASSIVES) {
+      this.passives[k] = 0;
+    }
+
+    window.Entities.reset();
+  }
+
+  startRun() {
+    this.selectedCharacter = window.SaveSystem.data.selectedCharacter;
+    this.selectedMap = window.SaveSystem.data.selectedMap;
+    this.selectedMode = window.SaveSystem.data.selectedMode;
+
+    this.resetGame();
+    this.state = 'play';
+    window.UI.showScreen(null);
+    if (this.selectedMode === 'sandbox') {
+      this.sandboxPauseSpawns = true;
+      window.UI.showBanner('TEST-LABOR (TAB / F2 DRÜCKEN)', '#ffd23f');
+    } else {
+      window.UI.showBanner('ÜBERLEBE!', '#3dfcff');
+    }
+    if (window.SoundSystem) {
+      window.SoundSystem.init();
+      window.SoundSystem.sfx('click');
+      window.SoundSystem.setTheme('normal');
+    }
+
+    window.SaveSystem.data.stats.runsStarted++;
+    window.SaveSystem.save();
+    window.SaveSystem.checkAchievements();
+    if (window.DiscordRPC) window.DiscordRPC.startRun(this.selectedCharacter, this.selectedMap, this.selectedMode);
+  }
+
+  damagePlayer(dmg) {
+    if (this.sandboxGodMode) return;
+    if (this.player.inv > 0 || this.state !== 'play' || this.isOverload) return;
+
+    // Shield barrier absorption
+    if (this.player.shieldHits > 0) {
+      this.player.shieldHits--;
+      this.player.inv = 0.5;
+      this.shake = Math.max(this.shake, 6);
+      if (window.SoundSystem) window.SoundSystem.sfx('shield_break');
+      window.Entities.addText(this.player.x, this.player.y - 20, 'SCHILD BLOCK', '#76ff03', true);
+      return;
+    }
+
+    const finalDmg = Math.max(1, dmg - this.player.armor);
+    this.player.hp -= finalDmg;
+    this.player.inv = 0.6;
+    this.shake = Math.max(this.shake, 12);
+    this.hurtFlash = 0.35;
+    if (window.SoundSystem) window.SoundSystem.sfx('hurt');
+    if (window.Input) window.Input.vibrate(200, 0.6, 0.8);
+
+    window.Entities.addText(this.player.x, this.player.y - 20, '-' + Math.round(finalDmg), '#ff3366', true);
+    window.Entities.spawnParticle(this.player.x, this.player.y, '#ff3366', 16, 250, 3, 0.5);
+
+    if (this.player.hp <= 0) {
+      this.player.hp = 0;
+      this.gameOver();
+    }
+  }
+
+  gainXp(v) {
+    const mult = (this.player.xpMultiplierTimer > 0 ? 2 : 1) * (this.player.xpMul || 1) * (this.activeChaosEvent === 'turbo_horde' ? 1.3 : 1);
+    this.player.xp += v * mult;
+    window.SaveSystem.data.stats.totalGemsCollected += v;
+
+    while (this.player.xp >= this.player.next) {
+      this.player.xp -= this.player.next;
+      this.player.lvl++;
+      this.player.next = Math.floor(4 + this.player.lvl * 3.2 + Math.pow(this.player.lvl, 1.45) * 0.6);
+      if (this.selectedMode !== 'sandbox') {
+        this.pendingLevels++;
+      }
+      window.SaveSystem.data.stats.highestLevel = Math.max(window.SaveSystem.data.stats.highestLevel, this.player.lvl);
+    }
+  }
+
+  activateOverload() {
+    if (this.isOverload || this.player.overloadGauge < 100) return;
+    this.isOverload = true;
+    this.player.overloadGauge = 0;
+    this.overloadTimer = 9.0 * (this.player.overloadDurMul || 1);
+    this.shake = 15;
+
+    if (window.SoundSystem) {
+      window.SoundSystem.sfx('overload');
+      window.SoundSystem.setTheme('overload');
+    }
+    if (window.UI) window.UI.showBanner('⚡ NEON OVERLOAD! ⚡', '#ffd23f');
+    if (window.Input) window.Input.vibrate(300, 0.8, 1.0);
+
+    window.SaveSystem.data.stats.overloadsUsed++;
+    window.SaveSystem.checkAchievements();
+  }
+
+  update(dt) {
+    if (this.resumeWait > 0) {
+      this.resumeWait -= dt;
+      return;
+    }
+
+    this.time += dt;
+    window.SaveSystem.data.stats.totalTime += dt;
+
+    const P = this.player;
+
+    // Buff timers
+    if (P.overdriveTimer > 0) P.overdriveTimer -= dt;
+    if (P.doubleDamageTimer > 0) P.doubleDamageTimer -= dt;
+    if (P.xpMultiplierTimer > 0) P.xpMultiplierTimer -= dt;
+
+    // Overload Timer
+    if (this.isOverload) {
+      this.overloadTimer -= dt;
+      // Overload pulls all gems globally
+      for (const g of window.Entities.gems) g.pull = true;
+      if (this.overloadTimer <= 0) {
+        this.isOverload = false;
+        if (window.SoundSystem) window.SoundSystem.setTheme(this.currentBoss ? 'boss' : 'normal');
+      }
+    }
+
+    // Check if Sandbox Menu is open: freeze player movement
+    const sbOpen = Boolean(window.UI && window.UI.isSandboxOpen);
+    if (sbOpen && window.Input) {
+      window.Input.dashPressed = false;
+      window.Input.overloadPressed = false;
+    }
+
+    // Check Overload Key Input
+    if (window.Input.overloadPressed) {
+      window.Input.overloadPressed = false;
+      if (!sbOpen) this.activateOverload();
+    }
+
+    // Movement & Dash
+    const mov = sbOpen ? { x: 0, y: 0, moving: false } : window.Input.getMovementVector(P.x, P.y, this.cam.x, this.cam.y, window.Renderer.W, window.Renderer.H);
+    const frameSpeedMod = P.speedModifier || 1;
+    P.speedModifier = 1; // Reset for next frame's hazard/leech evaluation
+    P.dashCd -= dt;
+    P.inv -= dt;
+
+    if (window.Input.dashPressed) {
+      window.Input.dashPressed = false;
+      if (!sbOpen && P.dashCd <= 0) {
+        P.dvx = P.mx * 1100;
+        P.dvy = P.my * 1100;
+        P.dashT = 0.17;
+        P.inv = Math.max(P.inv, 0.35);
+        P.dashCd = P.dashMaxCd || 1.0;
+        this.dashHitSet.clear();
+        if (window.SoundSystem) window.SoundSystem.sfx('dash');
+        if (window.Input) window.Input.vibrate(100, 0.4, 0.6);
+      }
+    }
+
+    const oldPx = P.x, oldPy = P.y;
+    if (P.dashT > 0 && !sbOpen) {
+      P.dashT -= dt;
+      P.x += P.dvx * dt;
+      P.y += P.dvy * dt;
+      window.Entities.spawnParticle(P.x, P.y, P.phasedDash ? '#d500f9' : '#3dfcff', 2, 80, 8, 0.25);
+
+      // Specter phasedDash damages enemies dashed through
+      if (P.phasedDash) {
+        window.Entities.grid.query(P.x, P.y, P.r + 28, e => {
+          if (!e.dead && !this.dashHitSet.has(e) && Math.hypot(e.x - P.x, e.y - P.y) < P.r + e.r + 20) {
+            this.dashHitSet.add(e);
+            window.Entities.hurtEnemy(e, 45 * P.dmgMul, P.dvx * 0.2, P.dvy * 0.2, true);
+          }
+        });
+      }
+    } else {
+      if (sbOpen) {
+        P.moving = false;
+      } else {
+        const chaosSpd = this.activeChaosEvent === 'hyper_speed' ? 1.4 : 1.0;
+        const spdTotal = P.speed * (P.overdriveTimer > 0 ? 1.5 : 1.0) * frameSpeedMod * chaosSpd;
+        P.x += mov.x * spdTotal * dt;
+        P.y += mov.y * spdTotal * dt;
+        if (mov.moving) {
+          P.mx = mov.x; P.my = mov.y;
+          P.moving = true;
+        } else {
+          P.moving = false;
+        }
+      }
+    }
+    const stepDist = Math.hypot(P.x - oldPx, P.y - oldPy);
+    window.SaveSystem.data.stats.distanceTraveled = (window.SaveSystem.data.stats.distanceTraveled || 0) + stepDist;
+
+    // Chronos-X slow aura
+    if (P.slowAura > 0) {
+      window.Entities.grid.query(P.x, P.y, 185, e => {
+        if (!e.dead && Math.hypot(e.x - P.x, e.y - P.y) < 185) {
+          e.frozen = Math.max(e.frozen || 0, 0.2);
+        }
+      });
+    }
+
+    // Face rotation
+    if (P.moving || P.dashT > 0) {
+      const ta = Math.atan2(P.my, P.mx);
+      let da = ((ta - P.face + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      P.face += da * Math.min(1, dt * 14);
+      if (Math.random() < 0.6) {
+        window.Entities.spawnParticle(
+          P.x - Math.cos(P.face) * 12, P.y - Math.sin(P.face) * 12,
+          this.isOverload ? '#ffd23f' : '#ff2d95', 1, 100, 3, 0.25
+        );
+      }
+    }
+
+    // Passive Regen
+    if (P.regen > 0) P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
+
+    // Smooth Camera Follow
+    this.cam.x += (P.x - this.cam.x) * Math.min(1, dt * 7);
+    this.cam.y += (P.y - this.cam.y) * Math.min(1, dt * 7);
+
+    // Hardcore 10-minute achievement check
+    if (this.selectedMode === 'hardcore' && this.time >= 600) {
+      window.SaveSystem.unlockAchievement('hardcore_win');
+    }
+
+    // Chaos mode random events every 45 seconds
+    if (this.selectedMode === 'chaos') {
+      this.updateChaosMode(dt, P);
+    }
+
+    // Timeline Boss Scheduling (Every 5 minutes, or every 60s in Boss Rush)
+    this.checkBossTimeline();
+
+    // Swarm scheduling
+    if (this.time >= this.nextSwarmTime) {
+      this.nextSwarmTime += 50;
+      this.spawnSwarm();
+    }
+
+    // Spawning Mobs
+    this.updateSpawning(dt);
+
+    // Update Entities & Weapons
+    window.Weapons.update(dt, P, this.weapons, this.passives);
+    window.Entities.update(dt);
+
+    this.shake = Math.max(0, this.shake - dt * 35);
+    this.hurtFlash = Math.max(0, this.hurtFlash - dt);
+    if (this.banner.t > 0) this.banner.t -= dt;
+
+    // Check Pause
+    if (window.Input.pausePressed) {
+      window.Input.pausePressed = false;
+      if (window.UI && window.UI.isSandboxOpen) {
+        window.UI.toggleSandboxPanel();
+      } else {
+        this.pauseGame();
+      }
+    }
+
+    // Level-up trigger (Suppressed in Sandbox Mode)
+    if (this.pendingLevels > 0 && this.state === 'play') {
+      if (this.selectedMode !== 'sandbox') {
+        this.openLevelUp();
+      } else {
+        this.pendingLevels = 0;
+      }
+    }
+  }
+
+  updateChaosMode(dt, P) {
+    if (this.activeChaosEvent && this.time >= this.chaosEventEndTime) {
+      this.activeChaosEvent = null;
+    }
+    this.chaosTimer -= dt;
+    if (this.chaosTimer <= 0) {
+      this.chaosTimer = 45;
+      const events = [
+        { id: 'turbo_horde', label: 'CHAOS: TURBO-HORDE (+30% XP)' },
+        { id: 'overdrive_weapons', label: 'CHAOS: WAFFEN-ÜBERLADUNG (+50% TEMPORATE)' },
+        { id: 'meteor_shower', label: 'CHAOS: PLASMA-METEORITEN' },
+        { id: 'hyper_speed', label: 'CHAOS: HYPER-GESCHWINDIGKEIT' },
+        { id: 'jackpot_rain', label: 'CHAOS: JACKPOT-REGEN' }
+      ];
+      const ev = events[Math.floor(Math.random() * events.length)];
+      this.activeChaosEvent = ev.id;
+      this.chaosEventEndTime = this.time + 25;
+      this.chaosSubTimer = 0.5;
+      if (window.UI) window.UI.showBanner('⚡ ' + ev.label, '#ff00aa');
+      if (window.SoundSystem) window.SoundSystem.sfx('overload');
+    }
+
+    if (this.activeChaosEvent === 'meteor_shower') {
+      this.chaosSubTimer -= dt;
+      if (this.chaosSubTimer <= 0) {
+        this.chaosSubTimer = 0.7;
+        const ang = Math.random() * Math.PI * 2;
+        const dist = 80 + Math.random() * 340;
+        const mx = P.x + Math.cos(ang) * dist;
+        const my = P.y + Math.sin(ang) * dist;
+        window.Entities.grid.query(mx, my, 120, e => {
+          if (!e.dead) window.Entities.hurtEnemy(e, 95 * P.dmgMul, (e.x - mx) * 2, (e.y - my) * 2, true);
+        });
+        window.Entities.fx.push({ type: 'ring', x: mx, y: my, r0: 10, r1: 120, life: 0.4, max: 0.4, col: '#ff00aa' });
+        window.Entities.spawnParticle(mx, my, '#ff00aa', 18, 240, 4, 0.5);
+        if (window.SoundSystem) window.SoundSystem.sfx('boom');
+      }
+    } else if (this.activeChaosEvent === 'jackpot_rain') {
+      this.chaosSubTimer -= dt;
+      if (this.chaosSubTimer <= 0) {
+        this.chaosSubTimer = 3.5;
+        const ang = Math.random() * Math.PI * 2;
+        const dist = 140 + Math.random() * 180;
+        window.Entities.dropPowerup(P.x + Math.cos(ang) * dist, P.y + Math.sin(ang) * dist, Math.random() < 0.5 ? 'credit_cache' : null);
+      }
+    }
+  }
+
+  checkBossTimeline() {
+    if (this.selectedMode === 'sandbox') return;
+    const bossSchedule = ['scorpio', 'leviathan', 'titan', 'vortex_eye', 'chronos', 'arch_sentinel'];
+    if (this.selectedMode === 'bossrush') {
+      if (this.time >= this.nextBossTime) {
+        const nextKey = bossSchedule[this.nextBossIdx % bossSchedule.length];
+        this.nextBossIdx++;
+        this.nextBossTime += 60;
+        const a = Math.random() * Math.PI * 2;
+        const d = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 80;
+        window.Entities.createBoss(nextKey, this.player.x + Math.cos(a) * d, this.player.y + Math.sin(a) * d);
+      }
+      return;
+    }
+
+    if (this.selectedMode === 'endless') {
+      if (this.time >= this.nextBossTime) {
+        const nextKey = bossSchedule[this.nextBossIdx % bossSchedule.length];
+        this.nextBossIdx++;
+        this.nextBossTime += 300;
+        const a = Math.random() * Math.PI * 2;
+        const d = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 80;
+        window.Entities.createBoss(nextKey, this.player.x + Math.cos(a) * d, this.player.y + Math.sin(a) * d);
+      }
+      return;
+    }
+
+    if (this.nextBossIdx < bossSchedule.length) {
+      const nextKey = bossSchedule[this.nextBossIdx];
+      const bossDef = window.GAME_DATA.BOSSES[nextKey];
+      if (this.time >= bossDef.time) {
+        this.nextBossIdx++;
+        const a = Math.random() * Math.PI * 2;
+        const d = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 80;
+        window.Entities.createBoss(nextKey, this.player.x + Math.cos(a) * d, this.player.y + Math.sin(a) * d);
+      }
+    }
+  }
+
+  spawnSwarm() {
+    if (this.selectedMode === 'sandbox') return;
+    const n = Math.min(12 + Math.floor(this.time / 25), 45);
+    const R = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 50;
+    const type = this.time > 120 ? 'runner' : 'grunt';
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const e = window.Entities.createEnemy(type, this.player.x + Math.cos(a) * R, this.player.y + Math.sin(a) * R);
+      window.Entities.enemies.push(e);
+    }
+    window.UI.showBanner('⚡ SCHWARM NAHT! ⚡', '#ffd23f');
+    if (window.SoundSystem) window.SoundSystem.sfx('nova');
+  }
+
+  updateSpawning(dt) {
+    if (this.selectedMode === 'sandbox' || this.sandboxPauseSpawns) return;
+    if (window.Entities.enemies.length >= 220) return;
+    const m = this.time / 60;
+    const chaosMul = this.activeChaosEvent === 'turbo_horde' ? 2.0 : 1.0;
+    const glitchMul = this.selectedMap === 'glitch' ? 1.25 : 1.0;
+    const spawnRate = (0.75 + m * 1.45 + m * m * 0.42) * chaosMul * glitchMul * dt;
+    if (Math.random() < spawnRate) {
+      const type = this.pickSpawnType();
+      const a = Math.random() * Math.PI * 2;
+      const d = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 60 + Math.random() * 80;
+      const e = window.Entities.createEnemy(type, this.player.x + Math.cos(a) * d, this.player.y + Math.sin(a) * d);
+      window.Entities.enemies.push(e);
+    }
+  }
+
+  pickSpawnType() {
+    const t = this.time + (this.selectedMap === 'glitch' ? 120 : 0);
+    const pool = [['grunt', 10]];
+    if (t > 30) pool.push(['runner', 4]);
+    if (t > 70) pool.push(['dasher', 3]);
+    if (t > 100) pool.push(['tank', 2.5]);
+    if (t > 130) pool.push(['shooter', 2.5]);
+    if (t > 160) pool.push(['splitter', 2.5]);
+    if (t > 200) pool.push(['shielder', 2]);
+    if (t > 210) pool.push(['repulsor', 2]);
+    if (t > 240) pool.push(['teleporter', 2]);
+    if (t > 280) pool.push(['summoner', 1.8]);
+    if (t > 320) pool.push(['sniper', 1.8]);
+    if (t > 360) pool.push(['mortar', 1.6]);
+    if (t > 400) pool.push(['kamikaze', 2]);
+    if (t > 450) pool.push(['orbiter', 2]);
+    if (t > 500) pool.push(['phantom', 1.8]);
+    if (t > 550) pool.push(['leech', 1.8]);
+
+    let sum = 0;
+    for (const p of pool) sum += p[1];
+    let r = Math.random() * sum;
+    for (const p of pool) {
+      r -= p[1];
+      if (r <= 0) return p[0];
+    }
+    return 'grunt';
+  }
+
+  buildChoices() {
+    const pool = [];
+
+    // 1. Check for possible Weapon Evolutions!
+    for (const wKey in this.weapons) {
+      const w = this.weapons[wKey];
+      const def = window.GAME_DATA.WEAPONS[wKey];
+      if (w.lv >= def.max && !w.evolved && def.requiredPassive) {
+        if (this.passives[def.requiredPassive] > 0) {
+          pool.push({ kind: 'evo', id: def.evolution, baseWeapon: wKey, wgt: 10 }); // High priority
+        }
+      }
+    }
+
+    // 2. Regular Weapon upgrades
+    for (const wKey in window.GAME_DATA.WEAPONS) {
+      const w = this.weapons[wKey];
+      const def = window.GAME_DATA.WEAPONS[wKey];
+      if (w.lv < def.max) {
+        pool.push({ kind: 'w', id: wKey, wgt: w.lv === 0 ? 1.4 : 1.1 });
+      }
+    }
+
+    // 3. Passive upgrades
+    for (const pKey in window.GAME_DATA.PASSIVES) {
+      const def = window.GAME_DATA.PASSIVES[pKey];
+      if (this.passives[pKey] < def.max) {
+        pool.push({ kind: 'p', id: pKey, wgt: 1.0 });
+      }
+    }
+
+    const out = [];
+    while (out.length < 3 && pool.length) {
+      let sum = 0;
+      for (const p of pool) sum += p.wgt;
+      let r = Math.random() * sum, idx = 0;
+      for (; idx < pool.length; idx++) {
+        r -= pool[idx].wgt;
+        if (r <= 0) break;
+      }
+      idx = Math.min(idx, pool.length - 1);
+      out.push(pool.splice(idx, 1)[0]);
+    }
+
+    if (out.length < 3) out.push({ kind: 'x', id: 'heal' });
+    if (out.length < 3) out.push({ kind: 'x', id: 'credits' });
+    return out;
+  }
+
+  openLevelUp() {
+    this.pendingLevels--;
+    this.state = 'levelup';
+    this.levelUpFocus = 0;
+    this.choices = this.buildChoices();
+    window.UI.renderLevelUp(this.choices, this.rerollsLeft > 0);
+    if (window.UI.highlightLevelCard) window.UI.highlightLevelCard(this.levelUpFocus);
+    window.UI.showScreen('levelup');
+    if (window.SoundSystem) window.SoundSystem.sfx('level');
+  }
+
+  rerollChoices() {
+    if (this.state !== 'levelup' || this.rerollsLeft <= 0) return;
+    this.rerollsLeft--;
+    this.levelUpFocus = 0;
+    this.choices = this.buildChoices();
+    window.UI.renderLevelUp(this.choices, this.rerollsLeft > 0);
+    if (window.UI.highlightLevelCard) window.UI.highlightLevelCard(this.levelUpFocus);
+    if (window.SoundSystem) window.SoundSystem.sfx('nova');
+  }
+
+  chooseUpgrade(idx) {
+    if (this.state !== 'levelup' || !this.choices[idx]) return;
+    const c = this.choices[idx];
+    const P = this.player;
+
+    if (c.kind === 'evo') {
+      this.weapons[c.baseWeapon].evolved = true;
+      if (window.SoundSystem) window.SoundSystem.sfx('evolution');
+      window.SaveSystem.data.stats.evolutionsMade++;
+      const evoAchMap = {
+        hyper_gatling: 'blaster_max',
+        photonic_beam: 'laser_max',
+        event_horizon: 'vortex_max',
+        hellfire_dragon: 'flame_max',
+        chronos_matrix: 'emp_max'
+      };
+      if (evoAchMap[c.id]) window.SaveSystem.unlockAchievement(evoAchMap[c.id]);
+      window.SaveSystem.checkAchievements();
+    } else if (c.kind === 'w') {
+      this.weapons[c.id].lv++;
+      this.weapons[c.id].t = Math.min(this.weapons[c.id].t, 0.2);
+    } else if (c.kind === 'p') {
+      this.passives[c.id]++;
+      this.applyPassiveEffect(c.id);
+    } else if (c.id === 'heal') {
+      P.hp = Math.min(P.maxHp, P.hp + 50);
+    } else {
+      this.creditsEarned += 100;
+      window.SaveSystem.addCredits(100);
+    }
+
+    if (window.SoundSystem) window.SoundSystem.sfx('click');
+    P.inv = Math.max(P.inv, 1.4);
+
+    if (this.pendingLevels > 0) {
+      this.openLevelUp();
+    } else {
+      this.state = 'play';
+      window.UI.showScreen(null);
+      this.resumeWait = 0.9;
+    }
+  }
+
+  applyPassiveEffect(pKey) {
+    const P = this.player;
+    switch (pKey) {
+      case 'dmg': P.dmgMul += 0.22; break;
+      case 'rate': P.rateMul += 0.15; break;
+      case 'speed': P.speed *= 1.12; break;
+      case 'hp':
+        if (this.selectedMode !== 'hardcore') {
+          P.maxHp += 35;
+          P.hp = Math.min(P.maxHp, P.hp + 35);
+        }
+        break;
+      case 'magnet': P.magnet *= 1.45; break;
+      case 'armor': P.armor += 3.0; break;
+      case 'regen': P.regen += 0.8; break;
+      case 'crit': P.crit += 0.10; break;
+      case 'multi': P.multi += 1; break;
+      case 'overload_boost':
+        P.overloadChargeRate *= 1.2;
+        P.overloadDurMul = (P.overloadDurMul || 1) + 0.2;
+        break;
+    }
+  }
+
+  recalcPlayerStats() {
+    if (!this.player) return;
+    const charDef = window.GAME_DATA.CHARACTERS[this.selectedCharacter] || window.GAME_DATA.CHARACTERS.striker;
+    const skillMods = window.SaveSystem.getSkillModifiers();
+    const P = this.player;
+
+    const baseMaxHp = (charDef.stats.hp + (skillMods.hp || 0));
+    const hpRank = this.passives.hp || 0;
+    const newMaxHp = (this.selectedMode === 'hardcore') ? 1 : (baseMaxHp + hpRank * 35);
+    const hpRatio = P.maxHp > 0 ? (P.hp / P.maxHp) : 1;
+    P.maxHp = newMaxHp;
+    P.hp = Math.min(P.maxHp, Math.max(1, Math.round(newMaxHp * hpRatio)));
+
+    P.speed = (charDef.stats.spd * (skillMods.speed || 1)) * Math.pow(1.12, this.passives.speed || 0);
+    P.dmgMul = (charDef.stats.dmg * (skillMods.dmg || 1)) + (this.passives.dmg || 0) * 0.22;
+    P.rateMul = (1.0 * (skillMods.rate || 1)) + (this.passives.rate || 0) * 0.15;
+    P.magnet = (115 * (skillMods.magnet || 1)) * Math.pow(1.45, this.passives.magnet || 0);
+    P.armor = (charDef.stats.armor + (skillMods.armor || 0)) + (this.passives.armor || 0) * 3.0;
+    P.regen = (charDef.stats.regen + (skillMods.regen || 0)) + (this.passives.regen || 0) * 0.8;
+    P.crit = (charDef.stats.crit + (skillMods.crit || 0)) + (this.passives.crit || 0) * 0.10;
+    P.multi = (this.passives.multi || 0);
+    P.overloadChargeRate = (skillMods.overloadRate || 1) * (charDef.stats.overloadRate || 1) * Math.pow(1.2, this.passives.overload_boost || 0);
+    P.overloadDurMul = 1.0 + (this.passives.overload_boost || 0) * 0.2;
+  }
+
+  pauseGame() {
+    if (this.state !== 'play') return;
+    this.state = 'pause';
+    if (window.Input) {
+      for (const k in window.Input.K) window.Input.K[k] = false;
+      window.Input.mouse.down = false;
+      window.Input.mouse.rightDown = false;
+      window.Input.pausePressed = false;
+      window.Input.dashPressed = false;
+      window.Input.overloadPressed = false;
+    }
+    if (window.UI && window.UI.renderPauseSummary) window.UI.renderPauseSummary();
+    window.UI.showScreen('pause');
+  }
+
+  resumeGame() {
+    if (this.state !== 'pause') return;
+    if (window.Input) window.Input.pausePressed = false;
+    this.state = 'play';
+    window.UI.showScreen(null);
+    this.resumeWait = 0.8;
+  }
+
+  gameOver() {
+    this.state = 'over';
+    if (window.SoundSystem) {
+      window.SoundSystem.sfx('over');
+      window.SoundSystem.setTheme('normal');
+    }
+
+    const finalCredits = window.SaveSystem.addCredits(this.creditsEarned + Math.floor(this.time / 5));
+    const score = Math.floor(this.time) * 10 + this.kills * 10 + this.bossKills * 2500 + this.bonusScore;
+    window.SaveSystem.data.stats.highestScore = Math.max(window.SaveSystem.data.stats.highestScore, score);
+    window.SaveSystem.data.stats.bestSurvivalTime = Math.max(window.SaveSystem.data.stats.bestSurvivalTime || 0, this.time);
+    window.SaveSystem.save();
+    window.SaveSystem.checkAchievements();
+    if (window.DiscordRPC) window.DiscordRPC.setGameOver(this.time, this.kills, score);
+
+    const overStatsEl = document.getElementById('ostats');
+    if (overStatsEl) {
+      overStatsEl.innerHTML = `
+        Überlebt: <b>${Math.floor(this.time / 60)}m ${Math.floor(this.time % 60)}s</b><br>
+        Kills: <b>${this.kills}</b> &nbsp;·&nbsp; Wächter: <b>${this.bossKills}</b><br>
+        Neon Credits verdient: <b style="color:#00ffcc;font-size:24px">+${finalCredits} 💎</b><br>
+        Punkte: <b style="color:#ffd23f;font-size:28px">${score.toLocaleString('de-DE')}</b>
+      `;
+    }
+    setTimeout(() => window.UI.showScreen('over'), 1000);
+  }
+
+  triggerVictory() {
+    this.state = 'victory';
+    if (window.SoundSystem) {
+      window.SoundSystem.sfx('victory');
+      window.SoundSystem.setTheme('victory');
+    }
+    window.SaveSystem.data.stats.runsWon++;
+    window.SaveSystem.data.stats.bestSurvivalTime = Math.max(window.SaveSystem.data.stats.bestSurvivalTime || 0, this.time);
+    const bonusCredits = window.SaveSystem.addCredits(1000 + this.creditsEarned);
+    window.SaveSystem.save();
+    window.SaveSystem.checkAchievements();
+    if (window.DiscordRPC) window.DiscordRPC.setVictory(bonusCredits);
+
+    const vicStats = document.getElementById('vstats');
+    if (vicStats) {
+      vicStats.innerHTML = `
+        Du hast den Arch-Sentinel bezwungen und die Neon-Matrix befreit!<br><br>
+        Sieg-Belohnung: <b style="color:#00ffcc;font-size:26px">+${bonusCredits} 💎 Neon Credits</b><br>
+        Glitch-Wasteland Map & Chronos-Schiff freigeschaltet!
+      `;
+    }
+    window.UI.showScreen('victory');
+  }
+
+  loop() {
+    const now = performance.now();
+    const fpsLimit = (window.SaveSystem && window.SaveSystem.getSettings().fpsLimit) || 0;
+    if (fpsLimit > 0 && (now - this.lastRender) < (1000 / fpsLimit) - 1.5) {
+      requestAnimationFrame(() => this.loop());
+      return;
+    }
+    this.lastRender = now;
+
+    const dt = Math.min((now - this.lastFrame) / 1000, 1 / 30);
+    this.lastFrame = now;
+
+    if (this.state === 'levelup' && window.Input) {
+      const gp = window.Input.pollGamepad();
+      if (gp) {
+        if (gp.dpadLeft) {
+          this.levelUpFocus = (this.levelUpFocus + Math.max(1, this.choices.length) - 1) % Math.max(1, this.choices.length);
+          if (window.UI && window.UI.highlightLevelCard) window.UI.highlightLevelCard(this.levelUpFocus);
+        } else if (gp.dpadRight) {
+          this.levelUpFocus = (this.levelUpFocus + 1) % Math.max(1, this.choices.length);
+          if (window.UI && window.UI.highlightLevelCard) window.UI.highlightLevelCard(this.levelUpFocus);
+        } else if (gp.btnA) {
+          this.chooseUpgrade(this.levelUpFocus || 0);
+        } else if (gp.btnY) {
+          this.rerollChoices();
+        }
+      }
+    }
+
+    if (this.state === 'play') {
+      this.update(dt);
+    } else if (window.Input) {
+      window.Input.pausePressed = false;
+    }
+
+    const mapDef = window.GAME_DATA.MAPS[this.selectedMap] || window.GAME_DATA.MAPS.void;
+    window.Renderer.render(
+      this.cam, this.player, window.Entities, mapDef,
+      this.isOverload, this.shake, this.hurtFlash, this.banner, dt
+    );
+
+    requestAnimationFrame(() => this.loop());
+  }
+}
+
+window.GameState = new GameController();

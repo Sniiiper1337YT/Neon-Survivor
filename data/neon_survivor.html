@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>NEON SURVIVOR - Steam Edition</title>
+<style>
+/* ================= GLOBAL STYLES ================= */
+html, body {
+  margin: 0; height: 100%;
+  background: #07020f;
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  user-select: none;
+  color: #fff;
+}
+canvas { display: block; }
+
+/* ================= OVERLAYS & MODALS ================= */
+.ov {
+  position: fixed; inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 2, 18, 0.72);
+  backdrop-filter: blur(8px);
+  text-align: center;
+  z-index: 100;
+  padding: 20px;
+  box-sizing: border-box;
+}
+.ov.on { display: flex; }
+
+.modal-content {
+  background: linear-gradient(180deg, rgba(22, 6, 45, 0.95), rgba(10, 2, 22, 0.98));
+  border: 2px solid rgba(61, 252, 255, 0.5);
+  box-shadow: 0 0 40px rgba(61, 252, 255, 0.25);
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 900px;
+  width: 95%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  animation: modalIn 0.25s cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.92) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ================= TYPOGRAPHY & LOGO ================= */
+.logo {
+  font-size: min(12vw, 92px);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: 0.08em;
+  color: #3dfcff;
+  text-shadow: 0 0 16px #3dfcff, 0 0 50px #3dfcff, 0 0 90px #0af;
+  margin-bottom: 6px;
+  animation: pulseLogo 3s ease-in-out infinite;
+}
+.logo span {
+  color: #ff2d95;
+  text-shadow: 0 0 16px #ff2d95, 0 0 50px #ff2d95, 0 0 90px #f0a;
+}
+@keyframes pulseLogo {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 15px rgba(61,252,255,0.4)); }
+  50% { filter: brightness(1.25) drop-shadow(0 0 35px rgba(255,45,149,0.7)); }
+}
+.sub {
+  margin: 10px 0 24px;
+  font-size: 18px;
+  opacity: 0.88;
+  letter-spacing: 0.05em;
+  color: #e0f8ff;
+}
+
+/* ================= BUTTONS ================= */
+.btn {
+  font: 800 18px 'Segoe UI';
+  letter-spacing: 0.1em;
+  color: #07020f;
+  background: #3dfcff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 36px;
+  margin: 6px;
+  cursor: pointer;
+  box-shadow: 0 0 22px rgba(61, 252, 255, 0.6);
+  transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
+}
+.btn:hover:not(:disabled) {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 0 35px #3dfcff;
+  background: #a2ffff;
+}
+.btn.sec {
+  background: rgba(255, 255, 255, 0.06);
+  color: #3dfcff;
+  border: 2px solid rgba(61, 252, 255, 0.6);
+  box-shadow: none;
+}
+.btn.sec:hover:not(:disabled) {
+  background: rgba(61, 252, 255, 0.18);
+  border-color: #3dfcff;
+  box-shadow: 0 0 20px rgba(61, 252, 255, 0.35);
+}
+.btn.gold {
+  background: #ffd23f;
+  color: #1a1000;
+  box-shadow: 0 0 24px rgba(255, 210, 63, 0.6);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ================= MENU GRIDS & CARDS ================= */
+.menu-btn-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 15px;
+}
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+.menu-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid rgba(61, 252, 255, 0.35);
+  border-radius: 14px;
+  padding: 18px;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  text-align: left;
+  position: relative;
+}
+.menu-card:hover {
+  transform: translateY(-5px);
+  border-color: #3dfcff;
+  box-shadow: 0 0 25px rgba(61, 252, 255, 0.35);
+}
+.menu-card.sel {
+  border-color: #ffd23f;
+  background: rgba(255, 210, 63, 0.12);
+  box-shadow: 0 0 30px rgba(255, 210, 63, 0.45);
+}
+.menu-card.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.card-icon { font-size: 38px; font-weight: 900; margin-bottom: 6px; }
+.card-title { font-size: 20px; font-weight: 900; color: #fff; margin-bottom: 4px; }
+.card-tag { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px; margin-bottom: 8px; text-transform: uppercase; }
+.card-desc { font-size: 14px; opacity: 0.85; line-height: 1.4; color: #d0f0ff; }
+.lock-req { margin-top: 8px; font-size: 12px; color: #ff5577; font-weight: 700; }
+
+/* ================= SKILL TREE SHOP ================= */
+.skill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+.skill-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(61, 252, 255, 0.35);
+  border-radius: 14px;
+  padding: 16px;
+  text-align: left;
+}
+.skill-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.skill-icon { font-size: 26px; }
+.skill-title { font-size: 17px; font-weight: 800; color: #3dfcff; }
+.skill-rank { font-size: 13px; font-weight: 900; color: #ffd23f; }
+.skill-desc { font-size: 13px; opacity: 0.8; margin-bottom: 10px; }
+.skill-meter { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
+.skill-fill { height: 100%; background: linear-gradient(90deg, #3dfcff, #b44dff); transition: width 0.2s; }
+.skill-btn { width: 100%; padding: 8px 12px; font-size: 13px; margin: 0; }
+
+/* ================= ACHIEVEMENTS ================= */
+.ach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+.ach-item {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px 14px;
+  text-align: left;
+  gap: 12px;
+}
+.ach-item.unlocked {
+  border-color: rgba(61, 252, 255, 0.6);
+  background: rgba(61, 252, 255, 0.08);
+}
+.ach-item-icon { font-size: 32px; }
+.ach-item-body { flex: 1; }
+.ach-item-title { font-size: 15px; font-weight: 800; color: #fff; }
+.ach-item-desc { font-size: 12px; opacity: 0.75; }
+.ach-item-status { font-size: 18px; color: #ffd23f; font-weight: 900; }
+
+/* ================= LEVEL UP CARDS ================= */
+.cards { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+.card {
+  width: 230px; min-height: 280px; box-sizing: border-box; padding: 22px 18px;
+  border: 2px solid rgba(61, 252, 255, 0.45);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(30, 8, 60, 0.95), rgba(12, 2, 28, 0.95));
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  position: relative;
+  text-align: center;
+  animation: cardIn 0.3s backwards;
+}
+.card:hover, .card.kb-focus {
+  transform: translateY(-10px) scale(1.03);
+  border-color: #3dfcff;
+  box-shadow: 0 0 35px rgba(61, 252, 255, 0.65);
+}
+.sum-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
+.sum-chip { background: rgba(61,252,255,0.12); border: 1px solid rgba(61,252,255,0.45); border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
+.sum-chip.evo { background: rgba(255,210,63,0.16); border-color: #ffd23f; color: #ffd23f; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 18px; }
+.stat-box { background: rgba(255,255,255,0.04); border: 1px solid rgba(61,252,255,0.3); border-radius: 12px; padding: 14px; }
+.stat-icon { font-size: 26px; margin-bottom: 4px; }
+.stat-val { font-size: 20px; font-weight: 900; color: #3dfcff; }
+.stat-label { font-size: 12px; opacity: 0.78; margin-top: 2px; }
+.kb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.kb-row { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.04); padding: 6px 10px; border-radius: 8px; font-size: 13px; }
+.kb-btn { padding: 4px 10px; font-size: 12px; margin: 0; letter-spacing: 0.04em; }
+.card.evo-card {
+  border: 3px solid #ffd23f;
+  background: linear-gradient(180deg, rgba(60, 40, 10, 0.95), rgba(20, 10, 0, 0.98));
+  box-shadow: 0 0 40px rgba(255, 210, 63, 0.5);
+  animation: pulseGold 2s infinite;
+}
+@keyframes pulseGold {
+  0%, 100% { border-color: #ffd23f; }
+  50% { border-color: #fff; box-shadow: 0 0 55px rgba(255, 210, 63, 0.8); }
+}
+.card .ic { font-size: 54px; margin: 8px 0; }
+.card .nm { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+.card .tg { display: inline-block; font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 12px; background: #ff2d95; margin-bottom: 12px; }
+.card .tg.up { background: #3d6bff; }
+.card .tg.evo-tag { background: #ffd23f; color: #07020f; font-weight: 900; }
+.card .ds { font-size: 14px; opacity: 0.88; line-height: 1.4; }
+.card .key { position: absolute; top: 10px; left: 14px; font-weight: 900; opacity: 0.45; }
+
+/* ================= TOASTS & ACHIEVEMENTS POPUP ================= */
+.toast {
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(50px);
+  background: rgba(10, 2, 25, 0.92); border: 2px solid #3dfcff; border-radius: 30px;
+  padding: 12px 28px; font-size: 16px; font-weight: 700; color: #3dfcff;
+  box-shadow: 0 0 25px rgba(61, 252, 255, 0.5);
+  opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
+  z-index: 1000;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.ach-popup {
+  position: fixed; top: 30px; right: 30px;
+  background: linear-gradient(135deg, rgba(30, 8, 60, 0.95), rgba(10, 2, 25, 0.98));
+  border: 2px solid #ffd23f; border-radius: 16px;
+  padding: 16px 20px; display: flex; align-items: center; gap: 16px;
+  box-shadow: 0 0 35px rgba(255, 210, 63, 0.4);
+  transform: translateX(400px); opacity: 0; transition: all 0.4s cubic-bezier(0.1, 0.9, 0.2, 1);
+  z-index: 2000;
+}
+.ach-popup.in { transform: translateX(0); opacity: 1; }
+.ach-popup .ach-icon { font-size: 42px; }
+.ach-popup .ach-badge { font-size: 11px; font-weight: 900; color: #ffd23f; letter-spacing: 0.1em; }
+.ach-popup .ach-name { font-size: 17px; font-weight: 900; color: #fff; margin: 2px 0; }
+.ach-popup .ach-desc { font-size: 13px; opacity: 0.85; color: #d0f0ff; }
+
+/* ================= SANDBOX DEV PANEL ================= */
+.sandbox-panel {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  width: 530px;
+  max-height: calc(100vh - 20px);
+  background: rgba(10, 3, 24, 0.96);
+  border: 2px solid #ffd23f;
+  border-radius: 14px;
+  box-shadow: 0 0 35px rgba(255, 210, 63, 0.35);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  z-index: 9999;
+  transform: translateX(560px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.25s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+.sandbox-panel.open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.sb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 210, 63, 0.3);
+  font-size: 13px;
+  background: rgba(255, 210, 63, 0.08);
+}
+.sb-close {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 10px;
+  transition: all 0.15s;
+}
+.sb-close:hover {
+  background: #ff2d95;
+  border-color: #ff2d95;
+}
+.sb-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sb-tab-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ccc;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sb-tab-btn:hover {
+  background: rgba(61, 252, 255, 0.15);
+  color: #fff;
+}
+.sb-tab-btn.active {
+  background: #ffd23f;
+  color: #000;
+  border-color: #ffd23f;
+  font-weight: 900;
+}
+.sb-body {
+  padding: 12px 14px;
+  overflow-y: auto;
+  flex: 1;
+  text-align: left;
+}
+.sb-section-title {
+  font-size: 11px;
+  font-weight: 900;
+  color: #3dfcff;
+  letter-spacing: 0.08em;
+  margin: 10px 0 6px;
+}
+.sb-section-title:first-child { margin-top: 0; }
+.sb-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.sb-btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.sb-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  margin-bottom: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  gap: 8px;
+}
+.sb-item-row:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.sb-item-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.sb-item-name {
+  font-weight: 700;
+  font-size: 12px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sb-item-sub {
+  font-size: 10px;
+  color: #888;
+}
+.sb-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #888;
+  white-space: nowrap;
+}
+.sb-badge.act {
+  background: rgba(61, 252, 255, 0.18);
+  color: #3dfcff;
+  border: 1px solid rgba(61, 252, 255, 0.4);
+}
+.sb-badge.evo {
+  background: rgba(255, 210, 63, 0.22);
+  color: #ffd23f;
+  border: 1px solid #ffd23f;
+}
+.sb-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.sb-mini-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 4px;
+  padding: 3px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.sb-mini-btn:hover {
+  background: rgba(61, 252, 255, 0.3);
+  border-color: #3dfcff;
+  color: #fff;
+}
+.sb-mini-btn.del:hover {
+  background: rgba(255, 45, 149, 0.4);
+  border-color: #ff2d95;
+}
+.sb-mini-btn.evo-btn {
+  background: rgba(255, 210, 63, 0.15);
+  border-color: rgba(255, 210, 63, 0.4);
+  color: #ffd23f;
+}
+.sb-mini-btn.evo-btn.active {
+  background: #ffd23f;
+  color: #000;
+  font-weight: 900;
+}
+.sb-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(61, 252, 255, 0.35);
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+.sb-btn:hover {
+  background: rgba(61, 252, 255, 0.2);
+  border-color: #3dfcff;
+}
+.sb-btn.act {
+  background: rgba(93, 255, 106, 0.22);
+  border-color: #5dff6a;
+  color: #5dff6a;
+}
+.sb-btn.boss-btn {
+  border-color: rgba(255, 45, 149, 0.5);
+}
+.sb-btn.boss-btn:hover {
+  background: rgba(255, 45, 149, 0.25);
+  border-color: #ff2d95;
+}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<!-- 1. TITLE SCREEN -->
+<div id="title" class="ov on">
+  <div class="logo">NEON<br><span>SURVIVOR</span></div>
+  <div class="sub">Steam Edition · 15 Waffen · 6 Bosse · 50 Erfolge · Meta-Progression</div>
+
+  <div style="margin-bottom:18px;">
+    <button class="btn gold" id="btnPlay" style="font-size:24px;padding:16px 54px;">▶ SPIELEN</button>
+  </div>
+
+  <div class="menu-btn-row">
+    <button class="btn sec" id="btnChars">🚀 Raumschiffe</button>
+    <button class="btn sec" id="btnMaps">🗺️ Arenen</button>
+    <button class="btn sec" id="btnModes">⚡ Spielmodi</button>
+    <button class="btn sec" id="btnSkill">💎 Talentbaum</button>
+    <button class="btn sec" id="btnAchs">🏆 Erfolge</button>
+    <button class="btn sec" id="btnStats">📊 Statistiken</button>
+    <button class="btn sec" id="btnSettings">⚙️ Einstellungen</button>
+  </div>
+
+  <div style="margin-top:25px;font-size:15px;opacity:0.8;">
+    <b>WASD / Maus / Gamepad</b> Bewegen &nbsp;·&nbsp; <b>Leertaste / Linksklick</b> Dash &nbsp;·&nbsp; <b>E / Rechtsklick</b> Neon Overload
+  </div>
+</div>
+
+<!-- 2. CHARACTER SELECT MODAL -->
+<div id="charModal" class="ov">
+  <div class="modal-content">
+    <h2 style="font-size:32px;color:#3dfcff;margin-top:0;">WÄHLE DEIN RAUMSCHIFF</h2>
+    <div id="charGrid" class="grid-cards"></div>
+    <div style="margin-top:25px;">
+      <button class="btn" id="btnCharBack">ZURÜCK</button>
+    </div>
+  </div>
+</div>
+
+<!-- 3. MAP SELECT MODAL -->
+<div id="mapModal" class="ov">
+  <div class="modal-content">
+    <h2 style="font-size:32px;color:#3dfcff;margin-top:0;">WÄHLE DIE ARENA</h2>
+    <div id="mapGrid" class="grid-cards"></div>
+    <div style="margin-top:25px;">
+      <button class="btn" id="btnMapBack">ZURÜCK</button>
+    </div>
+  </div>
+</div>
+
+<!-- 4. MODE SELECT MODAL -->
+<div id="modeModal" class="ov">
+  <div class="modal-content">
+    <h2 style="font-size:32px;color:#3dfcff;margin-top:0;">WÄHLE DEN SPIELMODUS</h2>
+    <div id="modeGrid" class="grid-cards"></div>
+    <div style="margin-top:25px;">
+      <button class="btn" id="btnModeBack">ZURÜCK</button>
+    </div>
+  </div>
+</div>
+
+<!-- 5. SKILLTREE / META-UPGRADE SHOP -->
+<div id="skillModal" class="ov">
+  <div class="modal-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="font-size:30px;color:#3dfcff;margin:0;">TALENTBAUM (PERMANENTE BONI)</h2>
+      <div style="font-size:22px;font-weight:900;color:#00ffcc;">
+        💎 <span id="skillCredits">0</span> Credits
+      </div>
+    </div>
+    <div id="skillGrid" class="skill-grid"></div>
+    <div style="margin-top:25px;display:flex;justify-content:space-between;">
+      <button class="btn sec" id="btnRefundSkills" style="color:#ff5577;border-color:#ff5577;">↺ Alle Talente zurücksetzen</button>
+      <button class="btn" id="btnSkillBack">FERTIG</button>
+    </div>
+  </div>
+</div>
+
+<!-- 6. 50 ACHIEVEMENTS MODAL -->
+<div id="achModal" class="ov">
+  <div class="modal-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="font-size:30px;color:#ffd23f;margin:0;">50 STEAM-ERFOLGE</h2>
+      <div style="font-size:20px;font-weight:900;color:#ffd23f;" id="achCount">0 / 50</div>
+    </div>
+    <div id="achGrid" class="ach-grid"></div>
+    <div style="margin-top:25px;">
+      <button class="btn" id="btnAchBack">ZURÜCK</button>
+    </div>
+  </div>
+</div>
+
+<!-- 6b. STATISTICS MODAL -->
+<div id="statsModal" class="ov">
+  <div class="modal-content" style="max-width:800px;">
+    <h2 style="font-size:30px;color:#3dfcff;margin-top:0;">KARRIERE-STATISTIKEN</h2>
+    <div id="statsGrid" class="stats-grid"></div>
+    <div style="margin-top:25px;">
+      <button class="btn" id="btnStatsBack">ZURÜCK</button>
+    </div>
+  </div>
+</div>
+
+<!-- 7. SETTINGS MODAL -->
+<div id="settingsModal" class="ov">
+  <div class="modal-content" style="max-width:650px;">
+    <h2 style="font-size:30px;color:#3dfcff;margin-top:0;">EINSTELLUNGEN</h2>
+    <div style="text-align:left;line-height:2.0;font-size:15px;">
+      <div>
+        <label>Gesamtlautstärke: <span id="valVolM">80%</span></label><br>
+        <input type="range" id="rngVolM" min="0" max="1" step="0.05" value="0.8" style="width:100%;">
+      </div>
+      <div>
+        <label>Musik: <span id="valVolMus">60%</span></label><br>
+        <input type="range" id="rngVolMus" min="0" max="1" step="0.05" value="0.6" style="width:100%;">
+      </div>
+      <div>
+        <label>Soundeffekte (SFX): <span id="valVolSfx">70%</span></label><br>
+        <input type="range" id="rngVolSfx" min="0" max="1" step="0.05" value="0.7" style="width:100%;">
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;align-items:center;">
+        <div>
+          <label>Grafikqualität: </label>
+          <select id="selQuality" style="background:#110425;color:#fff;border:1px solid #3dfcff;padding:6px;border-radius:6px;">
+            <option value="high">Hoch (Voller Glow & Partikel)</option>
+            <option value="med">Mittel</option>
+            <option value="low">Niedrig (Beste FPS)</option>
+          </select>
+        </div>
+        <div>
+          <label>FPS-Limit: </label>
+          <select id="selFps" style="background:#110425;color:#fff;border:1px solid #3dfcff;padding:6px;border-radius:6px;">
+            <option value="0">Unbegrenzt</option>
+            <option value="120">120 FPS</option>
+            <option value="60">60 FPS</option>
+            <option value="30">30 FPS</option>
+          </select>
+        </div>
+        <div>
+          <label>Sprache: </label>
+          <select id="selLang" style="background:#110425;color:#fff;border:1px solid #3dfcff;padding:6px;border-radius:6px;">
+            <option value="de">Deutsch</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <button class="btn sec" id="btnFullscreen" type="button" style="padding:6px 14px;font-size:13px;margin:0;">⛶ Vollbild</button>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:20px;flex-wrap:wrap;">
+        <label><input type="checkbox" id="chkShake" checked> Bildschirm-Wackeln (Screen Shake)</label>
+        <label><input type="checkbox" id="chkDamageNumbers" checked> Schadenszahlen anzeigen</label>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div style="font-weight:800;color:#3dfcff;font-size:14px;">⌨️ TASTENBELEGUNG (Klicken zum Ändern)</div>
+        <div id="keybindGrid" class="kb-grid"></div>
+      </div>
+
+      <div style="margin-top:14px;padding:12px;background:rgba(88,101,242,0.15);border:1px solid rgba(88,101,242,0.4);border-radius:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
+          <div style="font-weight:900;color:#5865F2;">🎮 DISCORD RICH PRESENCE</div>
+          <div id="discordStatusBadge" style="font-size:12px;font-weight:800;color:#aaa;">○ Prüfe Verbindung...</div>
+        </div>
+        <label style="font-size:13px;opacity:0.9;">Discord Application ID (Client ID):</label><br>
+        <input type="text" id="txtDiscordId" placeholder="z. B. 1306300000000000000" style="width:100%;background:#090218;color:#3dfcff;border:1px solid #5865F2;padding:7px;border-radius:6px;font-family:monospace;box-sizing:border-box;margin-top:4px;">
+        <div style="font-size:12px;opacity:0.75;margin-top:5px;line-height:1.4;">
+          Kostenlos in 1 Min auf <b>discord.com/developers/applications</b> erstellen. Bild als Asset <code>discord_logo</code> hochladen. Zeigt Modus, Arena, Kills &amp; Schiff live in Discord.
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn sec" id="btnExportSave" type="button" style="padding:8px 16px;font-size:13px;margin:0;">💾 Spielstand Exportieren</button>
+        <button class="btn sec" id="btnImportSave" type="button" style="padding:8px 16px;font-size:13px;margin:0;">📂 Spielstand Importieren</button>
+        <input type="file" id="fileImportSave" accept=".json" style="display:none;">
+      </div>
+    </div>
+    <div style="margin-top:22px;">
+      <button class="btn" id="btnSettingsBack">SPEICHERN &amp; ZURÜCK</button>
+    </div>
+  </div>
+</div>
+
+<!-- 8. LEVEL UP MODAL -->
+<div id="levelup" class="ov">
+  <h1 style="color:#ffd23f;font-size:52px;margin:0 0 10px;">LEVEL UP!</h1>
+  <div style="opacity:0.85;margin-bottom:24px;font-size:17px;">Wähle ein Upgrade &nbsp;(1 / 2 / 3 oder Klick)</div>
+  <div id="cards" class="cards"></div>
+  <div style="margin-top:24px;">
+    <button class="btn sec" id="rerollBtn">🎲 Neu auswürfeln (1x)</button>
+  </div>
+</div>
+
+<!-- 9. PAUSE MODAL -->
+<div id="pause" class="ov">
+  <h1 style="color:#3dfcff;font-size:56px;margin:0 0 15px;">PAUSE</h1>
+  <div id="pauseSummary" style="font-size:18px;line-height:1.8;margin-bottom:25px;"></div>
+  <button class="btn" id="btnResume">WEITER</button>
+  <button class="btn sec" id="btnPauseSettings">EINSTELLUNGEN</button>
+  <button class="btn sec" id="btnQuit">HAUPTMENÜ</button>
+</div>
+
+<!-- 10. GAME OVER MODAL -->
+<div id="over" class="ov">
+  <h1 style="color:#ff3366;font-size:62px;margin:0 0 15px;">GAME OVER</h1>
+  <div id="ostats" style="font-size:20px;line-height:1.8;margin-bottom:25px;"></div>
+  <button class="btn gold" id="btnAgain">↻ NOCHMAL</button>
+  <button class="btn sec" id="btnOverMenu">HAUPTMENÜ</button>
+</div>
+
+<!-- 11. VICTORY MODAL (30 MIN FINALE) -->
+<div id="victory" class="ov">
+  <h1 style="color:#ffd23f;font-size:68px;margin:0 0 15px;text-shadow:0 0 30px #ffd23f;">★ SIEG! ★</h1>
+  <div id="vstats" style="font-size:22px;line-height:1.9;margin-bottom:25px;max-width:650px;"></div>
+  <button class="btn gold" id="btnVicAgain">ZURÜCK ZUM MENÜ</button>
+</div>
+
+<!-- SCRIPTS IN ORDER -->
+<script src="js/audio.js"></script>
+<script src="js/save.js"></script>
+<script src="js/data.js"></script>
+<script src="js/input.js"></script>
+<script src="js/discord.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+
+<script>
+// Main Bootstrapper & UI Wireup
+window.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('c');
+  window.Renderer.init(canvas);
+  window.GameState.init();
+
+  // Title Buttons
+  let settingsReturnScreen = 'title';
+  const openSettings = returnTo => {
+    settingsReturnScreen = returnTo || 'title';
+    const s = window.SaveSystem.getSettings();
+    document.getElementById('rngVolM').value = s.volMaster;
+    document.getElementById('valVolM').innerText = Math.round(s.volMaster * 100) + '%';
+    document.getElementById('rngVolMus').value = s.volMusic;
+    document.getElementById('valVolMus').innerText = Math.round(s.volMusic * 100) + '%';
+    document.getElementById('rngVolSfx').value = s.volSfx;
+    document.getElementById('valVolSfx').innerText = Math.round(s.volSfx * 100) + '%';
+    document.getElementById('selQuality').value = s.quality || 'high';
+    document.getElementById('selFps').value = String(s.fpsLimit !== undefined ? s.fpsLimit : 60);
+    document.getElementById('selLang').value = s.lang || 'de';
+    document.getElementById('chkShake').checked = s.screenShake !== false;
+    document.getElementById('chkDamageNumbers').checked = s.damageNumbers !== false;
+    document.getElementById('txtDiscordId').value = (s.discordClientId && s.discordClientId !== '1306300000000000000') ? s.discordClientId : '1570824779005689919';
+    window.UI.renderKeybindings();
+    if (window.DiscordRPC) window.UI.updateDiscordStatusBadge(window.DiscordRPC.bridgeStatus, s.discordClientId);
+    window.UI.showScreen('settingsModal');
+  };
+
+  document.getElementById('btnPlay').onclick = () => window.GameState.startRun();
+  document.getElementById('btnChars').onclick = () => { window.UI.renderCharacterSelect(); window.UI.showScreen('charModal'); };
+  document.getElementById('btnMaps').onclick = () => { window.UI.renderMapSelect(); window.UI.showScreen('mapModal'); };
+  document.getElementById('btnModes').onclick = () => { window.UI.renderModeSelect(); window.UI.showScreen('modeModal'); };
+  document.getElementById('btnSkill').onclick = () => { window.UI.renderSkilltree(); window.UI.showScreen('skillModal'); };
+  document.getElementById('btnAchs').onclick = () => { window.UI.renderAchievements(); window.UI.showScreen('achModal'); };
+  document.getElementById('btnStats').onclick = () => { window.UI.renderStats(); window.UI.showScreen('statsModal'); };
+  document.getElementById('btnSettings').onclick = () => openSettings('title');
+
+  // Back Buttons
+  document.getElementById('btnCharBack').onclick = () => window.UI.showScreen('title');
+  document.getElementById('btnMapBack').onclick = () => window.UI.showScreen('title');
+  document.getElementById('btnModeBack').onclick = () => window.UI.showScreen('title');
+  document.getElementById('btnSkillBack').onclick = () => window.UI.showScreen('title');
+  document.getElementById('btnAchBack').onclick = () => window.UI.showScreen('title');
+  document.getElementById('btnStatsBack').onclick = () => window.UI.showScreen('title');
+  document.getElementById('btnSettingsBack').onclick = () => {
+    const s = window.SaveSystem.getSettings();
+    s.volMaster = parseFloat(document.getElementById('rngVolM').value);
+    s.volMusic = parseFloat(document.getElementById('rngVolMus').value);
+    s.volSfx = parseFloat(document.getElementById('rngVolSfx').value);
+    s.quality = document.getElementById('selQuality').value;
+    s.fpsLimit = parseInt(document.getElementById('selFps').value, 10) || 0;
+    s.lang = document.getElementById('selLang').value;
+    s.screenShake = document.getElementById('chkShake').checked;
+    s.damageNumbers = document.getElementById('chkDamageNumbers').checked;
+    s.discordClientId = document.getElementById('txtDiscordId').value.trim();
+    window.SaveSystem.saveSettings(s);
+    window.Renderer.resize();
+    const isPausedRun = Boolean(window.GameState && window.GameState.state === 'pause');
+    if (window.DiscordRPC) {
+      window.DiscordRPC.lastPayload = '';
+      if (window.GameState && (window.GameState.state === 'play' || isPausedRun)) window.DiscordRPC.tick();
+      else window.DiscordRPC.setMenu();
+    }
+    if (isPausedRun && window.UI && window.UI.renderPauseSummary) {
+      window.UI.renderPauseSummary();
+    }
+    window.UI.showScreen(isPausedRun ? 'pause' : settingsReturnScreen);
+  };
+
+  // Fullscreen & Save Export / Import
+  document.getElementById('btnFullscreen').onclick = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+  document.getElementById('btnExportSave').onclick = () => {
+    const blob = new Blob([window.SaveSystem.exportJson()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'neon_survivor_save.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    window.UI.showToast('Spielstand exportiert!');
+  };
+  document.getElementById('btnImportSave').onclick = () => document.getElementById('fileImportSave').click();
+  document.getElementById('fileImportSave').onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      if (window.SaveSystem.importJson(ev.target.result)) {
+        window.UI.showToast('Spielstand erfolgreich geladen!');
+      } else {
+        window.UI.showToast('Ungültige Speicherdatei!');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Reroll Skills
+  document.getElementById('btnRefundSkills').onclick = () => {
+    if (confirm('Möchtest du wirklich alle investierten Credits zurückerhalten?')) {
+      const refunded = window.SaveSystem.refundSkilltree();
+      window.UI.renderSkilltree();
+      window.UI.showToast(`+${refunded} Credits zurückerstattet!`);
+    }
+  };
+
+  // In-Game UI Buttons
+  document.getElementById('rerollBtn').onclick = () => window.GameState.rerollChoices();
+  document.getElementById('btnResume').onclick = () => window.GameState.resumeGame();
+  document.getElementById('btnPauseSettings').onclick = () => openSettings('pause');
+  document.getElementById('btnQuit').onclick = () => { window.GameState.state = 'title'; window.UI.showScreen('title'); if(window.DiscordRPC) window.DiscordRPC.setMenu(); };
+  document.getElementById('btnAgain').onclick = () => window.GameState.startRun();
+  document.getElementById('btnOverMenu').onclick = () => { window.UI.showScreen('title'); if(window.DiscordRPC) window.DiscordRPC.setMenu(); };
+  document.getElementById('btnVicAgain').onclick = () => { window.UI.showScreen('title'); if(window.DiscordRPC) window.DiscordRPC.setMenu(); };
+
+  // Volume Sliders
+  document.getElementById('rngVolM').oninput = e => document.getElementById('valVolM').innerText = Math.round(e.target.value * 100) + '%';
+  document.getElementById('rngVolMus').oninput = e => document.getElementById('valVolMus').innerText = Math.round(e.target.value * 100) + '%';
+  document.getElementById('rngVolSfx').oninput = e => document.getElementById('valVolSfx').innerText = Math.round(e.target.value * 100) + '%';
+});
+</script>
+</body>
+</html>
