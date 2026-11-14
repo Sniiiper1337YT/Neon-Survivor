@@ -762,6 +762,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('c');
   window.Renderer.init(canvas);
   window.GameState.init();
+  const initialLang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+  window.UI.applyLanguage(initialLang);
 
   // Title Buttons
   let settingsReturnScreen = 'title';
@@ -783,6 +785,14 @@ window.addEventListener('DOMContentLoaded', () => {
     window.UI.renderKeybindings();
     if (window.DiscordRPC) window.UI.updateDiscordStatusBadge(window.DiscordRPC.bridgeStatus, s.discordClientId);
     window.UI.showScreen('settingsModal');
+  };
+
+  document.getElementById('selLang').onchange = e => {
+    const newLang = e.target.value;
+    const s = window.SaveSystem.getSettings();
+    s.lang = newLang;
+    window.SaveSystem.saveSettings(s);
+    window.UI.applyLanguage(newLang);
   };
 
   document.getElementById('btnPlay').onclick = () => window.GameState.startRun();
@@ -813,6 +823,7 @@ window.addEventListener('DOMContentLoaded', () => {
     s.damageNumbers = document.getElementById('chkDamageNumbers').checked;
     s.discordClientId = document.getElementById('txtDiscordId').value.trim();
     window.SaveSystem.saveSettings(s);
+    window.UI.applyLanguage(s.lang);
     window.Renderer.resize();
     const isPausedRun = Boolean(window.GameState && window.GameState.state === 'pause');
     if (window.DiscordRPC) {

@@ -499,5 +499,189 @@ window.GAME_DATA = {
     mode_endless: { icon: '♾️', title: { de: 'Ohne Ende', en: 'Unending' }, desc: { de: 'Schalte den Endlos-Modus frei', en: 'Unlock Endless Mode' } },
     mode_bossrush:{ icon: '⚔️', title: { de: 'Sturm der Bosse', en: 'Boss Storm' }, desc: { de: 'Schalte den Boss-Rush frei', en: 'Unlock Boss Rush mode' } },
     hardcore_win: { icon: '💀', title: { de: 'Reine Perfektion', en: 'Flawless Victory' }, desc: { de: 'Überlebe 10 Minuten im Hardcore-Modus', en: 'Survive 10 min in Hardcore mode' } }
+  },
+
+  // ----------------------------------------------------
+  // SKILLTREE METADATA (i18n)
+  // ----------------------------------------------------
+  SKILLS: {
+    maxHp:        { icon: '❤️', name: { de: 'Vitalität', en: 'Vitality' }, desc: { de: '+10 Max HP', en: '+10 Max HP' } },
+    damage:       { icon: '⚔️', name: { de: 'Zerstörungskraft', en: 'Destruction' }, desc: { de: '+5% Schaden für alle Waffen', en: '+5% Damage for all weapons' } },
+    regen:        { icon: '💚', name: { de: 'Nanobots', en: 'Nanobots' }, desc: { de: '+0.3 HP/s Regeneration', en: '+0.3 HP/s Regeneration' } },
+    armor:        { icon: '🛡️', name: { de: 'Panzerung', en: 'Armor' }, desc: { de: '+1 Schadensreduktion', en: '+1 Damage Reduction' } },
+    speed:        { icon: '👟', name: { de: 'Subraum-Antrieb', en: 'Subspace Drive' }, desc: { de: '+4% Fluggeschwindigkeit', en: '+4% Flight Speed' } },
+    attackSpeed:  { icon: '⏩', name: { de: 'Überladung', en: 'Overclock' }, desc: { de: '+4% Angriffs- & Feuertempo', en: '+4% Attack & Fire Rate' } },
+    crit:         { icon: '🎯', name: { de: 'Zieloptik', en: 'Targeting Optics' }, desc: { de: '+2% Kritische Trefferchance', en: '+2% Critical Strike Chance' } },
+    magnet:       { icon: '🧲', name: { de: 'Traktorstrahl', en: 'Tractor Beam' }, desc: { de: '+15% Sammelradius', en: '+15% Pickup Radius' } },
+    xpBoost:      { icon: '📈', name: { de: 'Quanten-Matrix', en: 'Quantum Matrix' }, desc: { de: '+6% Erfahrungsgewinn', en: '+6% XP Gain' } },
+    rerolls:      { icon: '🎲', name: { de: 'Würfel-Glück', en: 'Reroll Luck' }, desc: { de: '+1 Würfelwurf (Reroll) pro Run', en: '+1 Reroll per Run' } },
+    overloadRate: { icon: '🔋', name: { de: 'Neon-Reaktor', en: 'Neon Reactor' }, desc: { de: '+10% Schnellere Overload-Ladung', en: '+10% Faster Overload Charge' } },
+    creditBoost:  { icon: '💎', name: { de: 'Investition', en: 'Investment' }, desc: { de: '+10% Mehr verdiente Neon Credits', en: '+10% Bonus Neon Credits' } }
+  },
+
+  // ----------------------------------------------------
+  // COMPLETE UI LOCALIZATION DICTIONARY
+  // ----------------------------------------------------
+  UI_TEXTS: {
+    de: {
+      subTitle: '15 Waffen · 6 Bosse · 50 Erfolge · Meta-Progression',
+      play: '▶ SPIELEN',
+      ships: '🚀 Raumschiffe',
+      maps: '🗺️ Arenen',
+      modes: '⚡ Spielmodi',
+      skills: '💎 Talentbaum',
+      achs: '🏆 Erfolge',
+      stats: '📊 Statistiken',
+      settings: '⚙️ Einstellungen',
+      controlsHint: '<b>WASD / Maus / Gamepad</b> Bewegen &nbsp;·&nbsp; <b>Leertaste / Linksklick</b> Dash &nbsp;·&nbsp; <b>E / Rechtsklick</b> Neon Overload',
+      footerDev: 'Entwickelt von Sniiiper1337YT',
+      
+      charModalTitle: 'WÄHLE DEIN RAUMSCHIFF',
+      mapModalTitle: 'WÄHLE DEINE ARENA',
+      modeModalTitle: 'WÄHLE DEINEN SPIELMODUS',
+      skillModalTitle: 'TALENTBAUM (PERMANENTE BONI)',
+      achModalTitle: '50 ERFOLGE',
+      statsModalTitle: 'KARRIERE-STATISTIKEN',
+      settingsModalTitle: 'EINSTELLUNGEN',
+      
+      doneBtn: 'FERTIG',
+      saveBackBtn: 'SPEICHERN & ZURÜCK',
+      fullscreenBtn: '⛶ Vollbild',
+      exportSaveBtn: '💾 Spielstand Exportieren',
+      importSaveBtn: '📂 Spielstand Importieren',
+      resetSaveBtn: '🗑️ Spielstand löschen (Neustart)',
+      
+      lblVolM: 'Gesamtlautstärke:',
+      lblVolMus: 'Musiklautstärke:',
+      lblVolSfx: 'Soundeffekte:',
+      lblQuality: 'Grafikqualität:',
+      lblFps: 'FPS-Limit:',
+      lblLang: 'Sprache:',
+      lblShake: 'Bildschirm-Wackeln (Screen Shake)',
+      lblDamageNumbers: 'Schadenszahlen anzeigen',
+      lblDiscordTitle: 'Discord Rich Presence Status',
+      lblDiscordId: 'Discord Client-ID (Optional für eigenes Rich-Presence-Profil):',
+      lblDiscordDesc: 'Kostenlos in 1 Min auf <b>discord.com/developers/applications</b> erstellen. Bild als Asset <code>discord_logo</code> hochladen. Zeigt Modus, Arena, Kills &amp; Schiff live in Discord.',
+      lblKeybindsTitle: 'Steuerung anpassen (Klicke zum Neubelegen):',
+      
+      pauseTitle: 'PAUSE',
+      pauseEquip: 'AKTUELLE AUSRÜSTUNG',
+      resumeBtn: 'FORTSETZEN',
+      pauseSettingsBtn: 'EINSTELLUNGEN',
+      quitBtn: 'ZUM HAUPTMENÜ',
+      
+      gameOverTitle: 'GAME OVER',
+      playAgainBtn: 'NOCHMAL SPIELEN',
+      overMenuBtn: 'ZUM HAUPTMENÜ',
+      
+      victoryTitle: 'SIEG!',
+      vicAgainBtn: 'ZUM HAUPTMENÜ',
+      
+      levelUpTitle: 'STUFENAUFSTIEG!',
+      levelUpSub: 'Wähle eine Waffe oder ein Upgrade:',
+      rerollBtn: '🎲 NEU WÜRFELN',
+      
+      surviveBanner: 'ÜBERLEBE!',
+      testLabBanner: 'TEST-LABOR (TAB / F2 DRÜCKEN)',
+      overloadBanner: '⚡ NEON OVERLOAD! ⚡',
+      bossDefeated: 'BESIEGT!',
+      
+      skillMaxed: 'MAXIMIERT',
+      skillUpgrade: 'UPGRADE',
+      creditsLabel: 'Credits',
+      
+      pressKey: 'Taste drücken...',
+      tooFewCredits: 'Zu wenig Neon Credits! Sammle mehr in Runden.',
+      resetConfirm: 'Möchtest du deinen Spielstand wirklich komplett auf 0 zurücksetzen? Alle Credits, Talente und Freischaltungen werden gelöscht.',
+      resetDone: 'Spielstand auf 0 zurückgesetzt!',
+      saveExported: 'Spielstand exportiert!',
+      saveImported: 'Spielstand erfolgreich geladen!',
+      saveInvalid: 'Ungültige Speicherdatei!',
+      
+      updateAvailable: '🚀 NEUES UPDATE VERFÜGBAR:',
+      updateSub: 'Eine neue Version von Neon Survivor steht zum Download bereit!',
+      updateDlBtn: '⬇️ Jetzt Aktualisieren',
+      updateDismissBtn: 'Später'
+    },
+    en: {
+      subTitle: '15 Weapons · 6 Bosses · 50 Achievements · Meta-Progression',
+      play: '▶ PLAY',
+      ships: '🚀 Starships',
+      maps: '🗺️ Arenas',
+      modes: '⚡ Game Modes',
+      skills: '💎 Skill Tree',
+      achs: '🏆 Achievements',
+      stats: '📊 Statistics',
+      settings: '⚙️ Settings',
+      controlsHint: '<b>WASD / Mouse / Gamepad</b> Move &nbsp;·&nbsp; <b>Space / Left Click</b> Dash &nbsp;·&nbsp; <b>E / Right Click</b> Neon Overload',
+      footerDev: 'Developed by Sniiiper1337YT',
+      
+      charModalTitle: 'CHOOSE YOUR STARSHIP',
+      mapModalTitle: 'CHOOSE YOUR ARENA',
+      modeModalTitle: 'CHOOSE YOUR GAME MODE',
+      skillModalTitle: 'SKILL TREE (PERMANENT BONUSES)',
+      achModalTitle: '50 ACHIEVEMENTS',
+      statsModalTitle: 'CAREER STATISTICS',
+      settingsModalTitle: 'SETTINGS',
+      
+      doneBtn: 'DONE',
+      saveBackBtn: 'SAVE & BACK',
+      fullscreenBtn: '⛶ Fullscreen',
+      exportSaveBtn: '💾 Export Save',
+      importSaveBtn: '📂 Import Save',
+      resetSaveBtn: '🗑️ Reset Save (Restart)',
+      
+      lblVolM: 'Master Volume:',
+      lblVolMus: 'Music Volume:',
+      lblVolSfx: 'Sound Effects:',
+      lblQuality: 'Quality:',
+      lblFps: 'FPS Limit:',
+      lblLang: 'Language:',
+      lblShake: 'Screen Shake',
+      lblDamageNumbers: 'Show Damage Numbers',
+      lblDiscordTitle: 'Discord Rich Presence Status',
+      lblDiscordId: 'Discord Client ID (Optional for custom rich presence profile):',
+      lblDiscordDesc: 'Create free in 1 min on <b>discord.com/developers/applications</b>. Upload asset image named <code>discord_logo</code>. Displays mode, arena, kills &amp; ship live in Discord.',
+      lblKeybindsTitle: 'Customize Controls (Click to rebind):',
+      
+      pauseTitle: 'PAUSED',
+      pauseEquip: 'CURRENT LOADOUT',
+      resumeBtn: 'RESUME',
+      pauseSettingsBtn: 'SETTINGS',
+      quitBtn: 'MAIN MENU',
+      
+      gameOverTitle: 'GAME OVER',
+      playAgainBtn: 'PLAY AGAIN',
+      overMenuBtn: 'MAIN MENU',
+      
+      victoryTitle: 'VICTORY!',
+      vicAgainBtn: 'MAIN MENU',
+      
+      levelUpTitle: 'LEVEL UP!',
+      levelUpSub: 'Choose a weapon or upgrade:',
+      rerollBtn: '🎲 REROLL',
+      
+      surviveBanner: 'SURVIVE!',
+      testLabBanner: 'TEST LAB (PRESS TAB / F2)',
+      overloadBanner: '⚡ NEON OVERLOAD! ⚡',
+      bossDefeated: 'DEFEATED!',
+      
+      skillMaxed: 'MAXED',
+      skillUpgrade: 'UPGRADE',
+      creditsLabel: 'Credits',
+      
+      pressKey: 'Press key...',
+      tooFewCredits: 'Not enough Neon Credits! Collect more during runs.',
+      resetConfirm: 'Are you sure you want to reset your savegame to 0? All credits, talents, and unlocks will be lost.',
+      resetDone: 'Savegame reset to 0!',
+      saveExported: 'Savegame exported!',
+      saveImported: 'Savegame successfully loaded!',
+      saveInvalid: 'Invalid savegame file!',
+      
+      updateAvailable: '🚀 NEW UPDATE AVAILABLE:',
+      updateSub: 'A new version of Neon Survivor is available for download!',
+      updateDlBtn: '⬇️ Update Now',
+      updateDismissBtn: 'Later'
+    }
   }
 };

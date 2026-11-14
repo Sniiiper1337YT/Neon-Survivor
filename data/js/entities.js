@@ -269,7 +269,8 @@ class EntityManager {
       window.SoundSystem.setTheme('normal');
     }
     if (window.UI) {
-      window.UI.showBanner('👑 ' + boss.name.toUpperCase() + ' BESIEGT!', '#ffd23f');
+      const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+      window.UI.showBanner('👑 ' + boss.name.toUpperCase() + (lang === 'en' ? ' DEFEATED!' : ' BESIEGT!'), '#ffd23f');
     }
     if (window.GameState.selectedMode !== 'sandbox') {
       window.SaveSystem.checkAchievements();

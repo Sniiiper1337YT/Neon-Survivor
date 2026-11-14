@@ -20,6 +20,107 @@ class UIEngine {
     if (window.SoundSystem) window.SoundSystem.sfx('click');
   }
 
+  applyLanguage(lang) {
+    if (!lang) lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+    if (!window.GAME_DATA || !window.GAME_DATA.UI_TEXTS) return;
+    const t = window.GAME_DATA.UI_TEXTS[lang] || window.GAME_DATA.UI_TEXTS.de;
+
+    document.documentElement.lang = lang;
+    const sel = document.getElementById('selLang');
+    if (sel && sel.value !== lang) sel.value = lang;
+
+    const setT = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
+
+    // Title Screen
+    const subEl = document.querySelector('#title .sub');
+    if (subEl) subEl.innerText = t.subTitle;
+    setT('btnPlay', t.play);
+    setT('btnChars', t.ships);
+    setT('btnMaps', t.maps);
+    setT('btnModes', t.modes);
+    setT('btnSkill', t.skills);
+    setT('btnAchs', t.achs);
+    setT('btnStats', t.stats);
+    setT('btnSettings', t.settings);
+
+    // Controls hint & dev footer in title
+    const titleDivs = document.querySelectorAll('#title > div');
+    if (titleDivs.length >= 2) {
+      titleDivs[titleDivs.length - 2].innerHTML = t.controlsHint;
+      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.0.0';
+      titleDivs[titleDivs.length - 1].innerHTML = `Neon Survivor <span id="lblCurrentVer">v${ver}</span> &nbsp;·&nbsp; ${t.footerDev}`;
+    }
+
+    // Modal Titles
+    const setModalH2 = (id, text) => { const el = document.querySelector(`#${id} h2`); if (el) el.innerText = text; };
+    const setModalH1 = (id, text) => { const el = document.querySelector(`#${id} h1`); if (el) el.innerText = text; };
+    setModalH2('charModal', t.charModalTitle);
+    setModalH2('mapModal', t.mapModalTitle);
+    setModalH2('modeModal', t.modeModalTitle);
+    setModalH2('skillModal', t.skillModalTitle);
+    setModalH2('achModal', t.achModalTitle);
+    setModalH2('statsModal', t.statsModalTitle);
+    setModalH2('settingsModal', t.settingsModalTitle);
+
+    // Modal Done / Back buttons
+    setT('btnCharBack', t.doneBtn);
+    setT('btnMapBack', t.doneBtn);
+    setT('btnModeBack', t.doneBtn);
+    setT('btnSkillBack', t.doneBtn);
+    setT('btnAchBack', t.doneBtn);
+    setT('btnStatsBack', t.doneBtn);
+    setT('btnSettingsBack', t.saveBackBtn);
+
+    // Settings elements & options
+    setT('btnFullscreen', t.fullscreenBtn);
+    setT('btnExportSave', t.exportSaveBtn);
+    setT('btnImportSave', t.importSaveBtn);
+    setT('btnResetSave', t.resetSaveBtn);
+
+    const selQ = document.getElementById('selQuality');
+    if (selQ && selQ.options.length >= 3) {
+      selQ.options[0].text = lang === 'en' ? 'High (Full Glow & Particles)' : 'Hoch (Voller Glow & Partikel)';
+      selQ.options[1].text = lang === 'en' ? 'Medium' : 'Mittel';
+      selQ.options[2].text = lang === 'en' ? 'Low (Best FPS)' : 'Niedrig (Beste FPS)';
+    }
+    const selF = document.getElementById('selFps');
+    if (selF && selF.options.length >= 4) {
+      selF.options[0].text = lang === 'en' ? 'Uncapped' : 'Unbegrenzt';
+    }
+
+    // In-Game Screens (Pause, GameOver, Victory, LevelUp)
+    setModalH1('pause', t.pauseTitle);
+    setT('btnResume', t.resumeBtn);
+    setT('btnPauseSettings', t.pauseSettingsBtn);
+    setT('btnQuit', t.quitBtn);
+
+    setModalH1('over', t.gameOverTitle);
+    setT('btnAgain', t.playAgainBtn);
+    setT('btnOverMenu', t.overMenuBtn);
+
+    setModalH1('victory', t.victoryTitle);
+    setT('btnVicAgain', t.vicAgainBtn);
+
+    setModalH1('levelup', t.levelUpTitle);
+    const lvlSub = document.querySelector('#levelup > div');
+    if (lvlSub) lvlSub.innerHTML = lang === 'en' ? 'Choose an upgrade &nbsp;(1 / 2 / 3 or Click)' : 'Wähle ein Upgrade &nbsp;(1 / 2 / 3 oder Klick)';
+    setT('rerollBtn', t.rerollBtn);
+
+    // Update banner
+    setT('btnUpdateDownload', t.updateDlBtn);
+    setT('btnUpdateDismiss', t.updateDismissBtn);
+
+    // Refresh whichever modal is currently active
+    if (this.activeScreen === 'charModal') this.renderCharacterSelect();
+    else if (this.activeScreen === 'mapModal') this.renderMapSelect();
+    else if (this.activeScreen === 'modeModal') this.renderModeSelect();
+    else if (this.activeScreen === 'skillModal') this.renderSkilltree();
+    else if (this.activeScreen === 'achModal') this.renderAchievements();
+    else if (this.activeScreen === 'statsModal') this.renderStats();
+    else if (this.activeScreen === 'settingsModal') this.renderKeybindings();
+    else if (this.activeScreen === 'pause') this.renderPauseSummary();
+  }
+
   showToast(text, duration = 2500) {
     let t = document.getElementById('toast');
     if (!t) {
@@ -46,7 +147,7 @@ class UIEngine {
     popup.innerHTML = `
       <div class="ach-icon">${def.icon}</div>
       <div class="ach-info">
-        <div class="ach-badge">★ ERFOLG FREIGESCHALTET ★</div>
+        <div class="ach-badge">${lang === 'en' ? '★ ACHIEVEMENT UNLOCKED ★' : '★ ERFOLG FREIGESCHALTET ★'}</div>
         <div class="ach-name">${title}</div>
         <div class="ach-desc">${desc} (+150 💎)</div>
       </div>
@@ -178,56 +279,47 @@ class UIEngine {
     const container = document.getElementById('skillGrid');
     if (!container) return;
     container.innerHTML = '';
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+    const t = window.GAME_DATA.UI_TEXTS[lang] || window.GAME_DATA.UI_TEXTS.de;
     const creditsEl = document.getElementById('skillCredits');
-    if (creditsEl) creditsEl.innerText = window.SaveSystem.getCredits().toLocaleString('de-DE');
+    if (creditsEl) creditsEl.innerText = window.SaveSystem.getCredits().toLocaleString(lang === 'en' ? 'en-US' : 'de-DE');
 
-    const skills = [
-      { id: 'maxHp', name: 'Vitalität', desc: '+10 Max HP', icon: '❤️' },
-      { id: 'damage', name: 'Zerstörungskraft', desc: '+5% Schaden für alle Waffen', icon: '⚔️' },
-      { id: 'regen', name: 'Nanobots', desc: '+0.3 HP/s Regeneration', icon: '💚' },
-      { id: 'armor', name: 'Panzerung', desc: '+1 Schadensreduktion', icon: '🛡️' },
-      { id: 'speed', name: 'Subraum-Antrieb', desc: '+4% Fluggeschwindigkeit', icon: '👟' },
-      { id: 'attackSpeed', name: 'Überladung', desc: '+4% Angriffs- & Feuertempo', icon: '⏩' },
-      { id: 'crit', name: 'Zieloptik', desc: '+2% Kritische Trefferchance', icon: '🎯' },
-      { id: 'magnet', name: 'Traktorstrahl', desc: '+15% Sammelradius', icon: '🧲' },
-      { id: 'xpBoost', name: 'Quanten-Matrix', desc: '+6% Erfahrungsgewinn', icon: '📈' },
-      { id: 'rerolls', name: 'Würfel-Glück', desc: '+1 Würfelwurf (Reroll) pro Run', icon: '🎲' },
-      { id: 'overloadRate', name: 'Neon-Reaktor', desc: '+10% Schnellere Overload-Ladung', icon: '🔋' },
-      { id: 'creditBoost', name: 'Investition', desc: '+10% Mehr verdiente Neon Credits', icon: '💎' }
-    ];
-
-    skills.forEach(s => {
-      const info = window.SaveSystem.getSkillCosts(s.id);
+    const skillsDef = window.GAME_DATA.SKILLS;
+    for (const skillId in skillsDef) {
+      const s = skillsDef[skillId];
+      const name = s.name[lang] || s.name.de;
+      const desc = s.desc[lang] || s.desc.de;
+      const info = window.SaveSystem.getSkillCosts(skillId);
       const isMax = !info;
       const card = document.createElement('div');
       card.className = `skill-card ${isMax ? 'maxed' : ''}`;
       card.innerHTML = `
         <div class="skill-head">
           <span class="skill-icon">${s.icon}</span>
-          <span class="skill-title">${s.name}</span>
+          <span class="skill-title">${name}</span>
           <span class="skill-rank">${info ? info.currentRank : 'MAX'} / ${info ? info.maxRank : 'MAX'}</span>
         </div>
-        <div class="skill-desc">${s.desc}</div>
+        <div class="skill-desc">${desc}</div>
         <div class="skill-meter">
           <div class="skill-fill" style="width:${info ? (info.currentRank / info.maxRank * 100) : 100}%"></div>
         </div>
         <button class="btn skill-btn ${isMax ? 'disabled' : ''}">
-          ${isMax ? 'MAXIMIERT' : `UPGRADE (${info.cost} 💎)`}
+          ${isMax ? t.skillMaxed : `${t.skillUpgrade} (${info.cost} 💎)`}
         </button>
       `;
 
       if (!isMax) {
         card.querySelector('.skill-btn').onclick = () => {
-          if (window.SaveSystem.upgradeSkill(s.id)) {
+          if (window.SaveSystem.upgradeSkill(skillId)) {
             if (window.SoundSystem) window.SoundSystem.sfx('level');
             this.renderSkilltree();
           } else {
-            this.showToast('Zu wenig Neon Credits! Sammle mehr in Runden.');
+            this.showToast(t.tooFewCredits);
           }
         };
       }
       container.appendChild(card);
-    });
+    }
   }
 
   renderAchievements() {
@@ -372,6 +464,8 @@ class UIEngine {
   renderStats() {
     const container = document.getElementById('statsGrid');
     if (!container || !window.SaveSystem) return;
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+    const loc = lang === 'en' ? 'en-US' : 'de-DE';
     const st = window.SaveSystem.data.stats;
     const totalSec = Math.floor(st.totalTime || 0);
     const hrs = Math.floor(totalSec / 3600);
@@ -380,19 +474,34 @@ class UIEngine {
     const bestStr = `${Math.floor(bestSec / 60)}m ${bestSec % 60}s`;
     const km = ((st.distanceTraveled || 0) / 1000).toFixed(1);
 
+    const labels = {
+      kills: { de: 'Feinde besiegt', en: 'Enemies Defeated' },
+      bosses: { de: 'Bosse besiegt', en: 'Bosses Defeated' },
+      time: { de: 'Gesamtspielzeit', en: 'Total Playtime' },
+      best: { de: 'Beste Überlebenszeit', en: 'Best Survival Time' },
+      level: { de: 'Höchstes Level', en: 'Highest Level' },
+      score: { de: 'Highscore', en: 'High Score' },
+      runs: { de: 'Runs gestartet / gewonnen', en: 'Runs Started / Won' },
+      evos: { de: 'Waffen-Evolutionen', en: 'Weapon Evolutions' },
+      overloads: { de: 'Neon Overloads genutzt', en: 'Neon Overloads Used' },
+      pu: { de: 'Power-ups gesammelt', en: 'Power-ups Collected' },
+      credits: { de: 'Credits gesamt verdient', en: 'Lifetime Credits Earned' },
+      dist: { de: 'Flugdistanz', en: 'Flight Distance' }
+    };
+
     const rows = [
-      { icon: '☠️', label: 'Feinde besiegt', val: (st.totalKills || 0).toLocaleString('de-DE') },
-      { icon: '👑', label: 'Bosse besiegt', val: (st.totalBossKills || 0).toLocaleString('de-DE') },
-      { icon: '⏱️', label: 'Gesamtspielzeit', val: `${hrs}h ${mins}m` },
-      { icon: '⏳', label: 'Beste Überlebenszeit', val: bestStr },
-      { icon: '⭐', label: 'Höchstes Level', val: st.highestLevel || 1 },
-      { icon: '🏆', label: 'Highscore', val: (st.highestScore || 0).toLocaleString('de-DE') },
-      { icon: '🚀', label: 'Runs gestartet / gewonnen', val: `${st.runsStarted || 0} / ${st.runsWon || 0}` },
-      { icon: '🧬', label: 'Waffen-Evolutionen', val: st.evolutionsMade || 0 },
-      { icon: '⚡', label: 'Neon Overloads genutzt', val: st.overloadsUsed || 0 },
-      { icon: '🎁', label: 'Power-ups gesammelt', val: st.powerupsCollected || 0 },
-      { icon: '💎', label: 'Credits gesamt verdient', val: (window.SaveSystem.data.lifetimeCredits || 0).toLocaleString('de-DE') },
-      { icon: '🛸', label: 'Flugdistanz', val: `${km}k Einheiten` }
+      { icon: '☠️', label: labels.kills[lang] || labels.kills.de, val: (st.totalKills || 0).toLocaleString(loc) },
+      { icon: '👑', label: labels.bosses[lang] || labels.bosses.de, val: (st.totalBossKills || 0).toLocaleString(loc) },
+      { icon: '⏱️', label: labels.time[lang] || labels.time.de, val: `${hrs}h ${mins}m` },
+      { icon: '⏳', label: labels.best[lang] || labels.best.de, val: bestStr },
+      { icon: '⭐', label: labels.level[lang] || labels.level.de, val: st.highestLevel || 1 },
+      { icon: '🏆', label: labels.score[lang] || labels.score.de, val: (st.highestScore || 0).toLocaleString(loc) },
+      { icon: '🚀', label: labels.runs[lang] || labels.runs.de, val: `${st.runsStarted || 0} / ${st.runsWon || 0}` },
+      { icon: '🧬', label: labels.evos[lang] || labels.evos.de, val: st.evolutionsMade || 0 },
+      { icon: '⚡', label: labels.overloads[lang] || labels.overloads.de, val: st.overloadsUsed || 0 },
+      { icon: '🎁', label: labels.pu[lang] || labels.pu.de, val: st.powerupsCollected || 0 },
+      { icon: '💎', label: labels.credits[lang] || labels.credits.de, val: (window.SaveSystem.data.lifetimeCredits || 0).toLocaleString(loc) },
+      { icon: '🛸', label: labels.dist[lang] || labels.dist.de, val: `${km}k ${lang === 'en' ? 'Units' : 'Einheiten'}` }
     ];
 
     container.innerHTML = rows.map(r => `
@@ -407,26 +516,28 @@ class UIEngine {
   renderKeybindings() {
     const container = document.getElementById('keybindGrid');
     if (!container || !window.SaveSystem) return;
+    const lang = (window.SaveSystem.getSettings().lang) || 'de';
     const keys = window.SaveSystem.getSettings().keys;
     const actions = [
-      { id: 'up', label: 'Hoch' },
-      { id: 'down', label: 'Runter' },
-      { id: 'left', label: 'Links' },
-      { id: 'right', label: 'Rechts' },
-      { id: 'dash', label: 'Dash' },
-      { id: 'overload', label: 'Neon Overload' },
-      { id: 'pause', label: 'Pause' }
+      { id: 'up', label: { de: 'Hoch', en: 'Up' } },
+      { id: 'down', label: { de: 'Runter', en: 'Down' } },
+      { id: 'left', label: { de: 'Links', en: 'Left' } },
+      { id: 'right', label: { de: 'Rechts', en: 'Right' } },
+      { id: 'dash', label: { de: 'Dash', en: 'Dash' } },
+      { id: 'overload', label: { de: 'Neon Overload', en: 'Neon Overload' } },
+      { id: 'pause', label: { de: 'Pause', en: 'Pause' } }
     ];
 
     container.innerHTML = '';
     actions.forEach(a => {
       const current = (keys[a.id] && keys[a.id][0]) || '-';
+      const labelText = a.label[lang] || a.label.de;
       const row = document.createElement('div');
       row.className = 'kb-row';
-      row.innerHTML = `<span>${a.label}</span><button class="btn sec kb-btn" type="button">${current}</button>`;
+      row.innerHTML = `<span>${labelText}</span><button class="btn sec kb-btn" type="button">${current}</button>`;
       const btn = row.querySelector('.kb-btn');
       btn.onclick = () => {
-        btn.innerText = 'Taste drücken...';
+        btn.innerText = lang === 'en' ? 'Press a key...' : 'Taste drücken...';
         btn.style.borderColor = '#ffd23f';
         const handler = ev => {
           ev.preventDefault();
@@ -440,7 +551,7 @@ class UIEngine {
           s.keys[a.id] = list;
           window.SaveSystem.saveSettings(s);
           this.renderKeybindings();
-          this.showToast(`${a.label}: ${ev.code}`);
+          this.showToast(`${labelText}: ${ev.code}`);
         };
         window.addEventListener('keydown', handler, true);
       };

@@ -206,9 +206,10 @@ class GameController {
     this.resetGame();
     this.state = 'play';
     window.UI.showScreen(null);
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
     if (this.selectedMode === 'sandbox') {
       this.sandboxPauseSpawns = true;
-      window.UI.showBanner('TEST-LABOR (TAB / F2 DRÜCKEN)', '#ffd23f');
+      window.UI.showBanner(lang === 'en' ? 'TEST LAB (PRESS TAB / F2)' : 'TEST-LABOR (TAB / F2 DRÜCKEN)', '#ffd23f');
     } else {
       this.sandboxGodMode = false;
       this.sandboxPauseSpawns = false;
@@ -217,7 +218,7 @@ class GameController {
         const p = document.getElementById('sandboxPanel');
         if (p) p.classList.remove('open');
       }
-      window.UI.showBanner('ÜBERLEBE!', '#3dfcff');
+      window.UI.showBanner(lang === 'en' ? 'SURVIVE!' : 'ÜBERLEBE!', '#3dfcff');
       window.SaveSystem.data.stats.runsStarted++;
       window.SaveSystem.save();
       window.SaveSystem.checkAchievements();
@@ -818,14 +819,17 @@ class GameController {
       window.SoundSystem.setTheme('normal');
     }
 
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+    const loc = lang === 'en' ? 'en-US' : 'de-DE';
+
     if (this.selectedMode === 'sandbox') {
       const overStatsEl = document.getElementById('ostats');
       if (overStatsEl) {
         overStatsEl.innerHTML = `
-          Modus: <b style="color:#ffd23f;">TEST-LABOR (SANDBOX)</b><br>
-          Überlebt: <b>${Math.floor(this.time / 60)}m ${Math.floor(this.time % 60)}s</b><br>
-          Kills: <b>${this.kills}</b> &nbsp;·&nbsp; Wächter: <b>${this.bossKills}</b><br>
-          <span style="font-size:13px;color:#aaa;">(Test-Labor: Es werden keine Credits, Statistiken oder Erfolge gespeichert)</span>
+          ${lang === 'en' ? 'Mode' : 'Modus'}: <b style="color:#ffd23f;">${lang === 'en' ? 'TEST LAB (SANDBOX)' : 'TEST-LABOR (SANDBOX)'}</b><br>
+          ${lang === 'en' ? 'Survived' : 'Überlebt'}: <b>${Math.floor(this.time / 60)}m ${Math.floor(this.time % 60)}s</b><br>
+          Kills: <b>${this.kills}</b> &nbsp;·&nbsp; ${lang === 'en' ? 'Bosses' : 'Wächter'}: <b>${this.bossKills}</b><br>
+          <span style="font-size:13px;color:#aaa;">${lang === 'en' ? '(Test Lab: No credits, statistics, or achievements are saved)' : '(Test-Labor: Es werden keine Credits, Statistiken oder Erfolge gespeichert)'}</span>
         `;
       }
       window.SaveSystem.endTestSession();
@@ -846,10 +850,10 @@ class GameController {
     const overStatsEl = document.getElementById('ostats');
     if (overStatsEl) {
       overStatsEl.innerHTML = `
-        Überlebt: <b>${Math.floor(this.time / 60)}m ${Math.floor(this.time % 60)}s</b><br>
-        Kills: <b>${this.kills}</b> &nbsp;·&nbsp; Wächter: <b>${this.bossKills}</b><br>
-        Neon Credits verdient: <b style="color:#00ffcc;font-size:24px">+${finalCredits} 💎</b><br>
-        Punkte: <b style="color:#ffd23f;font-size:28px">${score.toLocaleString('de-DE')}</b>
+        ${lang === 'en' ? 'Survived' : 'Überlebt'}: <b>${Math.floor(this.time / 60)}m ${Math.floor(this.time % 60)}s</b><br>
+        Kills: <b>${this.kills}</b> &nbsp;·&nbsp; ${lang === 'en' ? 'Bosses' : 'Wächter'}: <b>${this.bossKills}</b><br>
+        ${lang === 'en' ? 'Neon Credits earned' : 'Neon Credits verdient'}: <b style="color:#00ffcc;font-size:24px">+${finalCredits} 💎</b><br>
+        ${lang === 'en' ? 'Score' : 'Punkte'}: <b style="color:#ffd23f;font-size:28px">${score.toLocaleString(loc)}</b>
       `;
     }
     setTimeout(() => window.UI.showScreen('over'), 1000);
@@ -869,9 +873,14 @@ class GameController {
     window.SaveSystem.checkAchievements();
     if (window.DiscordRPC) window.DiscordRPC.setVictory(bonusCredits);
 
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
     const vicStats = document.getElementById('vstats');
     if (vicStats) {
-      vicStats.innerHTML = `
+      vicStats.innerHTML = lang === 'en' ? `
+        You have defeated the Arch-Sentinel and liberated the Neon Matrix!<br><br>
+        Victory Reward: <b style="color:#00ffcc;font-size:26px">+${bonusCredits} 💎 Neon Credits</b><br>
+        Glitch-Wasteland Map & Chronos Ship unlocked!
+      ` : `
         Du hast den Arch-Sentinel bezwungen und die Neon-Matrix befreit!<br><br>
         Sieg-Belohnung: <b style="color:#00ffcc;font-size:26px">+${bonusCredits} 💎 Neon Credits</b><br>
         Glitch-Wasteland Map & Chronos-Schiff freigeschaltet!
