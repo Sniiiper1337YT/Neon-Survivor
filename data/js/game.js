@@ -141,6 +141,7 @@ class GameController {
       dashT: 0, dvx: 0, dvy: 0, inv: 0,
       face: -Math.PI / 2, mx: 0, my: -1, moving: false,
       overloadGauge: 0,
+      overloadCooldown: 0,
       overloadChargeRate: (skillMods.overloadRate || 1) * (charDef.stats.overloadRate || 1),
       overloadDurMul: 1.0,
       shieldHits: 0,
@@ -177,6 +178,9 @@ class GameController {
     this.currentBoss = null;
     this.cam.x = 0;
     this.cam.y = 0;
+    this.afkPos = { x: 0, y: 0 };
+    this.afkTimer = 0;
+    this.lastAfkSurge = 0;
 
     // Reset weapons & passives
     this.weapons = {};
@@ -282,10 +286,10 @@ class GameController {
   }
 
   activateOverload() {
-    if (this.isOverload || this.player.overloadGauge < 100) return;
+    if (this.isOverload || (this.player.overloadCooldown || 0) > 0 || this.player.overloadGauge < 100) return;
     this.isOverload = true;
     this.player.overloadGauge = 0;
-    this.overloadTimer = 9.0 * (this.player.overloadDurMul || 1);
+    this.overloadTimer = 8.5 * (this.player.overloadDurMul || 1);
     this.shake = 15;
 
     if (window.SoundSystem) {
@@ -299,6 +303,55 @@ class GameController {
       window.SaveSystem.data.stats.overloadsUsed++;
       window.SaveSystem.checkAchievements();
     }
+  }
+
+  triggerAntiAfkPressure() {
+    if (this.selectedMode === 'sandbox') return;
+    const P = this.player;
+    if (!P) return;
+
+    if (window.UI) window.UI.showBanner('⚠ BEWEGUNG ERFORDERLICH! HORDE FORMIERT SICH!', '#ff0055');
+    if (window.SoundSystem) window.SoundSystem.sfx('nova');
+
+    // Spawne 4-6 Eliten & Hetzer, die direkt auf die AFK-Position zustürmen
+    const types = ['dasher', 'kamikaze', 'runner', 'teleporter', 'tank'];
+    const count = 4 + Math.floor(Math.random() * 3);
+    const R = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 50;
+
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + (Math.random() * 0.4 - 0.2);
+      const ex = P.x + Math.cos(a) * R;
+      const ey = P.y + Math.sin(a) * R;
+      const chosenType = types[Math.floor(Math.random() * types.length)];
+      const e = window.Entities.createEnemy(chosenType, ex, ey, true);
+      e.spd *= 1.30;
+      window.Entities.enemies.push(e);
+    }
+  }
+
+  getNextBossInfo() {
+    if (this.selectedMode === 'sandbox') return null;
+    if (this.currentBoss) return { active: true, name: this.currentBoss.name };
+
+    const bossSchedule = ['scorpio', 'leviathan', 'titan', 'vortex_eye', 'chronos', 'arch_sentinel'];
+
+    if (this.selectedMode === 'bossrush' || this.selectedMode === 'endless') {
+      const nextKey = bossSchedule[this.nextBossIdx % bossSchedule.length];
+      const bossDef = window.GAME_DATA.BOSSES[nextKey] || { name: 'Wächter-Boss' };
+      const timeUntil = Math.max(0, this.nextBossTime - this.time);
+      return { active: false, name: bossDef.name, timeUntil };
+    }
+
+    if (this.nextBossIdx < bossSchedule.length) {
+      const nextKey = bossSchedule[this.nextBossIdx];
+      const bossDef = window.GAME_DATA.BOSSES[nextKey];
+      if (bossDef) {
+        const timeUntil = Math.max(0, bossDef.time - this.time);
+        return { active: false, name: bossDef.name, timeUntil };
+      }
+    }
+
+    return { active: false, name: null, timeUntil: 0, allCleared: true };
   }
 
   update(dt) {
@@ -326,8 +379,12 @@ class GameController {
       for (const g of window.Entities.gems) g.pull = true;
       if (this.overloadTimer <= 0) {
         this.isOverload = false;
+        P.overloadCooldown = 15.0; // 15 Sekunden Erholungsphase
+        P.overloadGauge = 0;
         if (window.SoundSystem) window.SoundSystem.setTheme(this.currentBoss ? 'boss' : 'normal');
       }
+    } else if ((P.overloadCooldown || 0) > 0) {
+      P.overloadCooldown = Math.max(0, P.overloadCooldown - dt);
     }
 
     // Check if Sandbox Menu is open: freeze player movement
@@ -399,6 +456,20 @@ class GameController {
     const stepDist = Math.hypot(P.x - oldPx, P.y - oldPy);
     if (this.selectedMode !== 'sandbox') {
       window.SaveSystem.data.stats.distanceTraveled = (window.SaveSystem.data.stats.distanceTraveled || 0) + stepDist;
+
+      // Anti-AFK Schutz: Verhindert tatenloses Herumstehen in der Mitte bei hochgezüchteten EVOs
+      if (!this.afkPos) this.afkPos = { x: P.x, y: P.y };
+      const distFromAnchor = Math.hypot(P.x - this.afkPos.x, P.y - this.afkPos.y);
+      if (distFromAnchor < 45) {
+        this.afkTimer = (this.afkTimer || 0) + dt;
+        if (this.afkTimer >= 4.5 && (this.time - (this.lastAfkSurge || 0)) >= 4.0) {
+          this.lastAfkSurge = this.time;
+          this.triggerAntiAfkPressure();
+        }
+      } else {
+        this.afkPos = { x: P.x, y: P.y };
+        this.afkTimer = 0;
+      }
     }
 
     // Chronos-X slow aura

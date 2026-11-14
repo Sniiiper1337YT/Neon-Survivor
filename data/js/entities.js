@@ -173,7 +173,7 @@ class EntityManager {
     e.hp -= dmg;
     e.flash = 0.08;
 
-    const kb = e.isBoss ? 0.04 : 12 / e.r;
+    const kb = e.isBoss ? 0.04 : (e.isElite ? 0.35 : 1.0) * (12 / e.r);
     e.kx += (kx || 0) * kb;
     e.ky += (ky || 0) * kb;
 
@@ -199,9 +199,12 @@ class EntityManager {
       window.SaveSystem.data.stats.totalKills++;
     }
 
-    // Overload gauge charging
-    const boost = P.overloadChargeRate || 1;
-    P.overloadGauge = Math.min(100, P.overloadGauge + (e.isBoss ? 50 : 1.2) * boost);
+    // Overload gauge charging (gesperrt während aktiver Überladung & während der 15s Abklingzeit)
+    if (!window.GameState.isOverload && (P.overloadCooldown || 0) <= 0 && (P.overloadGauge || 0) < 100) {
+      const boost = P.overloadChargeRate || 1;
+      const chargeAmount = (e.isBoss ? 25 : (e.isElite ? 1.5 : 0.35)) * boost;
+      P.overloadGauge = Math.min(100, (P.overloadGauge || 0) + chargeAmount);
+    }
 
     if (e.isBoss) {
       this.onBossKilled(e);
@@ -282,32 +285,59 @@ class EntityManager {
     }
   }
 
-  createEnemy(type, x, y) {
+  createEnemy(type, x, y, forceElite = false) {
     const def = window.GAME_DATA.ENEMIES[type] || window.GAME_DATA.ENEMIES.grunt;
-    const m = window.GameState.time / 60;
-    // Pacing HP scaling
-    const hpMul = 0.85 + m * 0.35 + m * m * 0.045;
-    const spdMul = 1 + Math.min(m * 0.02, 0.35);
+    const m = (window.GameState ? window.GameState.time : 0) / 60;
+
+    // Zähle aktive Waffen-Evolutionen (EVOs) des Spielers
+    let evoCount = 0;
+    if (window.GameState && window.GameState.weapons) {
+      for (const k in window.GameState.weapons) {
+        if (window.GameState.weapons[k] && window.GameState.weapons[k].evolved) evoCount++;
+      }
+    }
+
+    // Dynamische Skalierung gegen AFK-Standing:
+    // Je mehr EVOs der Spieler besitzt, desto zäher und schneller rücken Gegner nach
+    const evoHpMul = 1 + evoCount * 0.45;
+    const evoSpdMul = 1 + Math.min(0.50, evoCount * 0.10);
+
+    // Zeitbasierte Pacing-Skalierung
+    const baseHpMul = 0.90 + m * 0.55 + Math.pow(m, 2.1) * 0.08;
+    const baseSpdMul = 1 + Math.min(m * 0.035, 0.55);
+
+    const hpMul = baseHpMul * evoHpMul;
+    const spdMul = baseSpdMul * evoSpdMul;
+
+    // Elite / Champion Chance (steigt mit Zeit und EVOs)
+    const eliteChance = Math.min(0.30, 0.04 + m * 0.015 + evoCount * 0.04);
+    const isElite = forceElite || (m >= 2.0 && Math.random() < eliteChance && type !== 'mini');
+
+    const finalHpMul = hpMul * (isElite ? 3.5 : 1.0);
+    const finalSpdMul = spdMul * (isElite ? 1.25 : 1.0);
+    const finalR = isElite ? def.r * 1.35 : def.r;
+    const finalCol = isElite ? '#ffd23f' : def.col;
 
     return {
       type,
       x, y,
-      r: def.r,
-      hp: def.hp * hpMul,
-      maxHp: def.hp * hpMul,
-      spd: def.spd * spdMul * (0.92 + Math.random() * 0.16),
-      dmg: def.dmg * (1 + m * 0.08),
-      xp: def.xp,
-      col: def.col,
+      r: finalR,
+      hp: def.hp * finalHpMul,
+      maxHp: def.hp * finalHpMul,
+      spd: def.spd * finalSpdMul * (0.92 + Math.random() * 0.16),
+      dmg: def.dmg * (1 + m * 0.08 + evoCount * 0.15) * (isElite ? 1.4 : 1.0),
+      xp: def.xp * (isElite ? 3 : 1),
+      col: finalCol,
       shape: def.shape,
       flash: 0,
       kx: 0, ky: 0,
       rot: Math.random() * Math.PI * 2,
       dead: false,
-      st: 1 + Math.random() * 2, // Timer for special attacks
-      telegraph: 0,              // Telegraph indicator timer
+      st: 1 + Math.random() * 2,
+      telegraph: 0,
       oc: 0, frozen: 0, stunned: 0,
-      isBoss: false
+      isBoss: false,
+      isElite: !!isElite
     };
   }
 
@@ -1207,8 +1237,9 @@ class EntityManager {
         this.addText(P.x, P.y - 20, '★ LEVEL UP! ★', '#ff2d95', true);
         break;
       case 'overload_cell':
-        P.overloadGauge = Math.min(100, P.overloadGauge + 50);
-        this.addText(P.x, P.y - 20, '+50% OVERLOAD', '#3dfcff', true);
+        if ((P.overloadCooldown || 0) > 0) P.overloadCooldown = Math.max(0, P.overloadCooldown - 8);
+        P.overloadGauge = Math.min(100, (P.overloadGauge || 0) + 35);
+        this.addText(P.x, P.y - 20, '+35% OVERLOAD', '#3dfcff', true);
         break;
       case 'double_damage':
         P.doubleDamageTimer = 12.0;

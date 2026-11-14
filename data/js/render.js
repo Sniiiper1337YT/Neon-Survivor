@@ -417,6 +417,18 @@ class RenderEngine {
         ctx.fill();
       }
 
+      // Elite pulsing golden aura
+      if (e.isElite && !e.isBoss) {
+        ctx.save();
+        ctx.strokeStyle = '#ffd23f';
+        ctx.lineWidth = 2.0;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.arc(0, 0, e.r * 1.35 + Math.sin(now * 8) * 2, 0, this.TAU);
+        ctx.stroke();
+        ctx.restore();
+      }
+
       ctx.restore();
 
       // Shielder frontal forcefield arc
@@ -941,23 +953,49 @@ class RenderEngine {
     // NEON OVERLOAD Gauge (Special Skill)
     const dashTextW = ctx.measureText('DASH').width;
     const ox = dx + dashBarW + dashTextW + 24, oy = hy + 34;
-    const overBarW = 100;
-    const overPct = Math.min(1, (P.overloadGauge || 0) / 100);
-    const isOverReady = overPct >= 1;
+    const overBarW = 110;
+    const isOverActive = Boolean(window.GameState.isOverload);
+    const onCooldown = (P.overloadCooldown || 0) > 0;
+
     ctx.fillStyle = 'rgba(255,255,255,0.12)';
     this.rrect(ox, oy, overBarW, 10, 5);
     ctx.fill();
 
-    const og = ctx.createLinearGradient(ox, 0, ox + overBarW, 0);
-    og.addColorStop(0, '#ffd23f');
-    og.addColorStop(1, '#ff0055');
-    ctx.fillStyle = og;
-    this.rrect(ox, oy, Math.max(10, overBarW * overPct), 10, 5);
-    ctx.fill();
+    if (isOverActive) {
+      const remainPct = Math.max(0, Math.min(1, (window.GameState.overloadTimer || 0) / 8.5));
+      const og = ctx.createLinearGradient(ox, 0, ox + overBarW, 0);
+      og.addColorStop(0, '#3dfcff');
+      og.addColorStop(1, '#ffd23f');
+      ctx.fillStyle = og;
+      this.rrect(ox, oy, Math.max(10, overBarW * remainPct), 10, 5);
+      ctx.fill();
 
-    ctx.font = '900 11px Segoe UI';
-    ctx.fillStyle = isOverReady ? '#ffd23f' : '#aaa';
-    ctx.fillText(isOverReady ? 'OVERLOAD [E]!' : 'OVERLOAD', ox + overBarW + 8, oy + 9);
+      ctx.font = '900 11px Segoe UI';
+      ctx.fillStyle = '#3dfcff';
+      ctx.fillText(`⚡ OVERLOAD (${Math.ceil(window.GameState.overloadTimer || 0)}s)`, ox + overBarW + 8, oy + 9);
+    } else if (onCooldown) {
+      const cdPct = 1 - Math.min(1, P.overloadCooldown / 15.0);
+      ctx.fillStyle = 'rgba(100, 150, 255, 0.45)';
+      this.rrect(ox, oy, Math.max(6, overBarW * cdPct), 10, 5);
+      ctx.fill();
+
+      ctx.font = '700 10px Segoe UI';
+      ctx.fillStyle = '#6495ed';
+      ctx.fillText(`COOLDOWN ${Math.ceil(P.overloadCooldown)}s`, ox + overBarW + 8, oy + 9);
+    } else {
+      const overPct = Math.min(1, (P.overloadGauge || 0) / 100);
+      const isOverReady = overPct >= 1;
+      const og = ctx.createLinearGradient(ox, 0, ox + overBarW, 0);
+      og.addColorStop(0, '#ffd23f');
+      og.addColorStop(1, '#ff0055');
+      ctx.fillStyle = og;
+      this.rrect(ox, oy, Math.max(10, overBarW * overPct), 10, 5);
+      ctx.fill();
+
+      ctx.font = '900 11px Segoe UI';
+      ctx.fillStyle = isOverReady ? '#ffd23f' : '#aaa';
+      ctx.fillText(isOverReady ? 'OVERLOAD [E]!' : `OVERLOAD ${Math.floor(P.overloadGauge || 0)}%`, ox + overBarW + 8, oy + 9);
+    }
 
     // Timer (Center)
     ctx.textAlign = 'center';
@@ -967,6 +1005,37 @@ class RenderEngine {
     const s = Math.floor(window.GameState.time % 60);
     const timeStr = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     ctx.fillText(timeStr, W / 2, 50);
+
+    // Nächster Boss Anzeige (unter dem Timer, wenn kein Boss aktiv im Kampf ist)
+    if (!window.GameState.currentBoss && window.GameState.getNextBossInfo) {
+      const nb = window.GameState.getNextBossInfo();
+      if (nb && !nb.active && nb.name) {
+        const nbM = Math.floor(nb.timeUntil / 60);
+        const nbS = Math.floor(nb.timeUntil % 60);
+        const nbTimeStr = `${String(nbM).padStart(2, '0')}:${String(nbS).padStart(2, '0')}`;
+        const isImminent = nb.timeUntil <= 30;
+
+        ctx.font = isImminent ? '900 13px Segoe UI' : '700 12px Segoe UI';
+        const bossText = isImminent
+          ? `⚠ BOSS NAHT IN ${nbTimeStr} (${nb.name.toUpperCase()})`
+          : `💀 NÄCHSTER BOSS IN ${nbTimeStr} · ${nb.name}`;
+        const pillW = ctx.measureText(bossText).width + 24;
+        const pillX = (W - pillW) / 2;
+        const pillY = 58;
+
+        ctx.fillStyle = isImminent
+          ? (Math.floor(now * 4) % 2 === 0 ? 'rgba(255, 0, 85, 0.45)' : 'rgba(255, 50, 50, 0.25)')
+          : 'rgba(0, 0, 0, 0.45)';
+        this.rrect(pillX, pillY, pillW, 20, 10);
+        ctx.fill();
+        ctx.strokeStyle = isImminent ? '#ff0055' : 'rgba(255, 210, 63, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = isImminent ? '#ff3366' : '#ffd23f';
+        ctx.fillText(bossText, W / 2, pillY + 14);
+      }
+    }
 
     // Kills & Credits (Right top)
     ctx.textAlign = 'right';
