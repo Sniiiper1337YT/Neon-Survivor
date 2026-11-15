@@ -387,7 +387,7 @@ window.GAME_DATA = {
     },
     solar: {
       name: 'Solaris-Prime', role: { de: 'Solar-Titan', en: 'Solar Titan' },
-      weapon: 'fire', col: '#ffaa00', hull: 'solaris',
+      weapon: 'flamethrower', col: '#ffaa00', hull: 'solaris',
       stats: { hp: 160, spd: 220, dmg: 1.2, armor: 3, regen: 0.5, crit: 0.10, burnBonus: 1.5 },
       secondary: {
         id: 'solar_flare',
@@ -400,7 +400,7 @@ window.GAME_DATA = {
     },
     glitch: {
       name: 'Glitch-Zero', role: { de: 'Dimensions-Brecher', en: 'Reality Breaker' },
-      weapon: 'mine', col: '#00ffaa', hull: 'glitch',
+      weapon: 'mines', col: '#00ffaa', hull: 'glitch',
       stats: { hp: 105, spd: 260, dmg: 1.35, armor: 1, regen: 0.25, crit: 0.22, warpCrit: true },
       secondary: {
         id: 'reality_rift',

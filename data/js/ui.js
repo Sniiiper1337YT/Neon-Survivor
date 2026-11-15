@@ -208,12 +208,14 @@ class UIEngine {
 
       const card = document.createElement('div');
       card.className = `menu-card ${isSel ? 'sel' : ''} ${!isUnlocked ? 'locked' : ''}`;
+      const wp = window.GAME_DATA.WEAPONS[c.weapon];
+      const wpName = wp ? (wp.name[lang] || wp.name.de) : c.weapon;
       card.innerHTML = `
         <div class="card-icon" style="color:${c.col}">${c.name[0]}</div>
         <div class="card-title">${c.name}</div>
         <div class="card-tag" style="background:${c.col}44">${c.role[lang] || c.role.de}</div>
         <div class="card-desc">
-          <b>${lang === 'en' ? 'Weapon' : 'Waffe'}:</b> ${window.GAME_DATA.WEAPONS[c.weapon].name[lang]}<br>
+          <b>${lang === 'en' ? 'Weapon' : 'Waffe'}:</b> ${wpName}<br>
           <b>HP:</b> ${c.stats.hp} &nbsp;·&nbsp; <b>SPD:</b> ${c.stats.spd}
           ${c.secondary ? `<div style="margin-top:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.12);"><b style="color:#ffd23f;">${c.secondary.icon} ${c.secondary.name[lang] || c.secondary.name.de}</b> (${c.secondary.cd}s)<br><span style="font-size:11px; color:#aaa;">${c.secondary.desc[lang] || c.secondary.desc.de}</span></div>` : ''}
         </div>
