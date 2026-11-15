@@ -98,16 +98,16 @@ class InputSystem {
   isActionCode(code, action) {
     // Strikte Trennung: KeyQ / KeyF / KeyR dürfen NIEMALS Overload zünden
     if (action === 'overload' && (code === 'KeyQ' || code === 'KeyF' || code === 'KeyR')) return false;
-    // KeyE darf NIEMALS die Sekundärfähigkeit zünden
-    if (action === 'secondary' && code === 'KeyE') return false;
+    // KeyF / KeyR / KeyE dürfen NIEMALS die Sekundärfähigkeit zünden (nur KeyQ!)
+    if (action === 'secondary' && (code === 'KeyF' || code === 'KeyR' || code === 'KeyE')) return false;
 
     const settings = window.SaveSystem ? window.SaveSystem.getSettings() : null;
     const keys = settings && settings.keys ? settings.keys[action] : null;
     if (keys && keys.includes(code)) return true;
     // Defaults fallback
     if (action === 'dash' && (code === 'Space' || code === 'ShiftLeft' || code === 'ShiftRight')) return true;
-    if (action === 'secondary' && (code === 'KeyQ' || code === 'KeyF' || code === 'KeyR')) return true;
-    if (action === 'overload' && (code === 'KeyE')) return true;
+    if (action === 'secondary' && code === 'KeyQ') return true;
+    if (action === 'overload' && code === 'KeyE') return true;
     if (action === 'pause' && (code === 'Escape' || code === 'KeyP')) return true;
     return false;
   }
@@ -193,41 +193,28 @@ class InputSystem {
   }
 
   getMovementVector(playerX, playerY, camX, camY, screenW, screenH) {
-    let ix = 0, iy = 0;
-
-    // Check keyboard actions
-    if (this.isActionActive('left') || this.K.KeyA || this.K.ArrowLeft) ix--;
-    if (this.isActionActive('right') || this.K.KeyD || this.K.ArrowRight) ix++;
-    if (this.isActionActive('up') || this.K.KeyW || this.K.ArrowUp) iy--;
-    if (this.isActionActive('down') || this.K.KeyS || this.K.ArrowDown) iy++;
-
-    // Poll Gamepad
+    // 1. Gamepad Stick (falls Controller angeschlossen ist)
     const gp = this.pollGamepad();
     if (gp && (Math.abs(gp.lx) > 0 || Math.abs(gp.ly) > 0)) {
-      ix = gp.lx;
-      iy = gp.ly;
+      let ix = gp.lx, iy = gp.ly;
       const len = Math.hypot(ix, iy);
       if (len > 1) { ix /= len; iy /= len; }
       return { x: ix, y: iy, moving: true, aimX: gp.rx, aimY: gp.ry };
     }
 
-    const keyLen = Math.hypot(ix, iy);
-    if (keyLen > 0) {
-      return { x: ix / keyLen, y: iy / keyLen, moving: true, aimX: 0, aimY: 0 };
+    // 2. Reine Maus-Steuerung: Das Schiff steuert direkt und flüssig in Richtung des Mauszeigers
+    if (this.mouse.lastMoveTime === 0) {
+      return { x: 0, y: 0, moving: false, aimX: 0, aimY: 0 };
     }
-
-    // Mouse movement (nur aktiv bei tatsächlicher Mausbewegung innerhalb der letzten 2,5 Sekunden)
-    if (this.mouse.active && (performance.now() - (this.mouse.lastMoveTime || 0)) < 2500) {
-      const mWorldX = this.mouse.x - screenW / 2 + camX;
-      const mWorldY = this.mouse.y - screenH / 2 + camY;
-      const mdx = mWorldX - playerX;
-      const mdy = mWorldY - playerY;
-      const mdist = Math.hypot(mdx, mdy);
-      const deadzone = 24;
-      if (mdist > deadzone) {
-        const factor = Math.min(1, (mdist - deadzone) / 100);
-        return { x: (mdx / mdist) * factor, y: (mdy / mdist) * factor, moving: true, aimX: mdx / mdist, aimY: mdy / mdist };
-      }
+    const mWorldX = this.mouse.x - screenW / 2 + camX;
+    const mWorldY = this.mouse.y - screenH / 2 + camY;
+    const mdx = mWorldX - playerX;
+    const mdy = mWorldY - playerY;
+    const mdist = Math.hypot(mdx, mdy);
+    const deadzone = 12; // Feine Deadzone am Schiffsrumpf
+    if (mdist > deadzone) {
+      const factor = Math.min(1, (mdist - deadzone) / 60);
+      return { x: (mdx / mdist) * factor, y: (mdy / mdist) * factor, moving: true, aimX: mdx / mdist, aimY: mdy / mdist };
     }
 
     return { x: 0, y: 0, moving: false, aimX: 0, aimY: 0 };

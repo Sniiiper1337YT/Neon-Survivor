@@ -69,12 +69,8 @@ class SaveSystem {
         lang: 'de',
         discordClientId: '1570824779005689919',
         keys: {
-          up: ['KeyW', 'ArrowUp'],
-          down: ['KeyS', 'ArrowDown'],
-          left: ['KeyA', 'ArrowLeft'],
-          right: ['KeyD', 'ArrowRight'],
           dash: ['Space', 'ShiftLeft'],
-          secondary: ['KeyQ', 'KeyF'],
+          secondary: ['KeyQ'],
           overload: ['KeyE'],
           pause: ['Escape', 'KeyP']
         }
@@ -205,8 +201,12 @@ class SaveSystem {
         d.settings.keys.overload = d.settings.keys.overload.filter(k => k !== 'KeyQ' && k !== 'KeyF' && k !== 'KeyR');
         if (!d.settings.keys.overload.length) d.settings.keys.overload = ['KeyE'];
       }
-      if (!Array.isArray(d.settings.keys.secondary) || !d.settings.keys.secondary.length) {
-        d.settings.keys.secondary = ['KeyQ', 'KeyF'];
+      if (Array.isArray(d.settings.keys.secondary)) {
+        // Strikte Trennung: KeyF und KeyR dürfen nie die Spezialfähigkeit zünden
+        d.settings.keys.secondary = d.settings.keys.secondary.filter(k => k === 'KeyQ');
+        if (!d.settings.keys.secondary.length) d.settings.keys.secondary = ['KeyQ'];
+      } else {
+        d.settings.keys.secondary = ['KeyQ'];
       }
     }
   }

@@ -601,7 +601,7 @@ window.GAME_DATA = {
       stats: '📊 Statistiken',
       settings: '⚙️ Einstellungen',
       minigame: '🎯 Arcade-Minispiel',
-      controlsHint: '<b>WASD / Maus / Gamepad</b> Bewegen &nbsp;·&nbsp; <b>Rechtsklick / Q</b> Spezialfähigkeit &nbsp;·&nbsp; <b>Leertaste</b> Dash &nbsp;·&nbsp; <b>E</b> Overload',
+      controlsHint: '<b>Maus</b> Steuern &nbsp;·&nbsp; <b>Rechtsklick / Q</b> Spezialfähigkeit &nbsp;·&nbsp; <b>Leertaste / Linksklick</b> Dash &nbsp;·&nbsp; <b>E</b> Overload &nbsp;·&nbsp; <b>1, 2, 3</b> Upgrades',
       footerDev: 'Entwickelt von Sniiiper1337YT',
       
       charModalTitle: 'WÄHLE DEIN RAUMSCHIFF',
@@ -714,7 +714,7 @@ window.GAME_DATA = {
       stats: '📊 Statistics',
       settings: '⚙️ Settings',
       minigame: '🎯 Arcade Minigame',
-      controlsHint: '<b>WASD / Mouse / Gamepad</b> Move &nbsp;·&nbsp; <b>Right Click / Q</b> Secondary Skill &nbsp;·&nbsp; <b>Space</b> Dash &nbsp;·&nbsp; <b>E</b> Overload',
+      controlsHint: '<b>Mouse</b> Steer &nbsp;·&nbsp; <b>Right Click / Q</b> Secondary Skill &nbsp;·&nbsp; <b>Space / Left Click</b> Dash &nbsp;·&nbsp; <b>E</b> Overload &nbsp;·&nbsp; <b>1, 2, 3</b> Upgrades',
       footerDev: 'Developed by Sniiiper1337YT',
       
       charModalTitle: 'CHOOSE YOUR STARSHIP',

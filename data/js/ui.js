@@ -17,7 +17,12 @@ class UIEngine {
     const screens = document.querySelectorAll('.ov');
     screens.forEach(s => s.classList.toggle('on', s.id === id));
     this.activeScreen = id;
-    if (window.SoundSystem) window.SoundSystem.sfx('click');
+    if (window.SoundSystem) {
+      window.SoundSystem.sfx('click');
+      if (id === 'title') {
+        window.SoundSystem.setTheme('menu');
+      }
+    }
   }
 
   applyLanguage(lang) {
@@ -39,7 +44,6 @@ class UIEngine {
     setT('btnMaps', t.maps);
     setT('btnModes', t.modes);
     setT('btnSkill', t.skills);
-    setT('btnMinigame', t.minigame);
     setT('btnAchs', t.achs);
     setT('btnStats', t.stats);
     setT('btnSettings', t.settings);
@@ -73,17 +77,6 @@ class UIEngine {
     setT('btnAchBack', t.doneBtn);
     setT('btnStatsBack', t.doneBtn);
     setT('btnSettingsBack', t.saveBackBtn);
-    setT('btnMgBack', t.doneBtn);
-
-    // Arcade Minigame Modal
-    setT('mgTitle', lang === 'en' ? '🎯 NEON TARGET RANGE (ARCADE)' : '🎯 NEON ZIELSCHIESSEN (ARCADE)');
-    setT('mgDesc', lang === 'en'
-      ? 'Destroy as many targets as possible in 30 seconds and earn real Neon Credits for your skilltree!'
-      : 'Zerstöre in 30 Sekunden so viele Zielscheiben wie möglich und verdiene echte Neon Credits für den Talentbaum!');
-    setT('mgLblTime', lang === 'en' ? 'Time' : 'Zeit');
-    setT('mgLblScore', lang === 'en' ? 'Score' : 'Punkte');
-    setT('mgLblCredits', lang === 'en' ? 'Credits' : 'Credits');
-    setT('btnMgStart', lang === 'en' ? 'START ROUND' : 'RUNDE STARTEN');
 
     // Settings labels & options
     const valM = document.getElementById('valVolM') ? document.getElementById('valVolM').innerText : '80%';
@@ -539,7 +532,6 @@ class UIEngine {
       { icon: '🌊', label: labels.waves[lang] || labels.waves.de, val: st.bestEndlessWave || 1 },
       { icon: '🏁', label: labels.minigames[lang] || labels.minigames.de, val: st.minigamesWon || 0 },
       { icon: '🌀', label: labels.portals[lang] || labels.portals.de, val: st.portalsMastered || 0 },
-      { icon: '🎯', label: labels.arcade[lang] || labels.arcade.de, val: (st.arcadeHighScore || 0).toLocaleString(loc) },
       { icon: '⏱️', label: labels.time[lang] || labels.time.de, val: `${hrs}h ${mins}m` },
       { icon: '⏳', label: labels.best[lang] || labels.best.de, val: bestStr },
       { icon: '⭐', label: labels.level[lang] || labels.level.de, val: st.highestLevel || 1 },
@@ -567,11 +559,7 @@ class UIEngine {
     const lang = (window.SaveSystem.getSettings().lang) || 'de';
     const keys = window.SaveSystem.getSettings().keys;
     const actions = [
-      { id: 'up', label: { de: 'Hoch', en: 'Up' } },
-      { id: 'down', label: { de: 'Runter', en: 'Down' } },
-      { id: 'left', label: { de: 'Links', en: 'Left' } },
-      { id: 'right', label: { de: 'Rechts', en: 'Right' } },
-      { id: 'dash', label: { de: 'Dash', en: 'Dash' } },
+      { id: 'dash', label: { de: 'Dash (Leertaste)', en: 'Dash (Space)' } },
       { id: 'secondary', label: { de: 'Spezialfähigkeit (Q)', en: 'Secondary Ability (Q)' } },
       { id: 'overload', label: { de: 'Neon Overload (E)', en: 'Neon Overload (E)' } },
       { id: 'pause', label: { de: 'Pause', en: 'Pause' } }
@@ -592,6 +580,16 @@ class UIEngine {
           ev.preventDefault();
           ev.stopPropagation();
           window.removeEventListener('keydown', handler, true);
+          if (a.id === 'secondary' && (ev.code === 'KeyF' || ev.code === 'KeyR' || ev.code === 'KeyE')) {
+            this.showToast(lang === 'en' ? 'Key not allowed for secondary!' : 'Taste für Spezialfähigkeit nicht erlaubt!');
+            this.renderKeybindings();
+            return;
+          }
+          if (a.id === 'overload' && (ev.code === 'KeyQ' || ev.code === 'KeyF' || ev.code === 'KeyR')) {
+            this.showToast(lang === 'en' ? 'Key not allowed for overload!' : 'Taste für Overload nicht erlaubt!');
+            this.renderKeybindings();
+            return;
+          }
           const s = window.SaveSystem.getSettings();
           const list = s.keys[a.id] ? [...s.keys[a.id]] : [];
           if (!list.includes(ev.code)) {

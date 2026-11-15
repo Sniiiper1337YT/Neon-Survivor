@@ -34,11 +34,11 @@ Ein rasanter, neon-ästhetischer Sci-Fi Bullet-Heaven / Rogue-lite Survival Shoo
     - **Chronos-X:** *Chronostase* (Friert alle Feinde & Kugeln für 3.5s komplett ein)
 - **🌊 Endlos-Modus mit Wellen-System:**
   - 60-Sekunden Wellenfortschritt mit Event-Surges, Wellen-Abschluss-Boni (+Credits, Reparatur-Heilung, Gem-Cluster), Boss-Duellen und Karriere-Highscore-Tracking (`Beste Welle`).
-- **🎯 Minigames & Neuer Spielmodus: Dimensions-Rallye:**
-  - **Neuer Spielmodus "Dimensions-Rallye (Minispiel)":** Ein intensiver 3-Minuten-Arcade-Parcours! Sammle leuchtende Dimensions-Kerne, die Feinde im Umkreis zerschmettern, lade deinen Neon Overload im Rekordtempo auf und sichere dir bei Überleben den gigantischen Neon-Jackpot (+Credits basierend auf gesammelten Kernen).
+- **🎯 Neuer Spielmodus: Dimensions-Rallye:**
+  - **Spielmodus "Dimensions-Rallye (Minispiel)":** Ein intensiver 3-Minuten-Arcade-Parcours! Sammle leuchtende Dimensions-Kerne, die Feinde im Umkreis zerschmettern, lade deinen Neon Overload im Rekordtempo auf und sichere dir bei Überleben den gigantischen Neon-Jackpot (+Credits basierend auf gesammelten Kernen).
   - **In-Run Dimensions-Portale:** Periodische Portal-Events mit 25s Kerne-Sammel-Herausforderung für epische +350 Credits & Hypercharge.
-  - **Hauptmenü Arcade-Modus:** 30-Sekunden Reflex-Zielschießen mit Combo-Multiplikatoren – erspielte Punkte werden direkt in echte Neon Credits für den Talentbaum umgewandelt.
-- **🗺️ Bessere Maps & Map-spezifische Musik:**
+- **🗺️ Bessere Maps, Map-spezifische Musik & Menü-Synthwave:**
+  - Chillige, atmosphärische Cyberpunk-Synthwave-Musik im Hauptmenü mit automatischem Start beim ersten Klick.
   - Jede der 6 Arenen besitzt individuelle, animierte Grafik-Layer (Parallax-Sternenfelder, Matrix-Code-Rain, Schwarzes-Loch-Vortex, hexagonale Magma-Platten, Asteroidenschatten, Glitch-Scanlines).
   - Voller dynamischer Web-Audio-Synthesizer mit map-spezifischen BPM, Akkordfolgen, Basslines und Synthesizer-Leads.
 - **15 Waffen & 15 mächtige Waffen-Evolutionen:**
@@ -58,10 +58,11 @@ Ein rasanter, neon-ästhetischer Sci-Fi Bullet-Heaven / Rogue-lite Survival Shoo
 
 | Aktion | Tastatur / Maus | Gamepad |
 | :--- | :--- | :--- |
-| **Bewegen** | `WASD` / Pfeiltasten / Maus | Linker Stick / D-Pad |
+| **Bewegen** | `Maus` (Flüssiges Steuern nach Mauszeiger) | Linker Stick |
 | **Dash (Ausweichrolle)** | `Leertaste` / `Linksklick` / `Shift` | `A` (Süd-Taste) / `LT` |
-| **Spezialfähigkeit (Sekundär)** | `Q` / `F` / `Rechtsklick` | `X` (West-Taste) / `LB` |
+| **Spezialfähigkeit (Sekundär)** | `Q` / `Rechtsklick` | `X` (West-Taste) / `LB` |
 | **Neon Overload (Ult)** | `E` / Mausrad-Klick | `Y` (Nord-Taste) / `RT` / `RB` |
+| **Upgrade wählen (Levelaufstieg)** | `1`, `2`, `3` / Mausklick | D-Pad / `A` |
 | **Test-Labor (Sandbox)** | `TAB` / `F2` | - |
 | **Pause** | `Escape` / `P` | `Start` |
 

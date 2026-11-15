@@ -20,7 +20,7 @@ class SoundSystem {
     this.musicNext = 0;
     this.musicStep = 0;
     this.musicInterval = null;
-    this.theme = 'normal'; // 'normal', 'boss', 'overload', 'victory'
+    this.theme = 'menu'; // 'menu', 'normal', 'boss', 'overload', 'victory'
   }
 
   init() {
@@ -391,7 +391,11 @@ class SoundSystem {
   }
 
   setTheme(theme) {
+    if (this.theme === theme) return;
     this.theme = theme;
+    if (this.ac) {
+      this.musicNext = Math.min(this.musicNext, this.ac.currentTime + 0.05);
+    }
   }
 
   setMap(map) {
@@ -467,51 +471,68 @@ class SoundSystem {
 
   musicTick() {
     if (!this.ac) return;
-    const prof = this.getMapMusicProfile();
-    let BPM = prof.bpm;
-    if (this.theme === 'boss') BPM = 144;
+    const isMenu = this.theme === 'menu' || (window.GameState && window.GameState.state === 'title');
+    let BPM = 126;
+    if (isMenu) BPM = 108;
+    else if (this.theme === 'boss') BPM = 144;
     else if (this.theme === 'overload') BPM = 152;
+    else {
+      const prof = this.getMapMusicProfile();
+      BPM = prof.bpm;
+    }
     const STEP = 60 / BPM / 4;
     while (this.musicNext < this.ac.currentTime + 0.12) {
-      this.playStep(this.musicStep, this.musicNext, STEP, prof);
+      this.playStep(this.musicStep, this.musicNext, STEP);
       this.musicNext += STEP;
       this.musicStep++;
     }
   }
 
-  playStep(s, t, STEP, prof) {
+  playStep(s, t, STEP) {
     const M = this.musicGain;
     if (!M || M.gain.value <= 0.001) return;
 
-    if (!prof) prof = this.getMapMusicProfile();
+    const isMenu = this.theme === 'menu' || (window.GameState && window.GameState.state === 'title');
+    const isPlaying = window.GameState && window.GameState.state === 'play';
+    const isOverload = window.GameState && window.GameState.isOverload;
+
+    const prof = this.getMapMusicProfile();
+    const menuChords = [[0, 3, 7], [-4, 0, 3], [-2, 2, 5], [-5, -1, 2]];
     const bossChords = [[0, 3, 6], [-2, 1, 5], [1, 4, 8], [-3, 0, 4]];
-    const chords = this.theme === 'boss' ? bossChords : prof.chords;
+    const chords = isMenu ? menuChords : (this.theme === 'boss' ? bossChords : prof.chords);
 
     const bar = Math.floor(s / 16) % 4;
     const st = s % 16;
     const ch = chords[bar];
 
-    const isPlaying = window.GameState && window.GameState.state === 'play';
-    const isOverload = window.GameState && window.GameState.isOverload;
-
     // Kick
     if (st % 4 === 0 && (isPlaying || this.theme === 'boss')) {
       const kickVol = isOverload ? 0.65 : 0.50;
       this.note(t, 160, 0.16, 'sine', kickVol, M, 0.28);
+    } else if (isMenu && (st === 0 || st === 8)) {
+      this.note(t, 130, 0.22, 'sine', 0.36, M, 0.35);
     }
 
     // Hi-hat
     if (st % 2 === 1) {
-      this.noise(t, 0.03, isOverload ? 0.06 : 0.035, 6000, 'highpass', M);
+      this.noise(t, 0.03, isMenu ? 0.025 : (isOverload ? 0.06 : 0.035), 6000, 'highpass', M);
     }
 
     // Snare / Clap
     if ((st === 4 || st === 12) && isPlaying) {
       this.noise(t, 0.12, isOverload ? 0.18 : 0.13, 1900, 'bandpass', M);
+    } else if (isMenu && st === 8) {
+      this.noise(t, 0.09, 0.05, 2200, 'bandpass', M);
     }
 
-    // Bassline (Map-spezifischer Bass-Sound)
-    if (st % 2 === 0 || st === 7 || st === 15) {
+    // Bassline
+    if (isMenu) {
+      if (st % 4 === 0) {
+        const root = ch[0];
+        const f = 55 * Math.pow(2, root / 12);
+        this.note(t, f, STEP * 2.5, 'triangle', 0.22, M, 1, 500);
+      }
+    } else if (st % 2 === 0 || st === 7 || st === 15) {
       const root = ch[0] + (st % 8 === 6 ? 12 : 0);
       const f = 55 * Math.pow(2, root / 12);
       const bType = this.theme === 'boss' ? 'sawtooth' : prof.bassType;
@@ -520,11 +541,18 @@ class SoundSystem {
     }
 
     // Arpeggio melody (Map-spezifischer Lead-Sound)
-    const n = ch[st % 3] + 12 * (1 + (Math.floor(st / 3) % 2));
-    const arpVol = isOverload ? 0.05 : 0.028;
-    const lType = this.theme === 'boss' ? 'sawtooth' : prof.leadType;
-    const lBase = this.theme === 'boss' ? 220 : prof.leadBase;
-    this.note(t, lBase * Math.pow(2, n / 12), STEP * 0.8, lType, arpVol, M, 1, prof.leadCutoff);
+    if (isMenu) {
+      if (st % 2 === 0) {
+        const n = ch[(st / 2) % 3] + 12;
+        this.note(t, 220 * Math.pow(2, n / 12), STEP * 1.5, 'sine', 0.045, M, 1, 1500);
+      }
+    } else {
+      const n = ch[st % 3] + 12 * (1 + (Math.floor(st / 3) % 2));
+      const arpVol = isOverload ? 0.05 : 0.028;
+      const lType = this.theme === 'boss' ? 'sawtooth' : prof.leadType;
+      const lBase = this.theme === 'boss' ? 220 : prof.leadBase;
+      this.note(t, lBase * Math.pow(2, n / 12), STEP * 0.8, lType, arpVol, M, 1, prof.leadCutoff);
+    }
   }
 }
 
