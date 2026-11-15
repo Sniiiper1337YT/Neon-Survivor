@@ -125,18 +125,33 @@ class RenderEngine {
       ctx.restore();
     } else if (mapKey === 'abyss') {
       ctx.save();
-      const centerX = W / 2 + (ox % 80) * 0.2;
-      const centerY = H / 2 + (oy % 80) * 0.2;
-      ctx.translate(centerX, centerY);
-      ctx.rotate(now * 0.15);
-      for (let r = 0; r < 4; r++) {
-        const rad = 140 + r * 90;
-        ctx.strokeStyle = `rgba(180, 77, 255, ${0.12 - r * 0.02})`;
-        ctx.lineWidth = 14 + r * 6;
-        ctx.beginPath();
-        ctx.arc(0, 0, rad, 0, Math.PI * 1.6);
-        ctx.stroke();
-        ctx.rotate(0.9);
+      // Kosmische Singularitäten im Hintergrund mit echter Tiefen-Parallaxe (nicht mehr auf dem Schiff zentriert!)
+      const singularities = [
+        { wx: 350, wy: -280, baseRad: 160, rotSpeed: 0.12, col: 'rgba(150, 45, 255' },
+        { wx: -520, wy: 380, baseRad: 125, rotSpeed: -0.09, col: 'rgba(85, 0, 210' },
+        { wx: 780, wy: 550, baseRad: 140, rotSpeed: 0.14, col: 'rgba(170, 20, 230' }
+      ];
+      const pScale = 0.16;
+      const modW = W + 900, modH = H + 900;
+      for (const sing of singularities) {
+        const screenX = W / 2 + (sing.wx + ox * pScale);
+        const screenY = H / 2 + (sing.wy + oy * pScale);
+        const px = ((screenX % modW) + modW) % modW - 450;
+        const py = ((screenY % modH) + modH) % modH - 450;
+
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(now * sing.rotSpeed);
+        for (let r = 0; r < 3; r++) {
+          const rad = sing.baseRad * (0.6 + r * 0.4);
+          ctx.strokeStyle = `${sing.col}, ${0.085 - r * 0.02})`;
+          ctx.lineWidth = 10 + r * 5;
+          ctx.beginPath();
+          ctx.arc(0, 0, rad, 0, Math.PI * 1.55);
+          ctx.stroke();
+          ctx.rotate(1.05);
+        }
+        ctx.restore();
       }
       ctx.restore();
     } else if (mapKey === 'reactor') {
