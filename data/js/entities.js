@@ -552,6 +552,10 @@ class EntityManager {
     // 4. Update Enemy Bullets
     for (let i = 0; i < this.ebullets.length; i++) {
       const b = this.ebullets[i];
+      if (b.frozen > 0) {
+        b.frozen -= dt;
+        continue;
+      }
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt;
@@ -894,6 +898,10 @@ class EntityManager {
     if (e.frozen > 0) {
       e.frozen -= dt;
       freezeSlow = (window.GameState.weapons.cryo && window.GameState.weapons.cryo.evolved) ? 0.25 : 0.35;
+    }
+    if (e.stunned > 0) {
+      e.stunned -= dt;
+      freezeSlow = 0;
     }
 
     const dx = P.x - e.x, dy = P.y - e.y, d = Math.hypot(dx, dy) || 1;
@@ -1424,6 +1432,7 @@ class EntityManager {
             col: '#00e5ff'
           });
           next.frozen = Math.max(next.frozen || 0, 2.2);
+          next.stunned = Math.max(next.stunned || 0, 1.8);
           this.hurtEnemy(next, 70 * P.dmgMul, 0, 0, true);
           this.spawnParticle(next.x, next.y, '#00e5ff', 8, 180, 3, 0.3);
           lastTarget = next;
@@ -1494,6 +1503,7 @@ class EntityManager {
         for (const e of this.enemies) {
           if (!e.dead) {
             e.frozen = Math.max(e.frozen || 0, 3.5);
+            e.stunned = Math.max(e.stunned || 0, 3.5);
             this.spawnParticle(e.x, e.y, '#ffffff', 3, 80, 2, 0.3);
           }
         }

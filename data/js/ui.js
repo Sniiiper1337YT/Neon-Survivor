@@ -73,6 +73,17 @@ class UIEngine {
     setT('btnAchBack', t.doneBtn);
     setT('btnStatsBack', t.doneBtn);
     setT('btnSettingsBack', t.saveBackBtn);
+    setT('btnMgBack', t.doneBtn);
+
+    // Arcade Minigame Modal
+    setT('mgTitle', lang === 'en' ? '🎯 NEON TARGET RANGE (ARCADE)' : '🎯 NEON ZIELSCHIESSEN (ARCADE)');
+    setT('mgDesc', lang === 'en'
+      ? 'Destroy as many targets as possible in 30 seconds and earn real Neon Credits for your skilltree!'
+      : 'Zerstöre in 30 Sekunden so viele Zielscheiben wie möglich und verdiene echte Neon Credits für den Talentbaum!');
+    setT('mgLblTime', lang === 'en' ? 'Time' : 'Zeit');
+    setT('mgLblScore', lang === 'en' ? 'Score' : 'Punkte');
+    setT('mgLblCredits', lang === 'en' ? 'Credits' : 'Credits');
+    setT('btnMgStart', lang === 'en' ? 'START ROUND' : 'RUNDE STARTEN');
 
     // Settings labels & options
     const valM = document.getElementById('valVolM') ? document.getElementById('valVolM').innerText : '80%';
@@ -415,6 +426,12 @@ class UIEngine {
         tag = 'BONUS';
         tagCls = 'up';
         desc = t.bonusRepairDesc;
+      } else if (c.id === 'overload') {
+        icon = '⚡';
+        name = lang === 'en' ? 'Neon Overcharge' : 'Neon-Überladung';
+        tag = 'BONUS';
+        tagCls = 'up';
+        desc = lang === 'en' ? '+50% Overload Energy & +2 Shield Hits' : '+50% Overload-Energie & +2 Schild-Ladungen';
       } else {
         icon = '💎';
         name = t.bonusCredits;

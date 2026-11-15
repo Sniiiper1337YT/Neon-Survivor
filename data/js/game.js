@@ -848,6 +848,7 @@ class GameController {
 
     if (out.length < 3) out.push({ kind: 'x', id: 'heal' });
     if (out.length < 3) out.push({ kind: 'x', id: 'credits' });
+    if (out.length < 3) out.push({ kind: 'x', id: 'overload' });
     return out;
   }
 
@@ -900,6 +901,9 @@ class GameController {
       this.applyPassiveEffect(c.id);
     } else if (c.id === 'heal') {
       P.hp = Math.min(P.maxHp, P.hp + 50);
+    } else if (c.id === 'overload') {
+      P.overloadGauge = Math.min(100, (P.overloadGauge || 0) + 50);
+      P.shieldHits = Math.max(P.shieldHits || 0, 2);
     } else {
       this.creditsEarned += window.SaveSystem.addCredits(100) || 0;
     }

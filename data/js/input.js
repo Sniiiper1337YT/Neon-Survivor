@@ -7,7 +7,7 @@
 class InputSystem {
   constructor() {
     this.K = {};
-    this.mouse = { x: 0, y: 0, down: false, rightDown: false, active: false };
+    this.mouse = { x: 0, y: 0, down: false, rightDown: false, active: false, lastMoveTime: 0 };
     this.dashPressed = false;
     this.secondaryPressed = false;
     this.overloadPressed = false;
@@ -24,6 +24,7 @@ class InputSystem {
         e.preventDefault();
       }
       this.K[c] = true;
+      this.mouse.active = false; // Tastatureingaben deaktivieren Maus-Drift sofort
 
       // Start audio on first user gesture
       if (window.SoundSystem) window.SoundSystem.init();
@@ -42,6 +43,7 @@ class InputSystem {
       this.mouse.x = e.clientX;
       this.mouse.y = e.clientY;
       this.mouse.active = true;
+      this.mouse.lastMoveTime = performance.now();
     });
 
     window.addEventListener('mousedown', e => {
@@ -214,8 +216,8 @@ class InputSystem {
       return { x: ix / keyLen, y: iy / keyLen, moving: true, aimX: 0, aimY: 0 };
     }
 
-    // Mouse movement
-    if (this.mouse.active) {
+    // Mouse movement (nur aktiv bei tatsächlicher Mausbewegung innerhalb der letzten 2,5 Sekunden)
+    if (this.mouse.active && (performance.now() - (this.mouse.lastMoveTime || 0)) < 2500) {
       const mWorldX = this.mouse.x - screenW / 2 + camX;
       const mWorldY = this.mouse.y - screenH / 2 + camY;
       const mdx = mWorldX - playerX;

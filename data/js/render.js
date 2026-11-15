@@ -1124,7 +1124,7 @@ class RenderEngine {
     ctx.fillRect(0, 0, W * Math.min(1, P.xp / P.next), 8);
 
     // HP Bar
-    const hx = 22, hy = 24, hw = 260, hh = 18;
+    const hx = 22, hy = 22, hw = 240, hh = 16;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     this.rrect(hx - 2, hy - 2, hw + 4, hh + 4, 8);
     ctx.fill();
@@ -1137,33 +1137,32 @@ class RenderEngine {
     if (P.hp > 0) ctx.fill();
 
     // HP text
-    ctx.font = '700 13px Segoe UI';
+    ctx.font = '700 12px Segoe UI';
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    ctx.fillText(`${Math.ceil(P.hp)} / ${P.maxHp} HP`, hx + hw / 2, hy + 13.5);
+    ctx.fillText(`${Math.ceil(P.hp)} / ${P.maxHp} HP`, hx + hw / 2, hy + 12.5);
 
-    // Level Badge
+    // Row 2: Level Badge, Dash Meter, Secondary Ability
     ctx.textAlign = 'left';
-    ctx.font = '900 18px Segoe UI';
+    ctx.font = '900 16px Segoe UI';
     ctx.fillStyle = '#3dfcff';
-    ctx.fillText('LV ' + P.lvl, hx, hy + 46);
+    ctx.fillText('LV ' + P.lvl, hx, hy + 35);
 
-    // Measure LV width dynamically to position bars with comfortable padding
     const lvWidth = ctx.measureText('LV ' + P.lvl).width;
 
     // Dash Meter
     const dr = 1 - Math.max(0, Math.min(1, P.dashCd / (P.dashMaxCd || 1.0)));
-    const dx = hx + lvWidth + 14, dy = hy + 35;
-    const dashBarW = 75;
+    const dx = hx + lvWidth + 12, dy = hy + 26;
+    const dashBarW = 50;
     ctx.fillStyle = 'rgba(255,255,255,0.12)';
     this.rrect(dx, dy, dashBarW, 8, 4);
     ctx.fill();
     ctx.fillStyle = dr >= 1 ? '#3dfcff' : '#2a7f99';
     this.rrect(dx, dy, Math.max(8, dashBarW * dr), 8, 4);
     ctx.fill();
-    ctx.font = '700 11px Segoe UI';
+    ctx.font = '700 10px Segoe UI';
     ctx.fillStyle = dr >= 1 ? '#3dfcff' : '#888';
-    ctx.fillText('DASH', dx + dashBarW + 6, dy + 8);
+    ctx.fillText('DASH', dx + dashBarW + 5, dy + 7.5);
 
     // Secondary Skill Pill
     const charKey = (window.GameState && window.GameState.selectedCharacter) || 'apex';
@@ -1175,8 +1174,8 @@ class RenderEngine {
     const secPct = 1 - Math.min(1, secCd / secMaxCd);
 
     const dashTextW = ctx.measureText('DASH').width;
-    const sx = dx + dashBarW + dashTextW + 16, sy = hy + 35;
-    const secBarW = 75;
+    const sx = dx + dashBarW + dashTextW + 14, sy = hy + 26;
+    const secBarW = 55;
     ctx.fillStyle = 'rgba(255,255,255,0.12)';
     this.rrect(sx, sy, secBarW, 8, 4);
     ctx.fill();
@@ -1184,21 +1183,20 @@ class RenderEngine {
     this.rrect(sx, sy, Math.max(8, secBarW * secPct), 8, 4);
     ctx.fill();
 
-    ctx.font = '700 11px Segoe UI';
+    ctx.font = '700 10px Segoe UI';
     ctx.fillStyle = secReady ? '#ffd23f' : '#888';
     const secIcon = secDef ? secDef.icon : '⚡';
     const secLabel = secReady ? `${secIcon} [Q]` : `${secIcon} ${Math.ceil(secCd)}s`;
-    ctx.fillText(secLabel, sx + secBarW + 6, sy + 8);
-    const secTextW = ctx.measureText(secLabel).width;
+    ctx.fillText(secLabel, sx + secBarW + 5, sy + 7.5);
 
-    // NEON OVERLOAD Gauge (Special Skill)
-    const ox = sx + secBarW + secTextW + 18, oy = hy + 34;
-    const overBarW = 110;
+    // Row 3: NEON OVERLOAD Gauge (Special Skill)
+    const ox = hx, oy = hy + 44;
+    const overBarW = 125;
     const isOverActive = Boolean(window.GameState.isOverload);
     const onCooldown = (P.overloadCooldown || 0) > 0;
 
     ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    this.rrect(ox, oy, overBarW, 10, 5);
+    this.rrect(ox, oy, overBarW, 9, 4.5);
     ctx.fill();
 
     if (isOverActive) {
@@ -1207,22 +1205,22 @@ class RenderEngine {
       og.addColorStop(0, '#3dfcff');
       og.addColorStop(1, '#ffd23f');
       ctx.fillStyle = og;
-      this.rrect(ox, oy, Math.max(10, overBarW * remainPct), 10, 5);
+      this.rrect(ox, oy, Math.max(9, overBarW * remainPct), 9, 4.5);
       ctx.fill();
 
       ctx.font = '900 11px Segoe UI';
       ctx.fillStyle = '#3dfcff';
-      ctx.fillText(`⚡ OVERLOAD (${Math.ceil(window.GameState.overloadTimer || 0)}s)`, ox + overBarW + 8, oy + 9);
+      ctx.fillText(`⚡ OVERLOAD (${Math.ceil(window.GameState.overloadTimer || 0)}s)`, ox + overBarW + 8, oy + 8);
     } else if (onCooldown) {
       const cdPct = 1 - Math.min(1, P.overloadCooldown / 15.0);
       ctx.fillStyle = 'rgba(100, 150, 255, 0.45)';
-      this.rrect(ox, oy, Math.max(6, overBarW * cdPct), 10, 5);
+      this.rrect(ox, oy, Math.max(6, overBarW * cdPct), 9, 4.5);
       ctx.fill();
 
       const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
       ctx.font = '700 10px Segoe UI';
       ctx.fillStyle = '#6495ed';
-      ctx.fillText(`${lang === 'en' ? 'COOLDOWN' : 'ABKLINGZEIT'} ${Math.ceil(P.overloadCooldown)}s`, ox + overBarW + 8, oy + 9);
+      ctx.fillText(`❄ ${lang === 'en' ? 'COOLDOWN' : 'ABKLINGZEIT'} ${Math.ceil(P.overloadCooldown)}s`, ox + overBarW + 8, oy + 8);
     } else {
       const overPct = Math.min(1, (P.overloadGauge || 0) / 100);
       const isOverReady = overPct >= 1;
@@ -1230,12 +1228,12 @@ class RenderEngine {
       og.addColorStop(0, '#ffd23f');
       og.addColorStop(1, '#ff0055');
       ctx.fillStyle = og;
-      this.rrect(ox, oy, Math.max(10, overBarW * overPct), 10, 5);
+      this.rrect(ox, oy, Math.max(9, overBarW * overPct), 9, 4.5);
       ctx.fill();
 
       ctx.font = '900 11px Segoe UI';
       ctx.fillStyle = isOverReady ? '#ffd23f' : '#aaa';
-      ctx.fillText(isOverReady ? 'OVERLOAD [E]!' : `OVERLOAD ${Math.floor(P.overloadGauge || 0)}%`, ox + overBarW + 8, oy + 9);
+      ctx.fillText(isOverReady ? '⚡ OVERLOAD [E]!' : `⚡ OVERLOAD ${Math.floor(P.overloadGauge || 0)}%`, ox + overBarW + 8, oy + 8);
     }
 
     // Timer (Center)
@@ -1367,9 +1365,9 @@ class RenderEngine {
     // Active Boss Bar
     const boss = window.GameState.currentBoss;
     if (boss) {
-      const bw = Math.min(540, W - 80);
+      const bw = Math.min(480, W - 260);
       const bx = (W - bw) / 2;
-      const by = 70;
+      const by = 76;
       const bossDistM = Math.round(Math.hypot(boss.x - P.x, boss.y - P.y) / 10);
       ctx.fillStyle = 'rgba(0,0,0,0.65)';
       this.rrect(bx - 2, by - 2, bw + 4, 16, 7);
