@@ -1,82 +1,97 @@
-# 🚀 Neon Survivor
+# ⚡ Neon Survivor
 
 <p align="center">
-  <img src="cover_630x500.png" alt="Neon Survivor Cover" width="630">
+  <img src="cover_630x500.png" alt="Neon Survivor Cover" width="630" style="border-radius: 12px; box-shadow: 0 0 35px rgba(61, 252, 255, 0.4);">
 </p>
 
-Ein rasanter, neon-ästhetischer Sci-Fi Bullet-Heaven / Rogue-lite Survival Shooter. Kämpfe gegen endlose Horden feindlicher Drohnen, sammle Neon-Gems, fusioniere tödliche Waffen-Evolutionen und besiege mächtige Wächter-Bosse.
+<p align="center">
+  <a href="https://github.com/Sniiiper1337YT/Neon-Survivor/releases/latest"><img src="https://img.shields.io/github/v/release/Sniiiper1337YT/Neon-Survivor?color=3dfcff&label=Latest%20Version&style=for-the-badge" alt="Latest Release"></a>
+  <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-ff2d95?style=for-the-badge&logo=windows" alt="Platform">
+  <img src="https://img.shields.io/badge/Engine-Electron%20%7C%20HTML5%20Canvas-00ff66?style=for-the-badge" alt="Engine">
+  <img src="https://img.shields.io/badge/Audio-Procedural%20Web%20Audio%20Synth-ffd23f?style=for-the-badge" alt="Audio">
+</p>
 
 ---
 
-## 📸 Screenshots
-
-| Arcade Target Range Minispiel | Gameplay-Action & Drohnen |
-| :---: | :---: |
-| ![Arcade Minigame](screenshots/screenshot_arcade_minigame.png) | ![Gameplay Action](screenshots/screenshot_gameplay_action.png) |
-
-| Epischer Wächter-Bosskampf | Talentbaum (Permanente Meta-Progression) |
-| :---: | :---: |
-| ![Boss Battle](screenshots/screenshot_boss_battle.png) | ![Skilltree](screenshots/screenshot_skilltree.png) |
+**Neon Survivor** is an adrenaline-fueled, cyberpunk-themed sci-fi **Bullet-Heaven / Roguelite Survival Shooter**. Take command of high-tech starships, obliterate relentless alien drone swarms, synthesize game-changing weapon evolutions, and conquer colossal Guardian Bosses in deep-space arenas.
 
 ---
 
-## 🎮 Highlights & Features
+## 🌟 Key Features
 
-- **⚡ 8 Einzigartige Sekundärfähigkeiten (Secondary Abilities):**
-  - Jedes Raumschiff besitzt eine eigene aktive Spezialfähigkeit auf Cooldown (aktivierbar via Rechtsklick / Taste Q):
-    - **Apex-1:** *Drohnengeschwader* (Entsendet 3 autonome Abfangjäger)
-    - **Valkyrie:** *Warp-Sprung* (320px Vorwärtssprung mit kinetischer Schockwelle & I-Frames)
-    - **Colossus:** *Aegis-Barriere* (4.5s Hex-Schutzschild, blockt Projektile & rammt Mobs)
-    - **Tesla-9:** *Gewitter-Entladung* (10-fache Kettenblitz-Serie mit 2.2s Feindlähmung)
-    - **Specter:** *Phasen-Tarnung* (3.5s Unantastbarkeit, +60% Tempo & schädigende Schattenpfade)
-    - **Havoc-X:** *Cluster-Sperrfeuer* (Fächerförmige Streubomben-Raketen)
-    - **Nova-Core:** *Fusions-Schockwelle* (Löscht alle Feindgeschosse, stößt ab & lädt +15% Overload)
-    - **Chronos-X:** *Chronostase* (Friert alle Feinde & Kugeln für 3.5s komplett ein)
-- **🌊 Endlos-Modus mit Wellen-System:**
-  - 60-Sekunden Wellenfortschritt mit Event-Surges, Wellen-Abschluss-Boni (+Credits, Reparatur-Heilung, Gem-Cluster), Boss-Duellen und Karriere-Highscore-Tracking (`Beste Welle`).
-- **🎯 Neuer Spielmodus: Dimensions-Rallye:**
-  - **Spielmodus "Dimensions-Rallye (Minispiel)":** Ein intensiver 3-Minuten-Arcade-Parcours! Sammle leuchtende Dimensions-Kerne, die Feinde im Umkreis zerschmettern, lade deinen Neon Overload im Rekordtempo auf und sichere dir bei Überleben den gigantischen Neon-Jackpot (+Credits basierend auf gesammelten Kernen).
-  - **In-Run Dimensions-Portale:** Periodische Portal-Events mit 25s Kerne-Sammel-Herausforderung für epische +350 Credits & Hypercharge.
-- **🗺️ Bessere Maps, Map-spezifische Musik & Menü-Synthwave:**
-  - Chillige, atmosphärische Cyberpunk-Synthwave-Musik im Hauptmenü mit automatischem Start beim ersten Klick.
-  - Jede der 6 Arenen besitzt individuelle, animierte Grafik-Layer (Parallax-Sternenfelder, Matrix-Code-Rain, Schwarzes-Loch-Vortex, hexagonale Magma-Platten, Asteroidenschatten, Glitch-Scanlines).
-  - Voller dynamischer Web-Audio-Synthesizer mit map-spezifischen BPM, Akkordfolgen, Basslines und Synthesizer-Leads.
-- **15 Waffen & 15 mächtige Waffen-Evolutionen:**
-  - Hyper-Gatling, Singularitäts-Klingen, Supernova-Kollaps, Götterdämmerung (Thor's Arc), Armageddon-Batterie, Photonen-Obliterator, Event-Horizon, Aegis-Schwarm, Thermonukleare Minen, Höllensturm-Flak, Absoluter Nullpunkt, Plasma-Reaper, Höllenfeuer-Drache, Sternen-Sense und Chronos-Matrix.
-- **10 Passive Upgrades & 50 Erfolge:**
-  - Kraft, Überladung, Turbo, Vitalität, Magnet, Panzerung, Nanobots, Präzision, Splitter und Neon-Reaktor.
-- **17 Gegnertypen & 6 Epische Wächter-Bosse:**
-  - Scorpio, Leviathan, Titan, Vortex Eye, Chronos und Arch-Sentinel mit Offscreen-Zielerfassung, Näherungswarnern und Jagd-Phasen.
-- **🛠️ Vollständiges Test-Labor (Sandbox-Modus):**
-  - Zugriff im Spiel jederzeit über **`TAB`** oder **`F2`**.
-- **👾 Discord Rich Presence Integration:**
-  - Automatische Live-Statusanzeige in Discord.
+### 🚀 8 Unique Starships & Active Secondary Abilities
+Every playable starship comes with distinctive base attributes and a specialized tactical ability on cooldown (*Triggered via `Q` or `Right-Click`*):
+- **Apex-1:** *Drone Squadron* — Deploys 3 autonomous escort interceptors.
+- **Valkyrie:** *Warp Leap* — High-velocity 320px forward blink with kinetic shockwave & invulnerability frames.
+- **Colossus:** *Aegis Barrier* — 4.5s hexagonal energy barrier that absorbs enemy fire and rams hostiles.
+- **Tesla-9:** *Thunderbolt Surge* — 10-target chain-lightning cascade paralyzing foes for 2.2s.
+- **Specter:** *Phase Cloak* — 3.5s intangibility with +60% flight speed and damaging shadow trails.
+- **Havoc-X:** *Cluster Barrage* — Wide-angle cluster-bomb missile spread for crowd clearing.
+- **Nova-Core:** *Fusion Shockwave* — Disintegrates incoming projectiles, knocks enemies back, and recharges +15% Overload energy.
+- **Chronos-X:** *Chronostasis* — Freezes all nearby enemies and enemy bullets in temporal suspension for 3.5s.
+
+### 🗡️ 15 Weapons & 15 Synergistic Evolutions
+Discover, upgrade, and evolve your arsenal into ultimate sci-fi superweapons:
+- *Hyper-Gatling*, *Singularity Blades*, *Supernova Collapse*, *God's Thunder (Thor's Arc)*, *Armageddon Battery*, *Photon Obliterator*, *Event Horizon*, *Aegis Swarm*, *Thermonuclear Mines*, *Hellstorm Flak*, *Absolute Zero*, *Plasma Reaper*, *Hellfire Dragon*, *Star Scythe*, and *Chronos Matrix*.
+
+### 🕹️ Fluid Mouse-Directed Navigation
+Experience razor-sharp combat maneuvering. Your ship steers directly and responsively toward your crosshair with an anti-jitter hull deadzone, giving you pixel-perfect evasion control.
+
+### 🎮 Multiple Game Modes
+- **Classic Survival:** Battle against escalating enemy hordes up to the 30-minute Arch-Sentinel showdown.
+- **Endless Waves:** 60-second wave progression with mid-wave event surges, wave-clear rewards (repairs, credits, gem clusters), and global high-score tracking.
+- **Dimension Rally (Arcade Mode):** A frantic 3-minute challenge! Collect glowing dimensional anomaly cores to shatter enemies, hypercharge your Overload, and extract with massive credit jackpots.
+- **Interactive Sandbox (Test Lab):** Access developer cheats, spawn any mob, max out weapons, and toggle godmode instantly via `TAB` or `F2`.
+
+### 🗺️ 6 Deep-Space Arenas with Procedural Visuals & Synthwave
+- Custom parallax backgrounds: matrix code rain, deep-space black hole vortices, glowing magma plates, asteroid shadows, and digital glitch scanlines.
+- **Dynamic Procedural Web Audio Engine:** Built-in synthesizer generating map-tailored BPM, chord progressions, and basslines without external audio files.
+- **Dedicated Cyberpunk Menu Soundtrack:** Smooth, atmospheric synthwave track playing seamlessly throughout all menus.
+- **Master Dynamics Limiter:** Integrated brickwall compressor preventing digital distortion during extreme screen-clearing explosions.
+
+### 💎 Permanent Meta-Progression
+- **Skill Tree:** Spend earned Neon Credits on permanent upgrades (Max HP, Armor, Critical Hit, Magnet Range, Flight Speed, XP Gain, Health Regen).
+- **50 Unlockable Achievements:** Track career milestones with in-game banners and credit bonuses.
+- **Discord Rich Presence:** Automatically broadcasts your ship, level, kills, and arena live to Discord.
 
 ---
 
-## 🕹️ Steuerung
+## 🕹️ Controls
 
-| Aktion | Tastatur / Maus | Gamepad |
+| Action | Keyboard / Mouse | Gamepad / Controller |
 | :--- | :--- | :--- |
-| **Bewegen** | `Maus` (Flüssiges Steuern nach Mauszeiger) | Linker Stick |
-| **Dash (Ausweichrolle)** | `Leertaste` / `Linksklick` / `Shift` | `A` (Süd-Taste) / `LT` |
-| **Spezialfähigkeit (Sekundär)** | `Q` / `Rechtsklick` | `X` (West-Taste) / `LB` |
-| **Neon Overload (Ult)** | `E` / Mausrad-Klick | `Y` (Nord-Taste) / `RT` / `RB` |
-| **Upgrade wählen (Levelaufstieg)** | `1`, `2`, `3` / Mausklick | D-Pad / `A` |
-| **Test-Labor (Sandbox)** | `TAB` / `F2` | - |
-| **Pause** | `Escape` / `P` | `Start` |
+| **Steering / Movement** | **Mouse Cursor** *(Ship smoothly follows pointer)* | **Left Analog Stick** |
+| **Tactical Dash** | `Space` / `Left Click` / `Shift` | `A` (South Button) / `LT` |
+| **Secondary Ability** | `Q` / `Right Click` | `X` (West Button) / `LB` |
+| **Neon Overload (Ultimate)** | `E` / `Middle Click` | `Y` (North Button) / `RT` / `RB` |
+| **Level-Up Upgrade Choice** | `1`, `2`, `3` / Click Card | D-Pad / `A` |
+| **Test Lab (Sandbox Mode)** | `TAB` / `F2` | - |
+| **Pause Game** | `Escape` / `P` | `Start` |
 
 ---
 
-## 🚀 Spiel starten
+## 🚀 Download & Installation
 
-1. Starte direkt die `Neon Survivor.exe`.
-2. Alternativ kann die `data/neon_survivor.html` in jedem modernen Webbrowser (Chrome, Edge, Firefox) geöffnet werden.
+1. Go to the [Latest Releases Page](https://github.com/Sniiiper1337YT/Neon-Survivor/releases/latest).
+2. Download the ready-to-play package: **`Neon-Survivor-Windows-v1.2.0.zip`**.
+3. Extract the ZIP archive anywhere on your PC (`Right-Click` → *Extract All...*).
+4. Launch **`Neon Survivor.exe`** and jump straight into the action!
+
+> **No installation required:** Everything (runtime, engine, audio) is fully self-contained. Works out of the box on Windows 10 & 11 (64-bit).
 
 ---
 
-## 📜 Lizenz & Urheberrecht / License
+## 🛠️ Built With
 
-Copyright © 2026 **Sniiiper1337YT**. Alle Rechte vorbehalten (All rights reserved).
+- **Core Technologies:** HTML5 Canvas, Vanilla JavaScript (ES2022), Web Audio API
+- **Desktop Runtime:** Electron (Chromium & Node.js)
+- **Native Launcher:** C# (.NET Framework 4.0 runtime wrapper)
+- **RPC:** Discord IPC Bridge Daemon
 
-Dieses Spiel sowie sämtliche enthaltene Komponenten (Quellcode, Grafiken, Sounds, Musik) sind urheberrechtlich geschützt. Ohne ausdrückliche schriftliche Genehmigung ist das Kopieren, Verändern, Weiterverbreiten oder die kommerzielle Nutzung untersagt. Weitere Details findest du in der [LICENSE](LICENSE)-Datei.
+---
+
+## 📜 License & Copyright
+
+Copyright © 2026 **Sniiiper1337YT**. All rights reserved.
+
+This game and all associated assets (source code, artwork, audio algorithms, visual design) are protected under copyright law. For details, refer to the [LICENSE](LICENSE) file.

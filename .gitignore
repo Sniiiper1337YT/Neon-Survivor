@@ -13,3 +13,4 @@ build_release.ps1
 # Generierte Binärdateien im Root
 Neon Survivor.exe
 *.zip
+screenshots/
