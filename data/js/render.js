@@ -93,11 +93,98 @@ class RenderEngine {
 
   drawMapBackground(ox, oy, mapDef) {
     const ctx = this.ctx;
-    const G = 64;
+    const W = this.W, H = this.H;
+    const now = performance.now() / 1000;
+    const mapKey = (window.GameState && window.GameState.selectedMap) || 'void';
+
+    // Base background
     ctx.fillStyle = mapDef.bg || '#07020f';
-    ctx.fillRect(0, 0, this.W, this.H);
+    ctx.fillRect(0, 0, W, H);
+
+    // ==========================================
+    // MAP-SPEZIFISCHE ANIMIERTE HINTERGRÜNDE
+    // ==========================================
+    if (mapKey === 'matrix') {
+      ctx.save();
+      const cols = 28;
+      const colWidth = W / cols;
+      ctx.font = '13px monospace';
+      for (let c = 0; c < cols; c++) {
+        const speed = 70 + ((c * 47) % 80);
+        const yHead = (((now * speed + c * 135) % (H + 300)) - 150);
+        const xPos = c * colWidth + colWidth * 0.5;
+        for (let row = 0; row < 12; row++) {
+          const yGlyph = yHead - row * 18;
+          if (yGlyph < 0 || yGlyph > H) continue;
+          const alpha = Math.max(0, 1 - row / 12) * 0.35;
+          ctx.fillStyle = row === 0 ? 'rgba(200, 255, 220, 0.9)' : `rgba(0, 255, 102, ${alpha})`;
+          const charCode = 48 + ((c * 7 + row * 13 + Math.floor(now * 8)) % 74);
+          ctx.fillText(String.fromCharCode(charCode), xPos, yGlyph);
+        }
+      }
+      ctx.restore();
+    } else if (mapKey === 'abyss') {
+      ctx.save();
+      const centerX = W / 2 + (ox % 80) * 0.2;
+      const centerY = H / 2 + (oy % 80) * 0.2;
+      ctx.translate(centerX, centerY);
+      ctx.rotate(now * 0.15);
+      for (let r = 0; r < 4; r++) {
+        const rad = 140 + r * 90;
+        ctx.strokeStyle = `rgba(180, 77, 255, ${0.12 - r * 0.02})`;
+        ctx.lineWidth = 14 + r * 6;
+        ctx.beginPath();
+        ctx.arc(0, 0, rad, 0, Math.PI * 1.6);
+        ctx.stroke();
+        ctx.rotate(0.9);
+      }
+      ctx.restore();
+    } else if (mapKey === 'reactor') {
+      ctx.save();
+      const rGrad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, W * 0.7);
+      const pulseHeat = 0.12 + Math.sin(now * 2) * 0.05;
+      rGrad.addColorStop(0, `rgba(255, 60, 0, ${pulseHeat * 1.5})`);
+      rGrad.addColorStop(1, 'rgba(20, 5, 2, 0)');
+      ctx.fillStyle = rGrad;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    } else if (mapKey === 'asteroids') {
+      ctx.save();
+      for (let i = 0; i < 18; i++) {
+        const px = (((i * 197 + ox * 0.15) % (W + 200)) + (W + 200)) % (W + 200) - 100;
+        const py = (((i * 263 + oy * 0.15) % (H + 200)) + (H + 200)) % (H + 200) - 100;
+        const size = 18 + (i % 5) * 8;
+        ctx.fillStyle = 'rgba(0, 40, 70, 0.22)';
+        ctx.beginPath();
+        ctx.arc(px, py, size, 0, this.TAU);
+        ctx.fill();
+      }
+      ctx.restore();
+    } else if (mapKey === 'glitch') {
+      ctx.save();
+      if (Math.floor(now * 12) % 3 === 0) {
+        const barY = (Math.sin(now * 7) * 0.5 + 0.5) * H;
+        ctx.fillStyle = 'rgba(255, 0, 128, 0.08)';
+        ctx.fillRect(0, barY, W, 18);
+        ctx.fillStyle = 'rgba(0, 255, 255, 0.06)';
+        ctx.fillRect(0, (barY + 35) % H, W, 8);
+      }
+      ctx.restore();
+    } else {
+      ctx.save();
+      for (let i = 0; i < 45; i++) {
+        const starSpeed = 0.08 + (i % 3) * 0.12;
+        const sx = (((i * 137 + ox * starSpeed) % (W + 50)) + (W + 50)) % (W + 50) - 25;
+        const sy = (((i * 223 + oy * starSpeed) % (H + 50)) + (H + 50)) % (H + 50) - 25;
+        const twinkle = 0.3 + Math.sin(now * 3 + i) * 0.3;
+        ctx.fillStyle = i % 2 === 0 ? `rgba(61, 252, 255, ${twinkle})` : `rgba(255, 255, 255, ${twinkle * 0.8})`;
+        ctx.fillRect(sx, sy, (i % 3) + 1.2, (i % 3) + 1.2);
+      }
+      ctx.restore();
+    }
 
     // Primary Grid
+    const G = 64;
     ctx.lineWidth = 1;
     ctx.strokeStyle = mapDef.gridCol || 'rgba(140,70,255,0.12)';
     ctx.beginPath();
@@ -568,6 +655,73 @@ class RenderEngine {
       }
     }
 
+    // 5c. Interceptor Drones (Apex-1 Secondary)
+    if (entities.drones && entities.drones.length) {
+      for (const d of entities.drones) {
+        ctx.save();
+        ctx.translate(d.x, d.y);
+        ctx.rotate(d.angle + Math.PI / 2);
+        ctx.fillStyle = '#0a2233';
+        ctx.strokeStyle = d.col;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(8, 0); ctx.lineTo(-6, -6); ctx.lineTo(-3, 0); ctx.lineTo(-6, 6); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        this.drawGlow(0, 0, 20, d.col, 0.5);
+        ctx.restore();
+      }
+    }
+
+    // 5d. Dimensional Portals (In-Run Minigame Events)
+    if (entities.portals && entities.portals.length) {
+      for (const port of entities.portals) {
+        ctx.save();
+        ctx.translate(port.x, port.y);
+        ctx.rotate(port.pulse);
+        ctx.strokeStyle = '#ff00ff';
+        ctx.lineWidth = 3;
+        for (let r = 1; r <= 3; r++) {
+          ctx.beginPath();
+          ctx.arc(0, 0, (port.r * r) / 3, 0, Math.PI * 1.5);
+          ctx.stroke();
+          ctx.rotate(0.8);
+        }
+        this.drawGlow(0, 0, 65, '#ff00ff', 0.6);
+        ctx.restore();
+      }
+    }
+
+    // 5e. Active Portal Challenge Zone & Cores
+    if (entities.portalChallenge && entities.portalChallenge.active) {
+      const pc = entities.portalChallenge;
+      ctx.save();
+      ctx.strokeStyle = '#00ffcc';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([8, 8]);
+      ctx.beginPath();
+      ctx.arc(pc.x, pc.y, pc.r, 0, this.TAU);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(0, 255, 204, 0.05)';
+      ctx.fill();
+
+      for (const c of pc.cores) {
+        if (c.collected) continue;
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(c.pulse);
+        ctx.fillStyle = '#00ffcc';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        this.poly(4, c.r, 0, 0);
+        ctx.fill();
+        ctx.stroke();
+        this.drawGlow(0, 0, 24, '#00ffcc', 0.5);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
     // 6. Player Ship (8 Character models)
     if (window.GameState && window.GameState.state !== 'over') {
       const charKey = window.GameState.selectedCharacter || 'apex';
@@ -607,6 +761,36 @@ class RenderEngine {
         ctx.beginPath();
         ctx.arc(P.x, P.y, P.r + 14, 0, this.TAU);
         ctx.stroke();
+      }
+
+      // Colossus Aegis Barrier
+      if (P.barrierActive > 0) {
+        ctx.save();
+        ctx.translate(P.x, P.y);
+        ctx.rotate(now * 3);
+        ctx.strokeStyle = '#b44dff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * this.TAU;
+          i ? ctx.lineTo(Math.cos(a) * 58, Math.sin(a) * 58) : ctx.moveTo(Math.cos(a) * 58, Math.sin(a) * 58);
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(180, 77, 255, 0.18)';
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Specter Phase Cloak Shimmer
+      if (P.cloakActive > 0) {
+        ctx.save();
+        ctx.strokeStyle = '#651fff';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(P.x, P.y, 34 + Math.sin(now * 12) * 5, 0, this.TAU);
+        ctx.stroke();
+        ctx.restore();
       }
 
       // Orbit blades
@@ -964,9 +1148,34 @@ class RenderEngine {
     ctx.fillStyle = dr >= 1 ? '#3dfcff' : '#888';
     ctx.fillText('DASH', dx + dashBarW + 6, dy + 8);
 
-    // NEON OVERLOAD Gauge (Special Skill)
+    // Secondary Skill Pill
+    const charKey = (window.GameState && window.GameState.selectedCharacter) || 'apex';
+    const charDef = window.GAME_DATA.CHARACTERS[charKey] || window.GAME_DATA.CHARACTERS.apex;
+    const secDef = charDef.secondary;
+    const secMaxCd = P.secondaryMaxCd || (secDef ? secDef.cd : 10);
+    const secCd = Math.max(0, P.secondaryCd || 0);
+    const secReady = secCd <= 0;
+    const secPct = 1 - Math.min(1, secCd / secMaxCd);
+
     const dashTextW = ctx.measureText('DASH').width;
-    const ox = dx + dashBarW + dashTextW + 24, oy = hy + 34;
+    const sx = dx + dashBarW + dashTextW + 16, sy = hy + 35;
+    const secBarW = 75;
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    this.rrect(sx, sy, secBarW, 8, 4);
+    ctx.fill();
+    ctx.fillStyle = secReady ? '#ffd23f' : '#b38f24';
+    this.rrect(sx, sy, Math.max(8, secBarW * secPct), 8, 4);
+    ctx.fill();
+
+    ctx.font = '700 11px Segoe UI';
+    ctx.fillStyle = secReady ? '#ffd23f' : '#888';
+    const secIcon = secDef ? secDef.icon : '⚡';
+    const secLabel = secReady ? `${secIcon} [Q]` : `${secIcon} ${Math.ceil(secCd)}s`;
+    ctx.fillText(secLabel, sx + secBarW + 6, sy + 8);
+    const secTextW = ctx.measureText(secLabel).width;
+
+    // NEON OVERLOAD Gauge (Special Skill)
+    const ox = sx + secBarW + secTextW + 18, oy = hy + 34;
     const overBarW = 110;
     const isOverActive = Boolean(window.GameState.isOverload);
     const onCooldown = (P.overloadCooldown || 0) > 0;
@@ -1020,6 +1229,42 @@ class RenderEngine {
     const s = Math.floor(window.GameState.time % 60);
     const timeStr = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     ctx.fillText(timeStr, W / 2, 50);
+
+    // Endlos-Modus Wellen-Anzeige
+    if (window.GameState.selectedMode === 'endless') {
+      const wave = window.GameState.endlessWave || 1;
+      const wRemain = Math.ceil(window.GameState.endlessWaveTimer || 0);
+      const wM = Math.floor(wRemain / 60);
+      const wS = Math.floor(wRemain % 60);
+      const wStr = `${String(wM).padStart(2, '0')}:${String(wS).padStart(2, '0')}`;
+      const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+      ctx.font = '900 13px Segoe UI';
+      ctx.fillStyle = '#3dfcff';
+      const waveText = lang === 'en' ? `🌊 WAVE ${wave} · NEXT IN ${wStr}` : `🌊 WELLE ${wave} · NÄCHSTE IN ${wStr}`;
+      ctx.fillText(waveText, W / 2, 22);
+    }
+
+    // In-Run Portal Challenge Bar
+    const pc = window.Entities && window.Entities.portalChallenge;
+    if (pc && pc.active) {
+      const cw = 290, ch = 18, cx = (W - cw) / 2, cy = 84;
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      this.rrect(cx - 2, cy - 2, cw + 4, ch + 4, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#00ffcc';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      const cPct = Math.min(1, pc.collected / pc.target);
+      ctx.fillStyle = '#00ffcc';
+      this.rrect(cx, cy, Math.max(10, cw * cPct), ch, 6);
+      ctx.fill();
+
+      ctx.textAlign = 'center';
+      ctx.font = '900 12px Segoe UI';
+      ctx.fillStyle = '#07020f';
+      ctx.fillText(`🌀 DIMENSIONS-KERNE: ${pc.collected} / ${pc.target} (${Math.ceil(pc.timer)}s)`, W / 2, cy + 13.5);
+    }
 
     // Nächster Boss Anzeige (unter dem Timer, wenn kein Boss aktiv im Kampf ist)
     if (!window.GameState.currentBoss && window.GameState.getNextBossInfo) {

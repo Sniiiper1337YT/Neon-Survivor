@@ -39,6 +39,7 @@ class UIEngine {
     setT('btnMaps', t.maps);
     setT('btnModes', t.modes);
     setT('btnSkill', t.skills);
+    setT('btnMinigame', t.minigame);
     setT('btnAchs', t.achs);
     setT('btnStats', t.stats);
     setT('btnSettings', t.settings);
@@ -47,7 +48,7 @@ class UIEngine {
     const titleDivs = document.querySelectorAll('#title > div');
     if (titleDivs.length >= 2) {
       titleDivs[titleDivs.length - 2].innerHTML = t.controlsHint;
-      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.1.0';
+      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.2.0';
       titleDivs[titleDivs.length - 1].innerHTML = `Neon Survivor <span id="lblCurrentVer">v${ver}</span> &nbsp;·&nbsp; ${t.footerDev}`;
     }
 
@@ -210,6 +211,7 @@ class UIEngine {
         <div class="card-desc">
           <b>${lang === 'en' ? 'Weapon' : 'Waffe'}:</b> ${window.GAME_DATA.WEAPONS[c.weapon].name[lang]}<br>
           <b>HP:</b> ${c.stats.hp} &nbsp;·&nbsp; <b>SPD:</b> ${c.stats.spd}
+          ${c.secondary ? `<div style="margin-top:6px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.12);"><b style="color:#ffd23f;">${c.secondary.icon} ${c.secondary.name[lang] || c.secondary.name.de}</b> (${c.secondary.cd}s)<br><span style="font-size:11px; color:#aaa;">${c.secondary.desc[lang] || c.secondary.desc.de}</span></div>` : ''}
         </div>
         ${!isUnlocked ? `<div class="lock-req">🔒 ${c.unlock[lang] || c.unlock.de}</div>` : ''}
       `;
@@ -507,12 +509,18 @@ class UIEngine {
       overloads: { de: 'Neon Overloads genutzt', en: 'Neon Overloads Used' },
       pu: { de: 'Power-ups gesammelt', en: 'Power-ups Collected' },
       credits: { de: 'Credits gesamt verdient', en: 'Lifetime Credits Earned' },
-      dist: { de: 'Flugdistanz', en: 'Flight Distance' }
+      dist: { de: 'Flugdistanz', en: 'Flight Distance' },
+      waves: { de: 'Beste Endlos-Welle', en: 'Best Endless Wave' },
+      portals: { de: 'Portale gemeistert', en: 'Portals Mastered' },
+      arcade: { de: 'Arcade-Highscore', en: 'Arcade High Score' }
     };
 
     const rows = [
       { icon: '☠️', label: labels.kills[lang] || labels.kills.de, val: (st.totalKills || 0).toLocaleString(loc) },
       { icon: '👑', label: labels.bosses[lang] || labels.bosses.de, val: (st.totalBossKills || 0).toLocaleString(loc) },
+      { icon: '🌊', label: labels.waves[lang] || labels.waves.de, val: st.bestEndlessWave || 1 },
+      { icon: '🌀', label: labels.portals[lang] || labels.portals.de, val: st.portalsMastered || 0 },
+      { icon: '🎯', label: labels.arcade[lang] || labels.arcade.de, val: (st.arcadeHighScore || 0).toLocaleString(loc) },
       { icon: '⏱️', label: labels.time[lang] || labels.time.de, val: `${hrs}h ${mins}m` },
       { icon: '⏳', label: labels.best[lang] || labels.best.de, val: bestStr },
       { icon: '⭐', label: labels.level[lang] || labels.level.de, val: st.highestLevel || 1 },
@@ -1138,3 +1146,339 @@ class UIEngine {
 }
 
 window.UI = new UIEngine();
+
+// ==========================================
+// ARCADE TARGET RANGE MINISPIEL
+// ==========================================
+class ArcadeMinigame {
+  constructor() {
+    this.canvas = null;
+    this.ctx = null;
+    this.active = false;
+    this.running = false;
+    this.timer = 30.0;
+    this.score = 0;
+    this.combo = 1;
+    this.comboTimer = 0;
+    this.targets = [];
+    this.particles = [];
+    this.spawnTimer = 0;
+    this.animId = null;
+    this.mouse = { x: 400, y: 190 };
+    this.lastTime = 0;
+  }
+
+  init() {
+    if (this.canvas) return;
+    this.canvas = document.getElementById('mgCanvas');
+    if (!this.canvas) return;
+    this.ctx = this.canvas.getContext('2d');
+
+    const startBtn = document.getElementById('btnMgStart');
+    if (startBtn) startBtn.onclick = () => this.startRound();
+
+    this.canvas.addEventListener('mousemove', e => {
+      const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+      this.mouse.x = (e.clientX - rect.left) * scaleX;
+      this.mouse.y = (e.clientY - rect.top) * scaleY;
+    });
+
+    this.canvas.addEventListener('mousedown', e => {
+      if (!this.running) return;
+      const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+      const mx = (e.clientX - rect.left) * scaleX;
+      const my = (e.clientY - rect.top) * scaleY;
+      this.shoot(mx, my);
+    });
+  }
+
+  open() {
+    this.init();
+    window.UI.showScreen('minigameModal');
+    this.active = true;
+    this.resetState();
+    this.renderInitial();
+  }
+
+  close() {
+    this.stopRound();
+    this.active = false;
+    window.UI.showScreen('title');
+  }
+
+  resetState() {
+    this.timer = 30.0;
+    this.score = 0;
+    this.combo = 1;
+    this.comboTimer = 0;
+    this.targets = [];
+    this.particles = [];
+    this.spawnTimer = 0;
+    this.updateHUD();
+
+    const overlay = document.getElementById('mgOverlay');
+    if (overlay) overlay.style.display = 'flex';
+    const endText = document.getElementById('mgEndText');
+    if (endText) endText.style.display = 'none';
+    const startBtn = document.getElementById('btnMgStart');
+    if (startBtn) {
+      const lang = window.SaveSystem ? window.SaveSystem.getSettings().lang : 'de';
+      startBtn.innerText = lang === 'en' ? 'START ROUND' : 'RUNDE STARTEN';
+    }
+  }
+
+  startRound() {
+    this.resetState();
+    const overlay = document.getElementById('mgOverlay');
+    if (overlay) overlay.style.display = 'none';
+    this.running = true;
+    this.lastTime = performance.now();
+    if (window.SoundSystem) window.SoundSystem.sfx('portal_enter');
+    this.loop();
+  }
+
+  stopRound() {
+    this.running = false;
+    if (this.animId) {
+      cancelAnimationFrame(this.animId);
+      this.animId = null;
+    }
+  }
+
+  finishRound() {
+    this.stopRound();
+    const earnedCredits = Math.max(0, Math.floor(this.score / 20));
+    if (window.SaveSystem) {
+      window.SaveSystem.addCredits(earnedCredits);
+      window.SaveSystem.data.stats.arcadeHighScore = Math.max(window.SaveSystem.data.stats.arcadeHighScore || 0, this.score);
+      window.SaveSystem.save();
+    }
+    if (window.SoundSystem) window.SoundSystem.sfx('portal_win');
+
+    const overlay = document.getElementById('mgOverlay');
+    if (overlay) overlay.style.display = 'flex';
+    const endText = document.getElementById('mgEndText');
+    if (endText) {
+      const lang = window.SaveSystem ? window.SaveSystem.getSettings().lang : 'de';
+      endText.style.display = 'block';
+      endText.innerHTML = lang === 'en'
+        ? `🎉 ROUND COMPLETE!<br><span style="color:#00ffcc;font-size:22px;">+${earnedCredits} Neon Credits</span><br><span style="color:#fff;font-size:16px;">Score: ${this.score.toLocaleString()}</span>`
+        : `🎉 RUNDE BEENDET!<br><span style="color:#00ffcc;font-size:22px;">+${earnedCredits} Neon Credits</span><br><span style="color:#fff;font-size:16px;">Punkte: ${this.score.toLocaleString()}</span>`;
+    }
+    const startBtn = document.getElementById('btnMgStart');
+    if (startBtn) {
+      const lang = window.SaveSystem ? window.SaveSystem.getSettings().lang : 'de';
+      startBtn.innerText = lang === 'en' ? 'PLAY AGAIN' : 'NOCHMAL SPIELEN';
+    }
+  }
+
+  shoot(x, y) {
+    let hit = false;
+    for (let i = this.targets.length - 1; i >= 0; i--) {
+      const tg = this.targets[i];
+      const d = Math.hypot(tg.x - x, tg.y - y);
+      if (d <= tg.r) {
+        hit = true;
+        this.targets.splice(i, 1);
+        this.explodeTarget(tg);
+        break;
+      }
+    }
+
+    if (hit) {
+      this.comboTimer = 2.4;
+      this.combo = Math.min(5, this.combo + 1);
+      if (window.SoundSystem) {
+        if (this.combo >= 4) window.SoundSystem.sfx('minigame_combo');
+        else window.SoundSystem.sfx('minigame_hit');
+      }
+    } else {
+      this.combo = 1;
+      this.comboTimer = 0;
+    }
+    this.updateHUD();
+  }
+
+  explodeTarget(tg) {
+    if (tg.type === 'hazard') {
+      this.score = Math.max(0, this.score - 150);
+      this.combo = 1;
+      this.spawnParticles(tg.x, tg.y, '#ff0055', 20);
+      return;
+    }
+
+    const pts = tg.points * this.combo;
+    this.score += pts;
+    this.spawnParticles(tg.x, tg.y, tg.col, 22);
+  }
+
+  spawnParticles(x, y, col, count) {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 60 + Math.random() * 220;
+      this.particles.push({
+        x, y,
+        vx: Math.cos(a) * s,
+        vy: Math.sin(a) * s,
+        life: 0.45,
+        col
+      });
+    }
+  }
+
+  updateHUD() {
+    const elT = document.getElementById('mgTimer');
+    const elS = document.getElementById('mgScore');
+    const elC = document.getElementById('mgCombo');
+    const elCr = document.getElementById('mgCredits');
+    if (elT) elT.innerText = `${Math.max(0, this.timer).toFixed(1)}s`;
+    if (elS) elS.innerText = this.score.toLocaleString();
+    if (elC) elC.innerText = `x${this.combo}`;
+    if (elCr) elCr.innerText = `+${Math.floor(this.score / 20)}`;
+  }
+
+  loop() {
+    if (!this.running) return;
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.lastTime) / 1000);
+    this.lastTime = now;
+
+    this.timer -= dt;
+    if (this.comboTimer > 0) {
+      this.comboTimer -= dt;
+      if (this.comboTimer <= 0) this.combo = 1;
+    }
+
+    if (this.timer <= 0) {
+      this.timer = 0;
+      this.updateHUD();
+      this.finishRound();
+      return;
+    }
+
+    this.spawnTimer -= dt;
+    if (this.spawnTimer <= 0) {
+      this.spawnTimer = 0.35 + Math.random() * 0.45;
+      const types = [
+        { type: 'standard', col: '#3dfcff', r: 24, points: 100, life: 2.2, weight: 60 },
+        { type: 'fast', col: '#ffd23f', r: 18, points: 250, life: 1.4, weight: 25 },
+        { type: 'combo', col: '#d500f9', r: 28, points: 400, life: 1.8, weight: 15 },
+        { type: 'hazard', col: '#ff1744', r: 22, points: -150, life: 2.0, weight: 12 }
+      ];
+      const roll = Math.random() * 112;
+      let cum = 0, picked = types[0];
+      for (const t of types) {
+        cum += t.weight;
+        if (roll <= cum) { picked = t; break; }
+      }
+
+      const pad = 40;
+      this.targets.push({
+        x: pad + Math.random() * (this.canvas.width - pad * 2),
+        y: pad + Math.random() * (this.canvas.height - pad * 2),
+        vx: (Math.random() - 0.5) * 60,
+        vy: (Math.random() - 0.5) * 60,
+        r: picked.r,
+        maxR: picked.r,
+        col: picked.col,
+        type: picked.type,
+        points: picked.points,
+        life: picked.life,
+        maxLife: picked.life
+      });
+    }
+
+    for (let i = this.targets.length - 1; i >= 0; i--) {
+      const tg = this.targets[i];
+      tg.x += tg.vx * dt;
+      tg.y += tg.vy * dt;
+      tg.life -= dt;
+      if (tg.life <= 0) {
+        this.targets.splice(i, 1);
+      }
+    }
+
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+      if (p.life <= 0) this.particles.splice(i, 1);
+    }
+
+    this.updateHUD();
+    this.draw();
+    this.animId = requestAnimationFrame(() => this.loop());
+  }
+
+  draw() {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const W = this.canvas.width, H = this.canvas.height;
+
+    ctx.fillStyle = '#0a0314';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = 'rgba(61, 252, 255, 0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x < W; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+    for (let y = 0; y < H; y += 40) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+    ctx.stroke();
+
+    for (const tg of this.targets) {
+      const lifeFrac = Math.max(0, tg.life / tg.maxLife);
+      ctx.save();
+      ctx.translate(tg.x, tg.y);
+
+      ctx.strokeStyle = tg.col;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, tg.r * (1 + (1 - lifeFrac)), 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = tg.col + '33';
+      ctx.beginPath();
+      ctx.arc(0, 0, tg.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = tg.col;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-tg.r * 0.7, 0); ctx.lineTo(tg.r * 0.7, 0);
+      ctx.moveTo(0, -tg.r * 0.7); ctx.lineTo(0, tg.r * 0.7);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    for (const p of this.particles) {
+      ctx.fillStyle = p.col;
+      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    }
+
+    ctx.strokeStyle = '#ffd23f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(this.mouse.x, this.mouse.y, 14, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(this.mouse.x - 20, this.mouse.y); ctx.lineTo(this.mouse.x - 5, this.mouse.y);
+    ctx.moveTo(this.mouse.x + 5, this.mouse.y); ctx.lineTo(this.mouse.x + 20, this.mouse.y);
+    ctx.moveTo(this.mouse.x, this.mouse.y - 20); ctx.lineTo(this.mouse.x, this.mouse.y - 5);
+    ctx.moveTo(this.mouse.x, this.mouse.y + 5); ctx.lineTo(this.mouse.x, this.mouse.y + 20);
+    ctx.stroke();
+  }
+
+  renderInitial() {
+    this.draw();
+  }
+}
+
+window.ArcadeMinigame = new ArcadeMinigame();

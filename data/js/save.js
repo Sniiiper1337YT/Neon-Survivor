@@ -52,7 +52,10 @@ class SaveSystem {
         powerupsCollected: 0,
         distanceTraveled: 0,
         evolutionsMade: 0,
-        overloadsUsed: 0
+        overloadsUsed: 0,
+        bestEndlessWave: 1,
+        portalsMastered: 0,
+        arcadeHighScore: 0
       },
       settings: {
         volMaster: 0.8,
@@ -70,7 +73,8 @@ class SaveSystem {
           left: ['KeyA', 'ArrowLeft'],
           right: ['KeyD', 'ArrowRight'],
           dash: ['Space', 'ShiftLeft'],
-          overload: ['KeyE', 'KeyQ'],
+          secondary: ['KeyQ', 'KeyF'],
+          overload: ['KeyE'],
           pause: ['Escape', 'KeyP']
         }
       }

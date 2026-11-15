@@ -82,6 +82,8 @@ class EntityManager {
     this.drones = [];
     this.hazards = [];
     this.turrets = [];
+    this.portals = [];
+    this.portalChallenge = null;
     this.hazardSpawnTimer = 0;
   }
 
@@ -102,6 +104,8 @@ class EntityManager {
     this.drones.length = 0;
     this.hazards.length = 0;
     this.turrets.length = 0;
+    this.portals.length = 0;
+    this.portalChallenge = null;
     this.hazardSpawnTimer = 0;
   }
 
@@ -426,9 +430,13 @@ class EntityManager {
     const P = window.GameState.player;
     this.grid.clear();
 
-    // 0. Map Hazards & Friendly Turrets
+    // 0. Map Hazards, Turrets, Drones, Active Skills, Portals & Challenge
     this.updateHazards(dt, P);
     this.updateTurrets(dt, P);
+    this.updateDrones(dt, P);
+    this.updateActiveSkills(dt, P);
+    this.updatePortals(dt, P);
+    this.updatePortalChallenge(dt, P);
 
     // 1. Insert active enemies into grid
     for (let i = 0; i < this.enemies.length; i++) {
@@ -707,6 +715,8 @@ class EntityManager {
     this.fx = this.fx.filter(f => f.life > 0);
     this.hazards = this.hazards.filter(h => !h.dead);
     this.turrets = this.turrets.filter(t => t.life > 0);
+    this.drones = this.drones.filter(d => d.life > 0);
+    this.portals = this.portals.filter(p => !p.dead);
   }
 
   updateTurrets(dt, P) {
@@ -1175,6 +1185,23 @@ class EntityManager {
         this.hurtEnemy(e, m.dmg, (dx / d) * 260, (dy / d) * 260);
       }
     });
+    if (m.isCluster) {
+      for (let c = 0; c < 4; c++) {
+        const ca = Math.random() * Math.PI * 2;
+        const cspd = 180 + Math.random() * 140;
+        this.bullets.push({
+          x: m.x, y: m.y,
+          vx: Math.cos(ca) * cspd,
+          vy: Math.sin(ca) * cspd,
+          r: 5,
+          dmg: m.dmg * 0.45,
+          pierce: 1,
+          life: 0.4,
+          col: '#ffaa00',
+          hit: new Set()
+        });
+      }
+    }
     this.fx.push({ type: 'ring', x: m.x, y: m.y, r0: 10, r1: m.rad, life: 0.35, max: 0.35, col: '#ff8a3d' });
     this.spawnParticle(m.x, m.y, '#ff8a3d', 20, 260, 4, 0.45);
     this.spawnParticle(m.x, m.y, '#ffd23f', 10, 160, 3, 0.3);
@@ -1314,6 +1341,396 @@ class EntityManager {
         P.hp = Math.min(P.maxHp, P.hp + 25);
         break;
     }
+  }
+
+  // ==========================================
+  // SEKUNDÄRFÄHIGKEITEN (8 EINZIGARTIGE SKILLS)
+  // ==========================================
+  triggerSecondary(type, P) {
+    if (!type) return;
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+
+    switch (type) {
+      case 'drones': {
+        for (let i = 0; i < 3; i++) {
+          const angle = (Math.PI * 2 / 3) * i;
+          this.drones.push({
+            x: P.x + Math.cos(angle) * 35,
+            y: P.y + Math.sin(angle) * 35,
+            angle,
+            orbitDist: 48 + i * 8,
+            orbitSpeed: 2.8 + i * 0.4,
+            life: 7.0,
+            shootCd: 0.15 + i * 0.1,
+            col: '#3dfcff'
+          });
+        }
+        this.addText(P.x, P.y - 32, lang === 'en' ? '🛸 DRONES DEPLOYED!' : '🛸 DROHNEN GESTARTET!', '#3dfcff', true);
+        if (window.SoundSystem) window.SoundSystem.sfx('secondary_apex');
+        break;
+      }
+
+      case 'warp': {
+        const dir = Math.hypot(P.mx, P.my) > 0.1 ? Math.atan2(P.my, P.mx) : P.face;
+        const warpDist = 320;
+        const wx = P.x + Math.cos(dir) * warpDist;
+        const wy = P.y + Math.sin(dir) * warpDist;
+
+        for (let step = 0; step <= 8; step++) {
+          const frac = step / 8;
+          this.spawnParticle(P.x + (wx - P.x) * frac, P.y + (wy - P.y) * frac, '#ffd23f', 3, 70, 4, 0.4);
+        }
+        P.x = wx;
+        P.y = wy;
+        P.inv = Math.max(P.inv || 0, 0.6);
+
+        this.fx.push({ type: 'ring', x: P.x, y: P.y, r0: 10, r1: 170, life: 0.35, max: 0.35, col: '#ffd23f' });
+        this.grid.query(P.x, P.y, 170, e => {
+          if (e.dead) return;
+          const kx = (e.x - P.x) * 4;
+          const ky = (e.y - P.y) * 4;
+          this.hurtEnemy(e, 75 * P.dmgMul, kx, ky, true);
+        });
+        this.addText(P.x, P.y - 32, lang === 'en' ? '⚡ WARP THRUST!' : '⚡ WARP-SPRUNG!', '#ffd23f', true);
+        if (window.SoundSystem) window.SoundSystem.sfx('secondary_valkyrie');
+        break;
+      }
+
+      case 'barrier': {
+        P.barrierActive = 4.5;
+        this.fx.push({ type: 'ring', x: P.x, y: P.y, r0: 20, r1: 90, life: 0.4, max: 0.4, col: '#b44dff' });
+        this.spawnParticle(P.x, P.y, '#b44dff', 24, 260, 5, 0.5);
+        this.addText(P.x, P.y - 32, lang === 'en' ? '🛡️ AEGIS ACTIVE!' : '🛡️ AEGIS AKTIV!', '#b44dff', true);
+        if (window.SoundSystem) window.SoundSystem.sfx('secondary_colossus');
+        break;
+      }
+
+      case 'storm': {
+        let lastTarget = P;
+        const hitSet = new Set();
+        let chainCount = 0;
+        for (let step = 0; step < 10; step++) {
+          const next = this.grid.nearest(lastTarget.x, lastTarget.y, 480, hitSet);
+          if (!next) break;
+          hitSet.add(next);
+          this.fx.push({
+            type: 'lightning',
+            x0: lastTarget.x, y0: lastTarget.y,
+            x1: next.x, y1: next.y,
+            life: 0.3, max: 0.3,
+            col: '#00e5ff'
+          });
+          next.frozen = Math.max(next.frozen || 0, 2.2);
+          this.hurtEnemy(next, 70 * P.dmgMul, 0, 0, true);
+          this.spawnParticle(next.x, next.y, '#00e5ff', 8, 180, 3, 0.3);
+          lastTarget = next;
+          chainCount++;
+        }
+        this.addText(P.x, P.y - 32, `🌩️ ${chainCount}x BLITZ-KETTE!`, '#00e5ff', true);
+        if (window.SoundSystem) window.SoundSystem.sfx('secondary_tesla');
+        break;
+      }
+
+      case 'cloak': {
+        P.cloakActive = 3.5;
+        P.inv = Math.max(P.inv || 0, 3.5);
+        P.speedModifier = Math.max(P.speedModifier || 1, 1.6);
+        this.spawnParticle(P.x, P.y, '#651fff', 30, 200, 5, 0.6);
+        this.addText(P.x, P.y - 32, lang === 'en' ? '👻 PHASE CLOAK!' : '👻 PHASEN-TARNUNG!', '#651fff', true);
+        if (window.SoundSystem) window.SoundSystem.sfx('secondary_specter');
+        break;
+      }
+
+      case 'mortar': {
+        const baseAng = Math.hypot(P.mx, P.my) > 0.1 ? Math.atan2(P.my, P.mx) : P.face;
+        const spreads = [-0.35, -0.18, 0, 0.18, 0.35];
+        for (const sp of spreads) {
+          const a = baseAng + sp;
+          this.missiles.push({
+            x: P.x + Math.cos(a) * 16,
+            y: P.y + Math.sin(a) * 16,
+            vx: Math.cos(a) * 420,
+            vy: Math.sin(a) * 420,
+            spd: 420,
+            rad: 130,
+            dmg: 55 * P.dmgMul,
+            life: 1.2,
+            isCluster: true,
+            col: '#ff3d00'
+          });
+        }
+        this.addText(P.x, P.y - 32, lang === 'en' ? '💣 CLUSTER BARRAGE!' : '💣 CLUSTER-SPERRFEUER!', '#ff3d00', true);
+        if (window.SoundSystem) window.SoundSystem.sfx('secondary_havoc');
+        break;
+      }
+
+      case 'nova_burst': {
+        this.fx.push({ type: 'ring', x: P.x, y: P.y, r0: 20, r1: 400, life: 0.45, max: 0.45, col: '#ff0077' });
+        this.spawnParticle(P.x, P.y, '#ff0077', 36, 320, 6, 0.6);
+        for (const eb of this.ebullets) {
+          if (Math.hypot(eb.x - P.x, eb.y - P.y) < 450) {
+            eb.dead = true;
+            this.spawnParticle(eb.x, eb.y, '#ff0077', 4, 120, 2, 0.2);
+          }
+        }
+        this.grid.query(P.x, P.y, 400, e => {
+          if (e.dead) return;
+          const dx = e.x - P.x, dy = e.y - P.y, d = Math.hypot(dx, dy) || 1;
+          const force = (1 - d / 400) * 14;
+          this.hurtEnemy(e, 90 * P.dmgMul, (dx / d) * force, (dy / d) * force, true);
+        });
+        P.overloadGauge = Math.min(100, (P.overloadGauge || 0) + 15);
+        this.addText(P.x, P.y - 32, lang === 'en' ? '💥 FUSION PULSE (+15% OVERLOAD)!' : '💥 FUSIONS-SCHOCKWELLE (+15% OVERLOAD)!', '#ff0077', true);
+        if (window.SoundSystem) window.SoundSystem.sfx('secondary_nova');
+        break;
+      }
+
+      case 'stasis': {
+        this.fx.push({ type: 'ring', x: P.x, y: P.y, r0: 40, r1: 680, life: 0.6, max: 0.6, col: '#ffffff' });
+        this.spawnParticle(P.x, P.y, '#ffffff', 40, 360, 4, 0.7);
+        for (const e of this.enemies) {
+          if (!e.dead) {
+            e.frozen = Math.max(e.frozen || 0, 3.5);
+            this.spawnParticle(e.x, e.y, '#ffffff', 3, 80, 2, 0.3);
+          }
+        }
+        for (const eb of this.ebullets) {
+          eb.life += 3.5;
+          eb.frozen = 3.5;
+        }
+        this.addText(P.x, P.y - 32, lang === 'en' ? '⏳ CHRONOSTASIS (3.5s)!' : '⏳ CHRONOSTASE (3.5s)!', '#ffffff', true);
+        if (window.SoundSystem) window.SoundSystem.sfx('secondary_chronos');
+        break;
+      }
+    }
+  }
+
+  updateActiveSkills(dt, P) {
+    if (P.barrierActive > 0) {
+      P.barrierActive -= dt;
+      for (const eb of this.ebullets) {
+        if (!eb.dead && Math.hypot(eb.x - P.x, eb.y - P.y) < 68) {
+          eb.dead = true;
+          this.spawnParticle(eb.x, eb.y, '#b44dff', 4, 140, 2.5, 0.2);
+          if (window.SoundSystem) window.SoundSystem.sfx('shield_break');
+        }
+      }
+      this.grid.query(P.x, P.y, 72, e => {
+        if (e.dead) return;
+        const dx = e.x - P.x, dy = e.y - P.y, d = Math.hypot(dx, dy) || 1;
+        this.hurtEnemy(e, 85 * dt * P.dmgMul, (dx / d) * 14, (dy / d) * 14);
+        this.spawnParticle(e.x, e.y, '#b44dff', 1, 100, 2, 0.15);
+      });
+      const a = Math.random() * Math.PI * 2;
+      this.spawnParticle(P.x + Math.cos(a) * 48, P.y + Math.sin(a) * 48, '#b44dff', 1, 40, 3, 0.25);
+    }
+
+    if (P.cloakActive > 0) {
+      P.cloakActive -= dt;
+      if (Math.random() < 0.45) {
+        this.particles.push({
+          x: P.x, y: P.y,
+          vx: (Math.random() - 0.5) * 30,
+          vy: (Math.random() - 0.5) * 30,
+          life: 0.8, max: 0.8,
+          col: '#651fff',
+          size: 7
+        });
+      }
+      this.grid.query(P.x, P.y, 38, e => {
+        if (e.dead) return;
+        this.hurtEnemy(e, 40 * dt * P.dmgMul, 0, 0);
+      });
+    }
+  }
+
+  updateDrones(dt, P) {
+    for (const d of this.drones) {
+      d.life -= dt;
+      d.angle += d.orbitSpeed * dt;
+      const targetX = P.x + Math.cos(d.angle) * d.orbitDist;
+      const targetY = P.y + Math.sin(d.angle) * d.orbitDist;
+      d.x += (targetX - d.x) * 0.18;
+      d.y += (targetY - d.y) * 0.18;
+
+      d.shootCd -= dt;
+      if (d.shootCd <= 0) {
+        d.shootCd = 0.35;
+        const tg = this.grid.nearest(d.x, d.y, 450);
+        if (tg) {
+          const ang = Math.atan2(tg.y - d.y, tg.x - d.x);
+          this.bullets.push({
+            x: d.x + Math.cos(ang) * 12,
+            y: d.y + Math.sin(ang) * 12,
+            vx: Math.cos(ang) * 850,
+            vy: Math.sin(ang) * 850,
+            r: 4,
+            dmg: 24 * P.dmgMul,
+            pierce: 1,
+            life: 0.9,
+            col: d.col,
+            hit: new Set()
+          });
+          this.spawnParticle(d.x, d.y, d.col, 2, 80, 2, 0.2);
+          if (window.SoundSystem) window.SoundSystem.sfx('shoot');
+        }
+      }
+    }
+  }
+
+  // ==========================================
+  // IN-RUN DIMENSIONS-PORTAL & EVENT-CHALLENGE
+  // ==========================================
+  spawnPortal(x, y) {
+    this.portals.push({
+      x, y,
+      r: 45,
+      pulse: 0,
+      life: 80,
+      dead: false
+    });
+    this.fx.push({ type: 'ring', x, y, r0: 10, r1: 180, life: 0.6, max: 0.6, col: '#ff00ff' });
+    this.spawnParticle(x, y, '#ff00ff', 40, 280, 5, 0.8);
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+    if (window.GameState) {
+      window.GameState.banner = {
+        text: lang === 'en' ? '🌀 DIMENSION PORTAL NEARBY!' : '🌀 DIMENSIONS-PORTAL IN DER NÄHE!',
+        t: 3.5,
+        col: '#ff00ff'
+      };
+    }
+    if (window.SoundSystem) window.SoundSystem.sfx('portal_open');
+  }
+
+  updatePortals(dt, P) {
+    for (const port of this.portals) {
+      port.pulse += dt * 3;
+      port.life -= dt;
+      if (port.life <= 0) { port.dead = true; continue; }
+
+      if (Math.random() < 0.6) {
+        const a = Math.random() * Math.PI * 2;
+        const dist = 30 + Math.random() * 25;
+        this.particles.push({
+          x: port.x + Math.cos(a) * dist,
+          y: port.y + Math.sin(a) * dist,
+          vx: -Math.cos(a) * 45,
+          vy: -Math.sin(a) * 45,
+          life: 0.45, max: 0.45,
+          col: Math.random() < 0.5 ? '#ff00ff' : '#00ffff',
+          size: 3
+        });
+      }
+
+      if (Math.hypot(P.x - port.x, P.y - port.y) < port.r + P.r) {
+        port.dead = true;
+        this.startPortalChallenge(port.x, port.y, P);
+      }
+    }
+  }
+
+  startPortalChallenge(x, y, P) {
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+    const cores = [];
+    for (let i = 0; i < 12; i++) {
+      const a = (Math.PI * 2 / 12) * i + (Math.random() - 0.5) * 0.3;
+      const d = 110 + Math.random() * 110;
+      cores.push({
+        x: x + Math.cos(a) * d,
+        y: y + Math.sin(a) * d,
+        r: 14,
+        pulse: Math.random() * 6,
+        collected: false
+      });
+    }
+
+    this.portalChallenge = {
+      active: true,
+      x, y,
+      r: 250,
+      timer: 25.0,
+      maxTime: 25.0,
+      cores,
+      collected: 0,
+      target: 10
+    };
+
+    if (window.GameState) {
+      window.GameState.banner = {
+        text: lang === 'en' ? '🌀 PORTAL CHALLENGE: COLLECT 10 CORES IN 25s!' : '🌀 PORTAL-HERAUSFORDERUNG: SAMMLE 10 KERNE IN 25s!',
+        t: 4.0,
+        col: '#00ffcc'
+      };
+    }
+    if (window.SoundSystem) window.SoundSystem.sfx('portal_enter');
+  }
+
+  updatePortalChallenge(dt, P) {
+    const pc = this.portalChallenge;
+    if (!pc || !pc.active) return;
+
+    pc.timer -= dt;
+
+    for (const c of pc.cores) {
+      if (c.collected) continue;
+      c.pulse += dt * 4;
+      if (Math.hypot(P.x - c.x, P.y - c.y) < P.r + c.r + 10) {
+        c.collected = true;
+        pc.collected++;
+        this.spawnParticle(c.x, c.y, '#00ffcc', 16, 200, 4, 0.45);
+        this.addText(c.x, c.y, `+1 KERN (${pc.collected}/${pc.target})`, '#00ffcc', true);
+        if (window.SoundSystem) window.SoundSystem.sfx('minigame_hit');
+
+        if (pc.collected >= pc.target) {
+          this.completePortalChallenge(true);
+          return;
+        }
+      }
+    }
+
+    if (pc.timer <= 0) {
+      this.completePortalChallenge(false);
+    }
+  }
+
+  completePortalChallenge(success) {
+    const pc = this.portalChallenge;
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+    if (!pc) return;
+    pc.active = false;
+
+    if (success) {
+      const bonusCr = window.SaveSystem ? window.SaveSystem.addCredits(350) : 350;
+      if (window.GameState) {
+        window.GameState.creditsEarned = (window.GameState.creditsEarned || 0) + bonusCr;
+        window.GameState.banner = {
+          text: lang === 'en' ? '🎉 PORTAL MASTERED! +350 CREDITS & REPAIR!' : '🎉 PORTAL GEMEISTERT! +350 CREDITS & REPARATUR!',
+          t: 4.5,
+          col: '#ffd23f'
+        };
+        const P = window.GameState.player;
+        if (P) {
+          P.hp = P.maxHp;
+          P.overloadGauge = 100;
+        }
+      }
+      if (window.SaveSystem && window.SaveSystem.data && window.SaveSystem.data.stats) {
+        window.SaveSystem.data.stats.portalsMastered = (window.SaveSystem.data.stats.portalsMastered || 0) + 1;
+        window.SaveSystem.save();
+      }
+      this.fx.push({ type: 'ring', x: pc.x, y: pc.y, r0: 20, r1: 350, life: 0.5, max: 0.5, col: '#ffd23f' });
+      this.spawnParticle(pc.x, pc.y, '#ffd23f', 50, 350, 6, 0.75);
+      if (window.SoundSystem) window.SoundSystem.sfx('portal_win');
+    } else {
+      if (window.GameState) {
+        window.GameState.banner = {
+          text: lang === 'en' ? '❌ PORTAL CHALLENGE FAILED!' : '❌ PORTAL-HERAUSFORDERUNG VERFEHLT!',
+          t: 3.0,
+          col: '#ff3366'
+        };
+      }
+    }
+    this.portalChallenge = null;
   }
 }
 

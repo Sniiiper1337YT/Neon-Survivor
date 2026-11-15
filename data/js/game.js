@@ -136,6 +136,13 @@ class GameController {
       dashCd: 0, dashMaxCd: charDef.stats.dashBonus ? 0.65 : 1.0,
       dashBonus: !!charDef.stats.dashBonus,
       phasedDash: !!charDef.stats.phasedDash,
+      secondary: charDef.secondary ? charDef.secondary.id : 'drones',
+      secondaryDef: charDef.secondary || null,
+      secondaryCd: 0,
+      secondaryMaxCd: charDef.secondary ? charDef.secondary.cd : 10,
+      secondaryActive: 0,
+      barrierActive: 0,
+      cloakActive: 0,
       aoeBonus: charDef.stats.aoeBonus || 0,
       slowAura: charDef.stats.slowAura || 0,
       dashT: 0, dvx: 0, dvy: 0, inv: 0,
@@ -156,6 +163,9 @@ class GameController {
     }
 
     this.time = 0;
+    this.endlessWave = 1;
+    this.endlessWaveTimer = 60.0;
+    this.portalSpawnTimer = 180.0;
     this.kills = 0;
     this.bossKills = 0;
     this.creditsEarned = 0;
@@ -229,6 +239,7 @@ class GameController {
     }
     if (window.SoundSystem) {
       window.SoundSystem.init();
+      window.SoundSystem.setMap(this.selectedMap);
       window.SoundSystem.sfx('click');
       window.SoundSystem.setTheme('normal');
     }
@@ -303,6 +314,50 @@ class GameController {
       window.SaveSystem.data.stats.overloadsUsed++;
       window.SaveSystem.checkAchievements();
     }
+  }
+
+  activateSecondary() {
+    const P = this.player;
+    if (!P || P.secondaryCd > 0 || this.state !== 'play') return;
+    P.secondaryCd = P.secondaryMaxCd || 10;
+    if (window.Entities) window.Entities.triggerSecondary(P.secondary, P);
+  }
+
+  completeEndlessWave() {
+    if (this.state !== 'play') return;
+    const P = this.player;
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+
+    const waveCredits = 150 + this.endlessWave * 25;
+    const gotCr = window.SaveSystem ? window.SaveSystem.addCredits(waveCredits) : waveCredits;
+    this.creditsEarned = (this.creditsEarned || 0) + gotCr;
+    this.bonusScore += 5000 * this.endlessWave;
+
+    if (P) {
+      P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.35);
+      if (window.Entities) {
+        for (let g = 0; g < 5; g++) {
+          window.Entities.dropGem(P.x + (Math.random() * 40 - 20), P.y + (Math.random() * 40 - 20), 5);
+        }
+        window.Entities.dropPowerup(P.x + 30, P.y + 30);
+      }
+    }
+
+    if (window.SaveSystem && window.SaveSystem.data && window.SaveSystem.data.stats) {
+      window.SaveSystem.data.stats.bestEndlessWave = Math.max(window.SaveSystem.data.stats.bestEndlessWave || 1, this.endlessWave);
+      window.SaveSystem.save();
+    }
+
+    const clearedWave = this.endlessWave;
+    this.endlessWave++;
+    this.endlessWaveTimer = 60.0;
+
+    const bannerMsg = lang === 'en'
+      ? `🌊 WAVE ${clearedWave} CLEARED! +${gotCr} 💎 & HEAL`
+      : `🌊 WELLE ${clearedWave} GEMEISTERT! +${gotCr} 💎 & HEILUNG`;
+    this.banner = { text: bannerMsg, t: 4.0, col: '#ffd23f' };
+    if (window.SoundSystem) window.SoundSystem.sfx('portal_win');
+    this.shake = Math.max(this.shake, 10);
   }
 
   triggerAntiAfkPressure() {
@@ -388,15 +443,38 @@ class GameController {
       P.overloadCooldown = Math.max(0, P.overloadCooldown - dt);
     }
 
+    // Endless mode wave timer
+    if (this.selectedMode === 'endless') {
+      this.endlessWaveTimer -= dt;
+      if (this.endlessWaveTimer <= 0) {
+        this.completeEndlessWave();
+      }
+    }
+
+    // Periodic Portal Spawn Timer
+    this.portalSpawnTimer -= dt;
+    if (this.portalSpawnTimer <= 0) {
+      this.portalSpawnTimer = 210.0;
+      const pAng = Math.random() * Math.PI * 2;
+      if (window.Entities) window.Entities.spawnPortal(P.x + Math.cos(pAng) * 320, P.y + Math.sin(pAng) * 320);
+    }
+
     // Check if Sandbox Menu is open: freeze player movement
     const sbOpen = Boolean(window.UI && window.UI.isSandboxOpen);
     if (sbOpen && window.Input) {
       window.Input.dashPressed = false;
+      window.Input.secondaryPressed = false;
       window.Input.overloadPressed = false;
     }
 
+    // Check Secondary Ability Input
+    if (window.Input && window.Input.secondaryPressed) {
+      window.Input.secondaryPressed = false;
+      if (!sbOpen) this.activateSecondary();
+    }
+
     // Check Overload Key Input
-    if (window.Input.overloadPressed) {
+    if (window.Input && window.Input.overloadPressed) {
       window.Input.overloadPressed = false;
       if (!sbOpen) this.activateOverload();
     }
@@ -406,6 +484,7 @@ class GameController {
     const frameSpeedMod = P.speedModifier || 1;
     P.speedModifier = 1; // Reset for next frame's hazard/leech evaluation
     P.dashCd -= dt;
+    P.secondaryCd -= dt;
     P.inv -= dt;
 
     if (window.Input.dashPressed) {
@@ -921,6 +1000,9 @@ class GameController {
     const score = Math.floor(this.time) * 10 + this.kills * 10 + this.bossKills * 2500 + this.bonusScore;
     window.SaveSystem.data.stats.highestScore = Math.max(window.SaveSystem.data.stats.highestScore, score);
     window.SaveSystem.data.stats.bestSurvivalTime = Math.max(window.SaveSystem.data.stats.bestSurvivalTime || 0, this.time);
+    if (this.selectedMode === 'endless') {
+      window.SaveSystem.data.stats.bestEndlessWave = Math.max(window.SaveSystem.data.stats.bestEndlessWave || 1, this.endlessWave || 1);
+    }
     window.SaveSystem.save();
     window.SaveSystem.checkAchievements();
     if (window.DiscordRPC) window.DiscordRPC.setGameOver(this.time, this.kills, score);
@@ -929,6 +1011,7 @@ class GameController {
     if (overStatsEl) {
       overStatsEl.innerHTML = `
         ${lang === 'en' ? 'Survived' : 'Überlebt'}: <b>${Math.floor(this.time / 60)}m ${Math.floor(this.time % 60)}s</b><br>
+        ${this.selectedMode === 'endless' ? `${lang === 'en' ? 'Endless Wave Reached' : 'Erreichte Endlos-Welle'}: <b style="color:#3dfcff;font-size:20px;">🌊 ${this.endlessWave || 1}</b><br>` : ''}
         Kills: <b>${this.kills}</b> &nbsp;·&nbsp; ${lang === 'en' ? 'Bosses' : 'Wächter'}: <b>${this.bossKills}</b><br>
         ${lang === 'en' ? 'Neon Credits earned' : 'Neon Credits verdient'}: <b style="color:#00ffcc;font-size:24px">+${finalCredits} 💎</b><br>
         ${lang === 'en' ? 'Score' : 'Punkte'}: <b style="color:#ffd23f;font-size:28px">${score.toLocaleString(loc)}</b>

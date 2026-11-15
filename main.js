@@ -359,7 +359,7 @@ function getAppVersion() {
       if (pkg && pkg.version) return pkg.version;
     }
   } catch (e) {}
-  return app.getVersion() || '1.1.0';
+  return app.getVersion() || '1.2.0';
 }
 
 ipcMain.on('app:getVersionSync', (event) => {
@@ -472,7 +472,92 @@ function createWindow() {
 
   mainWindow.removeMenu();
   mainWindow.loadFile(path.join(__dirname, 'data', 'neon_survivor.html'));
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.once('ready-to-show', () => {
+    if (!process.argv.includes('--capture-screenshots')) mainWindow.show();
+  });
+
+  if (process.argv.includes('--capture-screenshots')) {
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const outDir = path.join(__dirname, 'screenshots');
+    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+    mainWindow.webContents.once('did-finish-load', async () => {
+      try {
+        await sleep(1500);
+
+        // 1. Minigame screenshot
+        await mainWindow.webContents.executeJavaScript(`
+          if (window.ArcadeMinigame) {
+            window.ArcadeMinigame.open();
+            window.ArcadeMinigame.startRound();
+          }
+        `);
+        await sleep(1000);
+        let img = await mainWindow.webContents.capturePage();
+        fs.writeFileSync(path.join(outDir, 'screenshot_arcade_minigame.png'), img.toPNG());
+
+        // 2. Skilltree
+        await mainWindow.webContents.executeJavaScript(`
+          if (window.ArcadeMinigame) window.ArcadeMinigame.close();
+          window.UI.renderSkilltree();
+          window.UI.showScreen('skillModal');
+        `);
+        await sleep(700);
+        img = await mainWindow.webContents.capturePage();
+        fs.writeFileSync(path.join(outDir, 'screenshot_skilltree.png'), img.toPNG());
+
+        // 3. Gameplay Action (Void map with secondary drones & weapons)
+        const err3 = await mainWindow.webContents.executeJavaScript(`
+          (() => {
+            try {
+              window.UI.showScreen(null);
+              window.GameState.selectedMap = 'void';
+              window.GameState.startRun();
+              const P = window.GameState.player;
+              for (let i = 0; i < 25; i++) {
+                const a = (i / 25) * Math.PI * 2;
+                const e = window.Entities.createEnemy('dasher', P.x + Math.cos(a) * 240, P.y + Math.sin(a) * 240);
+                window.Entities.enemies.push(e);
+              }
+              window.Entities.triggerSecondary('drones', P);
+              return null;
+            } catch (e) {
+              return e.stack || String(e);
+            }
+          })()
+        `);
+        if (err3) fs.writeFileSync(path.join(outDir, 'err3.txt'), err3);
+        await sleep(1500);
+        let imgAction = await mainWindow.webContents.capturePage();
+        fs.writeFileSync(path.join(outDir, 'screenshot_gameplay_action.png'), imgAction.toPNG());
+
+        // 4. Boss Battle
+        const err4 = await mainWindow.webContents.executeJavaScript(`
+          (() => {
+            try {
+              const P = window.GameState.player;
+              window.Entities.createBoss('guardian', P.x + 220, P.y - 120);
+              window.Entities.triggerSecondary('storm', P);
+              return null;
+            } catch (e) {
+              return e.stack || String(e);
+            }
+          })()
+        `);
+        if (err4) fs.writeFileSync(path.join(outDir, 'err4.txt'), err4);
+        await sleep(1200);
+        let imgBoss = await mainWindow.webContents.capturePage();
+        fs.writeFileSync(path.join(outDir, 'screenshot_boss_battle.png'), imgBoss.toPNG());
+
+        console.log('Screenshots successfully generated!');
+      } catch (err) {
+        fs.writeFileSync(path.join(outDir, 'capture_log.txt'), String(err && err.stack ? err.stack : err));
+        console.error('Screenshot capture failed:', err);
+      } finally {
+        app.quit();
+      }
+    });
+  }
 
   // F11 fullscreen toggle (window-local, does not hijack the key system-wide)
   mainWindow.webContents.on('before-input-event', (event, input) => {

@@ -9,6 +9,7 @@ class InputSystem {
     this.K = {};
     this.mouse = { x: 0, y: 0, down: false, rightDown: false, active: false };
     this.dashPressed = false;
+    this.secondaryPressed = false;
     this.overloadPressed = false;
     this.pausePressed = false;
     this.gamepadIndex = null;
@@ -28,6 +29,7 @@ class InputSystem {
       if (window.SoundSystem) window.SoundSystem.init();
 
       if (this.isActionCode(c, 'dash')) this.dashPressed = true;
+      if (this.isActionCode(c, 'secondary')) this.secondaryPressed = true;
       if (this.isActionCode(c, 'overload')) this.overloadPressed = true;
       if (this.isActionCode(c, 'pause')) this.pausePressed = true;
     });
@@ -49,6 +51,8 @@ class InputSystem {
         this.dashPressed = true;
       } else if (e.button === 2) {
         this.mouse.rightDown = true;
+        this.secondaryPressed = true;
+      } else if (e.button === 1) {
         this.overloadPressed = true;
       }
     });
@@ -95,7 +99,8 @@ class InputSystem {
     if (keys && keys.includes(code)) return true;
     // Defaults fallback
     if (action === 'dash' && (code === 'Space' || code === 'ShiftLeft' || code === 'ShiftRight')) return true;
-    if (action === 'overload' && (code === 'KeyE' || code === 'KeyQ')) return true;
+    if (action === 'secondary' && (code === 'KeyQ' || code === 'KeyF' || code === 'KeyR')) return true;
+    if (action === 'overload' && (code === 'KeyE')) return true;
     if (action === 'pause' && (code === 'Escape' || code === 'KeyP')) return true;
     return false;
   }
@@ -141,6 +146,8 @@ class InputSystem {
 
     // A / Cross or LT (button 6) -> Dash
     if (justPressed(0) || justPressed(6)) this.dashPressed = true;
+    // X / Square (button 2) or LB (button 4) -> Secondary
+    if (justPressed(2) || justPressed(4)) this.secondaryPressed = true;
     // Y / Triangle (button 3) or RT (button 7) or RB (button 5) -> Overload
     if (justPressed(3) || justPressed(7) || justPressed(5)) this.overloadPressed = true;
     // Start (button 9) -> Pause

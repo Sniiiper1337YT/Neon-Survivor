@@ -1,33 +1,55 @@
 # 🚀 Neon Survivor
 
+<p align="center">
+  <img src="cover_630x500.png" alt="Neon Survivor Cover" width="630">
+</p>
+
 Ein rasanter, neon-ästhetischer Sci-Fi Bullet-Heaven / Rogue-lite Survival Shooter. Kämpfe gegen endlose Horden feindlicher Drohnen, sammle Neon-Gems, fusioniere tödliche Waffen-Evolutionen und besiege mächtige Wächter-Bosse.
+
+---
+
+## 📸 Screenshots
+
+| Arcade Target Range Minispiel | Gameplay-Action & Drohnen |
+| :---: | :---: |
+| ![Arcade Minigame](screenshots/screenshot_arcade_minigame.png) | ![Gameplay Action](screenshots/screenshot_gameplay_action.png) |
+
+| Epischer Wächter-Bosskampf | Talentbaum (Permanente Meta-Progression) |
+| :---: | :---: |
+| ![Boss Battle](screenshots/screenshot_boss_battle.png) | ![Skilltree](screenshots/screenshot_skilltree.png) |
 
 ---
 
 ## 🎮 Highlights & Features
 
+- **⚡ 8 Einzigartige Sekundärfähigkeiten (Secondary Abilities):**
+  - Jedes Raumschiff besitzt eine eigene aktive Spezialfähigkeit auf Cooldown (aktivierbar via Rechtsklick / Taste Q):
+    - **Apex-1:** *Drohnengeschwader* (Entsendet 3 autonome Abfangjäger)
+    - **Valkyrie:** *Warp-Sprung* (320px Vorwärtssprung mit kinetischer Schockwelle & I-Frames)
+    - **Colossus:** *Aegis-Barriere* (4.5s Hex-Schutzschild, blockt Projektile & rammt Mobs)
+    - **Tesla-9:** *Gewitter-Entladung* (10-fache Kettenblitz-Serie mit 2.2s Feindlähmung)
+    - **Specter:** *Phasen-Tarnung* (3.5s Unantastbarkeit, +60% Tempo & schädigende Schattenpfade)
+    - **Havoc-X:** *Cluster-Sperrfeuer* (Fächerförmige Streubomben-Raketen)
+    - **Nova-Core:** *Fusions-Schockwelle* (Löscht alle Feindgeschosse, stößt ab & lädt +15% Overload)
+    - **Chronos-X:** *Chronostase* (Friert alle Feinde & Kugeln für 3.5s komplett ein)
+- **🌊 Endlos-Modus mit Wellen-System:**
+  - 60-Sekunden Wellenfortschritt mit Event-Surges, Wellen-Abschluss-Boni (+Credits, Reparatur-Heilung, Gem-Cluster), Boss-Duellen und Karriere-Highscore-Tracking (`Beste Welle`).
+- **🎯 Minigames & Arcade Target Range:**
+  - **In-Run Dimensions-Portale:** Periodische Portal-Events mit 25s Kerne-Sammel-Herausforderung für epische +350 Credits & Hypercharge.
+  - **Hauptmenü Arcade-Modus:** 30-Sekunden Reflex-Zielschießen mit Combo-Multiplikatoren – erspielte Punkte werden direkt in echte Neon Credits für den Talentbaum umgewandelt.
+- **🗺️ Bessere Maps & Map-spezifische Musik:**
+  - Jede der 6 Arenen besitzt individuelle, animierte Grafik-Layer (Parallax-Sternenfelder, Matrix-Code-Rain, Schwarzes-Loch-Vortex, hexagonale Magma-Platten, Asteroidenschatten, Glitch-Scanlines).
+  - Voller dynamischer Web-Audio-Synthesizer mit map-spezifischen BPM, Akkordfolgen, Basslines und Synthesizer-Leads.
 - **15 Waffen & 15 mächtige Waffen-Evolutionen:**
   - Hyper-Gatling, Singularitäts-Klingen, Supernova-Kollaps, Götterdämmerung (Thor's Arc), Armageddon-Batterie, Photonen-Obliterator, Event-Horizon, Aegis-Schwarm, Thermonukleare Minen, Höllensturm-Flak, Absoluter Nullpunkt, Plasma-Reaper, Höllenfeuer-Drache, Sternen-Sense und Chronos-Matrix.
-- **10 Passive Upgrades:**
+- **10 Passive Upgrades & 50 Erfolge:**
   - Kraft, Überladung, Turbo, Vitalität, Magnet, Panzerung, Nanobots, Präzision, Splitter und Neon-Reaktor.
-- **8 Spielbare Schiffe / Klassen:**
-  - Striker, Bastion, Phantom, Chronos, Colossus, Tesla, Nova und Havoc – jede mit einzigartigen Werten und Spezialfähigkeiten.
 - **17 Gegnertypen & 6 Epische Wächter-Bosse:**
-  - Dasher, Swarm, Tank, Speeder, Shooter, Phantom, Exploder, Splitter, Leech, Barrier, Pulsar, Mimic, Vortex Orb, Berserker, Glitch Stalker, Colossus Drone und Void Leaper.
-  - Bosse mit Boss-Radar, Zielerfassung und dynamischer Verfolgungslogik: Scorpio, Leviathan, Titan, Vortex Eye, Chronos und Arch-Sentinel.
-- **5 Spielmodi:**
-  - Klassisch, Schneller Lauf (15 Min), Endlos, Boss-Rush und Hardcore.
+  - Scorpio, Leviathan, Titan, Vortex Eye, Chronos und Arch-Sentinel mit Offscreen-Zielerfassung, Näherungswarnern und Jagd-Phasen.
 - **🛠️ Vollständiges Test-Labor (Sandbox-Modus):**
   - Zugriff im Spiel jederzeit über **`TAB`** oder **`F2`**.
-  - Verwalte alle Waffen und Passives (Stufen erhöhen, senken, auf 0 setzen oder direkt evolvieren).
-  - Spawne beliebige Gegner, Bosse und Power-ups gezielt per Klick.
-  - Spieler-Bewegung stoppt sauber bei geöffnetem Menü, automatische Spawns und Upgrade-Popups sind im Sandbox-Modus deaktiviert.
-- **🎧 Synthwave Audio & Web Audio Synthesizer:**
-  - Voller 80er-Synthwave-Soundtrack mit prozeduralen Chiptune-/Neon-SFX ohne externe Audio-Abhängigkeiten.
-- **🎮 Gamepad- & Maus-Steuerung:**
-  - Volle Unterstützung für Tastatur (WASD), Maus und Controller (inkl. Vibration).
 - **👾 Discord Rich Presence Integration:**
-  - Automatische Anzeige des aktuellen Spielstatus, Schiffs, Kills und Überlebenszeit in Discord.
+  - Automatische Live-Statusanzeige in Discord.
 
 ---
 
@@ -36,8 +58,9 @@ Ein rasanter, neon-ästhetischer Sci-Fi Bullet-Heaven / Rogue-lite Survival Shoo
 | Aktion | Tastatur / Maus | Gamepad |
 | :--- | :--- | :--- |
 | **Bewegen** | `WASD` / Pfeiltasten / Maus | Linker Stick / D-Pad |
-| **Dash (Ausweichrolle)** | `Leertaste` / `Linksklick` | `A` (Süd-Taste) |
-| **Neon Overload (Ult)** | `E` / `Rechtsklick` | `B` (Ost-Taste) |
+| **Dash (Ausweichrolle)** | `Leertaste` / `Linksklick` / `Shift` | `A` (Süd-Taste) / `LT` |
+| **Spezialfähigkeit (Sekundär)** | `Rechtsklick` / `Q` / `F` / `R` | `X` (West-Taste) / `LB` |
+| **Neon Overload (Ult)** | `E` / Mausrad-Klick | `Y` (Nord-Taste) / `RT` / `RB` |
 | **Test-Labor (Sandbox)** | `TAB` / `F2` | - |
 | **Pause** | `Escape` / `P` | `Start` |
 

@@ -285,48 +285,104 @@ window.GAME_DATA = {
       name: 'Apex-1', role: { de: 'Allrounder', en: 'All-Rounder' },
       weapon: 'blaster', col: '#3dfcff', hull: 'standard',
       stats: { hp: 120, spd: 230, dmg: 1.0, armor: 0, regen: 0.2, crit: 0.06 },
+      secondary: {
+        id: 'drones',
+        name: { de: 'Drohnengeschwader', en: 'Drone Swarm' },
+        desc: { de: 'Entsendet 3 Abfang-Drohnen, die 7s lang Feinde jagen', en: 'Deploys 3 interceptor drones that hunt targets for 7s' },
+        cd: 10,
+        icon: '🛸'
+      },
       unlock: { de: 'Standardmäßig verfügbar', en: 'Unlocked by default' }
     },
     valkyrie: {
       name: 'Valkyrie', role: { de: 'Abfangjäger', en: 'Interceptor' },
       weapon: 'orbit', col: '#ffd23f', hull: 'speed',
       stats: { hp: 90, spd: 280, dmg: 1.1, armor: 0, regen: 0.1, crit: 0.12, dashBonus: 1 },
+      secondary: {
+        id: 'warp',
+        name: { de: 'Warp-Sprung', en: 'Warp Thrust' },
+        desc: { de: 'Teleportiert 320px vorwärts mit kinetischer Schockwelle', en: 'Teleports 320px ahead releasing a kinetic shockwave' },
+        cd: 7,
+        icon: '⚡'
+      },
       unlock: { de: 'Erreiche 500 Kills insgesamt', en: 'Reach 500 total kills' }
     },
     colossus: {
       name: 'Colossus', role: { de: 'Panzerschiff', en: 'Dreadnought' },
       weapon: 'flak', col: '#b44dff', hull: 'tank',
       stats: { hp: 200, spd: 195, dmg: 1.15, armor: 4, regen: 0.5, crit: 0.04 },
+      secondary: {
+        id: 'barrier',
+        name: { de: 'Aegis-Barriere', en: 'Aegis Barrier' },
+        desc: { de: 'Reflektiert 4.5s alle Schüsse & rammt Feinde', en: 'Reflects all shots for 4.5s & rams enemies' },
+        cd: 12,
+        icon: '🛡️'
+      },
       unlock: { de: 'Besiege deinen ersten Boss', en: 'Defeat your first boss' }
     },
     tesla: {
       name: 'Tesla-9', role: { de: 'Elektrosturm', en: 'Stormcaller' },
       weapon: 'bolt', col: '#00e5ff', hull: 'sharp',
       stats: { hp: 110, spd: 220, dmg: 1.05, armor: 1, regen: 0.2, crit: 0.20 },
+      secondary: {
+        id: 'storm',
+        name: { de: 'Gewitter-Entladung', en: 'Thunder Surge' },
+        desc: { de: 'Schlägt bis zu 10 Kettenblitze mit 2s Lähmung', en: 'Strikes up to 10 chain bolts with 2s stun' },
+        cd: 9,
+        icon: '🌩️'
+      },
       unlock: { de: 'Führe deine erste Waffen-Evolution durch', en: 'Perform your first weapon evolution' }
     },
     specter: {
       name: 'Specter', role: { de: 'Phantom-Späher', en: 'Phantom' },
       weapon: 'cryo', col: '#651fff', hull: 'ghost',
       stats: { hp: 85, spd: 250, dmg: 1.25, armor: 0, regen: 0.3, crit: 0.15, phasedDash: true },
+      secondary: {
+        id: 'cloak',
+        name: { de: 'Phasen-Tarnung', en: 'Phase Cloak' },
+        desc: { de: '3.5s unantastbar, +60% Tempo & Schattenpfad', en: '3.5s invulnerable, +60% speed & shadow rift' },
+        cd: 11,
+        icon: '👻'
+      },
       unlock: { de: 'Kaufe 15 Upgrades im Skilltree', en: 'Purchase 15 skilltree upgrades' }
     },
     havoc: {
       name: 'Havoc-X', role: { de: 'Sprengmeister', en: 'Bombardier' },
       weapon: 'missile', col: '#ff3d00', hull: 'heavy',
       stats: { hp: 130, spd: 215, dmg: 1.3, armor: 2, regen: 0.1, crit: 0.08, aoeBonus: 0.3 },
+      secondary: {
+        id: 'mortar',
+        name: { de: 'Cluster-Sperrfeuer', en: 'Cluster Barrage' },
+        desc: { de: 'Feuert 5 Streubomben-Raketen in Fächerform ab', en: 'Fires 5 cluster missiles in a spread' },
+        cd: 8,
+        icon: '💣'
+      },
       unlock: { de: 'Erreiche 2.500 Kills insgesamt', en: 'Reach 2,500 total kills' }
     },
     nova: {
       name: 'Nova-Core', role: { de: 'Fusions-Adept', en: 'Fusion Adept' },
       weapon: 'nova', col: '#ff0077', hull: 'round',
       stats: { hp: 125, spd: 225, dmg: 1.1, armor: 1, regen: 0.4, crit: 0.08, overloadRate: 1.4 },
+      secondary: {
+        id: 'nova_burst',
+        name: { de: 'Fusions-Schockwelle', en: 'Fusion Shockwave' },
+        desc: { de: 'Löscht Geschosse, stößt Feinde ab & gibt +15% Overload', en: 'Clears bullets, knocks back enemies & grants +15% Overload' },
+        cd: 10,
+        icon: '💥'
+      },
       unlock: { de: 'Verwende 10-mal Neon-Overload', en: 'Use Neon Overload 10 times' }
     },
     chronos: {
       name: 'Chronos-X', role: { de: 'Zeitfürst', en: 'Chronomancer' },
       weapon: 'laser', col: '#ffffff', hull: 'chrono',
       stats: { hp: 140, spd: 240, dmg: 1.2, armor: 2, regen: 0.6, crit: 0.14, slowAura: 0.15 },
+      secondary: {
+        id: 'stasis',
+        name: { de: 'Chronostase', en: 'Chronostasis' },
+        desc: { de: 'Friert alle Feinde & Geschosse für 3.5s komplett ein', en: 'Freezes all enemies & projectiles for 3.5s' },
+        cd: 13,
+        icon: '⏳'
+      },
       unlock: { de: 'Besiege den Endboss (Arch-Sentinel)', en: 'Defeat the final Arch-Sentinel' }
     }
   },
@@ -390,9 +446,9 @@ window.GAME_DATA = {
       unlock: { de: 'Standard', en: 'Default' }
     },
     endless: {
-      name: { de: 'Endlos', en: 'Endless' },
+      name: { de: 'Endlos (Wellen-Modus)', en: 'Endless (Wave Mode)' },
       duration: 0,
-      desc: { de: 'Kein Zeitlimit! Die Feinde skalieren unendlich ins Extreme.', en: 'No timer limit! Foes scale endlessly into insanity.' },
+      desc: { de: 'Überlebe unendliche Feindwellen mit Event-Wellen, Boss-Duellen und Wellen-Boni.', en: 'Survive infinite enemy waves with event surges, boss duels, and wave clearing bonuses.' },
       unlock: { de: 'Besiege deinen ersten Boss', en: 'Defeat your first boss' }
     },
     bossrush: {
@@ -533,7 +589,8 @@ window.GAME_DATA = {
       achs: '🏆 Erfolge',
       stats: '📊 Statistiken',
       settings: '⚙️ Einstellungen',
-      controlsHint: '<b>WASD / Maus / Gamepad</b> Bewegen &nbsp;·&nbsp; <b>Leertaste / Linksklick</b> Dash &nbsp;·&nbsp; <b>E / Rechtsklick</b> Neon Overload',
+      minigame: '🎯 Arcade-Minispiel',
+      controlsHint: '<b>WASD / Maus / Gamepad</b> Bewegen &nbsp;·&nbsp; <b>Rechtsklick / Q</b> Spezialfähigkeit &nbsp;·&nbsp; <b>Leertaste</b> Dash &nbsp;·&nbsp; <b>E</b> Overload',
       footerDev: 'Entwickelt von Sniiiper1337YT',
       
       charModalTitle: 'WÄHLE DEIN RAUMSCHIFF',
@@ -623,7 +680,17 @@ window.GAME_DATA = {
       bossApproaching: (t, name) => `⚠ BOSS NAHT IN ${t} (${name})`,
       bossHunting: ' · ⚡ JAGT!',
       swarmIncoming: '⚡ SCHWARM NAHT! ⚡',
-      antiAfkWarning: '⚠ BEWEGUNG ERFORDERLICH! HORDE FORMIERT SICH!'
+      antiAfkWarning: '⚠ BEWEGUNG ERFORDERLICH! HORDE FORMIERT SICH!',
+      minigameTitle: '🎯 NEON TARGET RANGE (ARCADE)',
+      minigameSub: 'Zerstöre in 30 Sekunden so viele Zielscheiben wie möglich!',
+      minigameScore: 'Punkte:',
+      minigameTime: 'Zeit:',
+      minigameCredits: 'Neon Credits:',
+      minigameStartBtn: 'RUNDE STARTEN',
+      minigameBackBtn: 'HAUPTMENÜ',
+      secondaryReady: 'BEREIT',
+      portalNear: '🌀 DIMENSIONS-PORTAL IN DER NÄHE!',
+      portalComplete: '🎉 PORTAL-HERAUSFORDERUNG MEISTERHAFT GELÖST!'
     },
     en: {
       subTitle: '15 Weapons · 6 Bosses · 50 Achievements · Meta-Progression',
@@ -635,7 +702,8 @@ window.GAME_DATA = {
       achs: '🏆 Achievements',
       stats: '📊 Statistics',
       settings: '⚙️ Settings',
-      controlsHint: '<b>WASD / Mouse / Gamepad</b> Move &nbsp;·&nbsp; <b>Space / Left Click</b> Dash &nbsp;·&nbsp; <b>E / Right Click</b> Neon Overload',
+      minigame: '🎯 Arcade Minigame',
+      controlsHint: '<b>WASD / Mouse / Gamepad</b> Move &nbsp;·&nbsp; <b>Right Click / Q</b> Secondary Skill &nbsp;·&nbsp; <b>Space</b> Dash &nbsp;·&nbsp; <b>E</b> Overload',
       footerDev: 'Developed by Sniiiper1337YT',
       
       charModalTitle: 'CHOOSE YOUR STARSHIP',
@@ -725,7 +793,17 @@ window.GAME_DATA = {
       bossApproaching: (t, name) => `⚠ BOSS APPROACHING IN ${t} (${name})`,
       bossHunting: ' · ⚡ HUNTING!',
       swarmIncoming: '⚡ SWARM INCOMING! ⚡',
-      antiAfkWarning: '⚠ MOVE! SWARM INCOMING!'
+      antiAfkWarning: '⚠ MOVE! SWARM INCOMING!',
+      minigameTitle: '🎯 NEON TARGET RANGE (ARCADE)',
+      minigameSub: 'Destroy as many targets as possible within 30 seconds!',
+      minigameScore: 'Score:',
+      minigameTime: 'Time:',
+      minigameCredits: 'Neon Credits:',
+      minigameStartBtn: 'START ROUND',
+      minigameBackBtn: 'MAIN MENU',
+      secondaryReady: 'READY',
+      portalNear: '🌀 DIMENSION PORTAL NEARBY!',
+      portalComplete: '🎉 PORTAL CHALLENGE MASTERED!'
     }
   }
 };

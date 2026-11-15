@@ -327,6 +327,66 @@ class SoundSystem {
       case 'achievement':
         [659, 880, 1175, 1318].forEach((f, i) => this.note(t + i * 0.08, f, 0.25, 'sine', 0.08, D));
         break;
+
+      // ==========================================
+      // NEUE SOUNDS: SEKUNDÄRFÄHIGKEITEN & MINIGAMES
+      // ==========================================
+      case 'secondary_apex':
+        [520, 780, 1040].forEach((f, i) => this.note(t + i * 0.04, f, 0.18, 'sine', 0.12, D, 1.3));
+        break;
+
+      case 'secondary_valkyrie':
+        this.note(t, 220, 0.25, 'sawtooth', 0.16, D, 3.5, 2000);
+        this.noise(t, 0.18, 0.15, 2800, 'bandpass', D);
+        break;
+
+      case 'secondary_colossus':
+        this.note(t, 90, 0.5, 'square', 0.20, D, 0.8, 600);
+        this.note(t, 180, 0.4, 'triangle', 0.15, D, 1.0);
+        break;
+
+      case 'secondary_tesla':
+        [150, 420, 840, 1260].forEach((f, i) => this.note(t + i * 0.03, f, 0.22, 'sawtooth', 0.14, D, 0.4, 2500));
+        this.noise(t, 0.25, 0.20, 3200, 'highpass', D);
+        break;
+
+      case 'secondary_specter':
+        this.note(t, 680, 0.4, 'sine', 0.13, D, 0.35);
+        this.note(t + 0.1, 440, 0.45, 'triangle', 0.11, D, 0.5);
+        break;
+
+      case 'secondary_havoc':
+        [180, 240, 320, 420, 560].forEach((f, i) => this.note(t + i * 0.05, f, 0.16, 'sawtooth', 0.13, D, 0.3, 1500));
+        this.noise(t + 0.1, 0.35, 0.22, 1200, 'lowpass', D);
+        break;
+
+      case 'secondary_nova':
+        this.note(t, 320, 0.6, 'sine', 0.20, D, 0.25);
+        this.noise(t, 0.45, 0.25, 1800, 'bandpass', D);
+        break;
+
+      case 'secondary_chronos':
+        [1046, 880, 659, 523].forEach((f, i) => this.note(t + i * 0.07, f, 0.35, 'triangle', 0.12, D, 0.7));
+        break;
+
+      case 'portal_enter':
+      case 'portal_open':
+        [330, 440, 660, 880, 1320].forEach((f, i) => this.note(t + i * 0.06, f, 0.28, 'sine', 0.11, D, 1.2));
+        break;
+
+      case 'portal_win':
+        [440, 554, 659, 880, 1108, 1320].forEach((f, i) => this.note(t + i * 0.08, f, 0.35, 'triangle', 0.12, D));
+        this.noise(t + 0.2, 0.35, 0.14, 2500, 'bandpass', D);
+        break;
+
+      case 'minigame_hit':
+        this.note(t, 880, 0.08, 'sine', 0.12, D, 1.4);
+        break;
+
+      case 'minigame_combo':
+        this.note(t, 1175, 0.12, 'triangle', 0.14, D, 1.2);
+        this.note(t + 0.04, 1568, 0.14, 'sine', 0.12, D, 1.1);
+        break;
     }
   }
 
@@ -334,24 +394,98 @@ class SoundSystem {
     this.theme = theme;
   }
 
+  setMap(map) {
+    this.currentMap = map || 'void';
+  }
+
+  getMapMusicProfile() {
+    const map = this.currentMap || (window.GameState && window.GameState.selectedMap) || 'void';
+    switch (map) {
+      case 'matrix':
+        return {
+          bpm: 132,
+          chords: [[0, 3, 7], [5, 8, 12], [-2, 2, 5], [3, 7, 10]],
+          bassType: 'square',
+          leadType: 'sawtooth',
+          bassCutoff: 650,
+          leadCutoff: 2800,
+          leadBase: 261.63
+        };
+      case 'abyss':
+        return {
+          bpm: 118,
+          chords: [[0, 3, 6], [-4, -1, 3], [-2, 1, 5], [-5, -2, 2]],
+          bassType: 'sawtooth',
+          leadType: 'sine',
+          bassCutoff: 400,
+          leadCutoff: 1800,
+          leadBase: 196.00
+        };
+      case 'reactor':
+        return {
+          bpm: 136,
+          chords: [[0, 3, 7], [-1, 2, 6], [3, 7, 10], [5, 8, 12]],
+          bassType: 'sawtooth',
+          leadType: 'sawtooth',
+          bassCutoff: 850,
+          leadCutoff: 3200,
+          leadBase: 220.00
+        };
+      case 'asteroids':
+        return {
+          bpm: 128,
+          chords: [[0, 4, 7], [-3, 0, 4], [2, 5, 9], [-5, -1, 2]],
+          bassType: 'triangle',
+          leadType: 'square',
+          bassCutoff: 550,
+          leadCutoff: 2600,
+          leadBase: 293.66
+        };
+      case 'glitch':
+        return {
+          bpm: 138,
+          chords: [[0, 3, 7], [1, 4, 8], [-2, 1, 5], [6, 9, 13]],
+          bassType: 'square',
+          leadType: 'square',
+          bassCutoff: 750,
+          leadCutoff: 3600,
+          leadBase: 246.94
+        };
+      case 'void':
+      default:
+        return {
+          bpm: 124,
+          chords: [[0, 3, 7], [-4, 0, 3], [3, 7, 10], [-2, 2, 5]],
+          bassType: 'sawtooth',
+          leadType: 'square',
+          bassCutoff: 500,
+          leadCutoff: 2400,
+          leadBase: 220.00
+        };
+    }
+  }
+
   musicTick() {
     if (!this.ac) return;
-    const BPM = this.theme === 'boss' ? 140 : this.theme === 'overload' ? 150 : 126;
+    const prof = this.getMapMusicProfile();
+    let BPM = prof.bpm;
+    if (this.theme === 'boss') BPM = 144;
+    else if (this.theme === 'overload') BPM = 152;
     const STEP = 60 / BPM / 4;
     while (this.musicNext < this.ac.currentTime + 0.12) {
-      this.playStep(this.musicStep, this.musicNext, STEP);
+      this.playStep(this.musicStep, this.musicNext, STEP, prof);
       this.musicNext += STEP;
       this.musicStep++;
     }
   }
 
-  playStep(s, t, STEP) {
+  playStep(s, t, STEP, prof) {
     const M = this.musicGain;
     if (!M || M.gain.value <= 0.001) return;
 
-    const normalChords = [[0, 3, 7], [-4, 0, 3], [3, 7, 10], [-2, 2, 5]];
+    if (!prof) prof = this.getMapMusicProfile();
     const bossChords = [[0, 3, 6], [-2, 1, 5], [1, 4, 8], [-3, 0, 4]];
-    const chords = this.theme === 'boss' ? bossChords : normalChords;
+    const chords = this.theme === 'boss' ? bossChords : prof.chords;
 
     const bar = Math.floor(s / 16) % 4;
     const st = s % 16;
@@ -376,17 +510,21 @@ class SoundSystem {
       this.noise(t, 0.12, isOverload ? 0.18 : 0.13, 1900, 'bandpass', M);
     }
 
-    // Bassline
+    // Bassline (Map-spezifischer Bass-Sound)
     if (st % 2 === 0 || st === 7 || st === 15) {
       const root = ch[0] + (st % 8 === 6 ? 12 : 0);
       const f = 55 * Math.pow(2, root / 12);
-      this.note(t, f, STEP * 0.95, 'sawtooth', isOverload ? 0.26 : 0.18, M, 1, isOverload ? 800 : 500);
+      const bType = this.theme === 'boss' ? 'sawtooth' : prof.bassType;
+      const bCut = isOverload ? 800 : prof.bassCutoff;
+      this.note(t, f, STEP * 0.95, bType, isOverload ? 0.26 : 0.18, M, 1, bCut);
     }
 
-    // Arpeggio melody
+    // Arpeggio melody (Map-spezifischer Lead-Sound)
     const n = ch[st % 3] + 12 * (1 + (Math.floor(st / 3) % 2));
     const arpVol = isOverload ? 0.05 : 0.028;
-    this.note(t, 220 * Math.pow(2, n / 12), STEP * 0.8, 'square', arpVol, M, 1, 2400);
+    const lType = this.theme === 'boss' ? 'sawtooth' : prof.leadType;
+    const lBase = this.theme === 'boss' ? 220 : prof.leadBase;
+    this.note(t, lBase * Math.pow(2, n / 12), STEP * 0.8, lType, arpVol, M, 1, prof.leadCutoff);
   }
 }
 
