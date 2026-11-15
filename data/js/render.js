@@ -722,6 +722,23 @@ class RenderEngine {
       ctx.restore();
     }
 
+    // 5f. Minigame Mode Dimension Cores
+    if (entities.minigameCoresList && entities.minigameCoresList.length) {
+      for (const c of entities.minigameCoresList) {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(c.pulse);
+        ctx.fillStyle = '#00ffcc';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        this.poly(4, c.r, 0, 0);
+        ctx.fill();
+        ctx.stroke();
+        this.drawGlow(0, 0, 26, '#00ffcc', 0.6);
+        ctx.restore();
+      }
+    }
+
     // 6. Player Ship (8 Character models)
     if (window.GameState && window.GameState.state !== 'over') {
       const charKey = window.GameState.selectedCharacter || 'apex';
@@ -1225,13 +1242,25 @@ class RenderEngine {
     ctx.textAlign = 'center';
     ctx.font = '900 34px Segoe UI';
     ctx.fillStyle = '#ffffff';
-    const m = Math.floor(window.GameState.time / 60);
-    const s = Math.floor(window.GameState.time % 60);
+    const isMinigameMode = window.GameState.selectedMode === 'minigame';
+    let timeDisplay = window.GameState.time;
+    if (isMinigameMode) {
+      timeDisplay = Math.max(0, 180 - window.GameState.time);
+    }
+    const m = Math.floor(timeDisplay / 60);
+    const s = Math.floor(timeDisplay % 60);
     const timeStr = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     ctx.fillText(timeStr, W / 2, 50);
 
-    // Endlos-Modus Wellen-Anzeige
-    if (window.GameState.selectedMode === 'endless') {
+    // Minigame-Modus Header
+    if (isMinigameMode) {
+      const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+      ctx.font = '900 13px Segoe UI';
+      ctx.fillStyle = '#00ffcc';
+      const coresCount = window.GameState.minigameCores || 0;
+      const mgText = lang === 'en' ? `🎯 MINIGAME · CORES: ${coresCount}` : `🎯 MINISPIEL · KERNE: ${coresCount}`;
+      ctx.fillText(mgText, W / 2, 22);
+    } else if (window.GameState.selectedMode === 'endless') {
       const wave = window.GameState.endlessWave || 1;
       const wRemain = Math.ceil(window.GameState.endlessWaveTimer || 0);
       const wM = Math.floor(wRemain / 60);

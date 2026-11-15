@@ -33,7 +33,7 @@ class SaveSystem {
       },
       unlockedCharacters: ['apex'], // 'apex', 'valkyrie', 'colossus', 'tesla', 'specter', 'havoc', 'nova', 'chronos'
       unlockedMaps: ['void'],       // 'void', 'matrix', 'abyss', 'reactor', 'asteroids', 'glitch'
-      unlockedModes: ['classic', 'sandbox'],   // 'classic', 'endless', 'bossrush', 'hardcore', 'chaos', 'sandbox'
+      unlockedModes: ['classic', 'minigame', 'sandbox'],   // 'classic', 'minigame', 'endless', 'bossrush', 'hardcore', 'chaos', 'sandbox'
       selectedCharacter: 'apex',
       selectedMap: 'void',
       selectedMode: 'classic',
@@ -55,7 +55,8 @@ class SaveSystem {
         overloadsUsed: 0,
         bestEndlessWave: 1,
         portalsMastered: 0,
-        arcadeHighScore: 0
+        arcadeHighScore: 0,
+        minigamesWon: 0
       },
       settings: {
         volMaster: 0.8,
@@ -193,8 +194,21 @@ class SaveSystem {
     if (!d.settings.discordClientId || d.settings.discordClientId === '1306300000000000000') {
       d.settings.discordClientId = '1570824779005689919';
     }
-    if (!Array.isArray(d.unlockedModes)) d.unlockedModes = ['classic', 'sandbox'];
+    if (!Array.isArray(d.unlockedModes)) d.unlockedModes = ['classic', 'minigame', 'sandbox'];
     if (!d.unlockedModes.includes('sandbox')) d.unlockedModes.push('sandbox');
+    if (!d.unlockedModes.includes('minigame')) d.unlockedModes.push('minigame');
+    if (typeof d.stats.minigamesWon !== 'number') d.stats.minigamesWon = 0;
+
+    // Tastenbelegung bereinigen: KeyQ / KeyF / KeyR dürfen nie auf Overload liegen
+    if (d.settings && d.settings.keys) {
+      if (Array.isArray(d.settings.keys.overload)) {
+        d.settings.keys.overload = d.settings.keys.overload.filter(k => k !== 'KeyQ' && k !== 'KeyF' && k !== 'KeyR');
+        if (!d.settings.keys.overload.length) d.settings.keys.overload = ['KeyE'];
+      }
+      if (!Array.isArray(d.settings.keys.secondary) || !d.settings.keys.secondary.length) {
+        d.settings.keys.secondary = ['KeyQ', 'KeyF'];
+      }
+    }
   }
 
   // ----------------------------------------------------

@@ -445,6 +445,17 @@ window.GAME_DATA = {
       desc: { de: 'Überlebe 30 Minuten und besiege den finalen Arch-Sentinel.', en: 'Survive 30 minutes and defeat the Arch-Sentinel.' },
       unlock: { de: 'Standard', en: 'Default' }
     },
+    minigame: {
+      name: { de: 'Minispiel: Dimensions-Rallye', en: 'Minigame: Dimension Rally' },
+      icon: '🎯',
+      duration: 180,
+      isMinigame: true,
+      desc: {
+        de: '3-Minuten Highspeed-Modus! Sammle Dimensions-Kerne, zünde Overload & sichere dir riesige Credit-Jackpots.',
+        en: '3-Minute highspeed blitz! Collect dimension cores, trigger Overload & secure huge credit jackpots.'
+      },
+      unlock: { de: 'Standardmäßig verfügbar', en: 'Unlocked by default' }
+    },
     endless: {
       name: { de: 'Endlos (Wellen-Modus)', en: 'Endless (Wave Mode)' },
       duration: 0,

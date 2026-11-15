@@ -94,6 +94,11 @@ class InputSystem {
   }
 
   isActionCode(code, action) {
+    // Strikte Trennung: KeyQ / KeyF / KeyR dürfen NIEMALS Overload zünden
+    if (action === 'overload' && (code === 'KeyQ' || code === 'KeyF' || code === 'KeyR')) return false;
+    // KeyE darf NIEMALS die Sekundärfähigkeit zünden
+    if (action === 'secondary' && code === 'KeyE') return false;
+
     const settings = window.SaveSystem ? window.SaveSystem.getSettings() : null;
     const keys = settings && settings.keys ? settings.keys[action] : null;
     if (keys && keys.includes(code)) return true;

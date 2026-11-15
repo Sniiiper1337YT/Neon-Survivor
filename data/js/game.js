@@ -191,6 +191,8 @@ class GameController {
     this.afkPos = { x: 0, y: 0 };
     this.afkTimer = 0;
     this.lastAfkSurge = 0;
+    this.minigameCores = 0;
+    this.minigameCoreTimer = 1.0;
 
     // Reset weapons & passives
     this.weapons = {};
@@ -386,7 +388,7 @@ class GameController {
   }
 
   getNextBossInfo() {
-    if (this.selectedMode === 'sandbox') return null;
+    if (this.selectedMode === 'sandbox' || this.selectedMode === 'minigame') return null;
     if (this.currentBoss) return { active: true, name: this.currentBoss.name };
 
     const bossSchedule = ['scorpio', 'leviathan', 'titan', 'vortex_eye', 'chronos', 'arch_sentinel'];
@@ -448,6 +450,23 @@ class GameController {
       this.endlessWaveTimer -= dt;
       if (this.endlessWaveTimer <= 0) {
         this.completeEndlessWave();
+      }
+    }
+
+    // Minigame Mode (Dimensions-Rallye): Spawn Dimension Cores & fast-paced arcade timer
+    if (this.selectedMode === 'minigame') {
+      this.minigameCoreTimer -= dt;
+      if (this.minigameCoreTimer <= 0) {
+        this.minigameCoreTimer = 3.5;
+        if (window.Entities && (!window.Entities.minigameCoresList || window.Entities.minigameCoresList.length < 12)) {
+          const ang = Math.random() * Math.PI * 2;
+          const dist = 140 + Math.random() * 320;
+          window.Entities.spawnMinigameCore(P.x + Math.cos(ang) * dist, P.y + Math.sin(ang) * dist);
+        }
+      }
+      if (this.time >= 180) {
+        this.triggerVictory();
+        return;
       }
     }
 
@@ -680,7 +699,7 @@ class GameController {
   }
 
   checkBossTimeline() {
-    if (this.selectedMode === 'sandbox') return;
+    if (this.selectedMode === 'sandbox' || this.selectedMode === 'minigame') return;
     const bossSchedule = ['scorpio', 'leviathan', 'titan', 'vortex_eye', 'chronos', 'arch_sentinel'];
     if (this.selectedMode === 'bossrush') {
       if (this.time >= this.nextBossTime) {
@@ -1012,6 +1031,7 @@ class GameController {
       overStatsEl.innerHTML = `
         ${lang === 'en' ? 'Survived' : 'Überlebt'}: <b>${Math.floor(this.time / 60)}m ${Math.floor(this.time % 60)}s</b><br>
         ${this.selectedMode === 'endless' ? `${lang === 'en' ? 'Endless Wave Reached' : 'Erreichte Endlos-Welle'}: <b style="color:#3dfcff;font-size:20px;">🌊 ${this.endlessWave || 1}</b><br>` : ''}
+        ${this.selectedMode === 'minigame' ? `${lang === 'en' ? 'Dimension Cores Collected' : 'Gesammelte Dimensions-Kerne'}: <b style="color:#ffd23f;font-size:20px;">🎯 ${this.minigameCores || 0}</b><br>` : ''}
         Kills: <b>${this.kills}</b> &nbsp;·&nbsp; ${lang === 'en' ? 'Bosses' : 'Wächter'}: <b>${this.bossKills}</b><br>
         ${lang === 'en' ? 'Neon Credits earned' : 'Neon Credits verdient'}: <b style="color:#00ffcc;font-size:24px">+${finalCredits} 💎</b><br>
         ${lang === 'en' ? 'Score' : 'Punkte'}: <b style="color:#ffd23f;font-size:28px">${score.toLocaleString(loc)}</b>
@@ -1027,6 +1047,34 @@ class GameController {
       window.SoundSystem.sfx('victory');
       window.SoundSystem.setTheme('victory');
     }
+    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+    const vicStats = document.getElementById('vstats');
+
+    if (this.selectedMode === 'minigame') {
+      window.SaveSystem.data.stats.minigamesWon = (window.SaveSystem.data.stats.minigamesWon || 0) + 1;
+      window.SaveSystem.data.stats.bestSurvivalTime = Math.max(window.SaveSystem.data.stats.bestSurvivalTime || 0, this.time);
+      const coreCredits = (this.minigameCores || 0) * 35;
+      const totalBonus = 800 + coreCredits;
+      const bonusCredits = window.SaveSystem.addCredits(totalBonus) || totalBonus;
+      window.SaveSystem.save();
+      window.SaveSystem.checkAchievements();
+      if (window.DiscordRPC) window.DiscordRPC.setVictory(bonusCredits);
+
+      if (vicStats) {
+        vicStats.innerHTML = lang === 'en' ? `
+          Dimensions-Rallye Completed! You survived the 3-minute arcade gauntlet!<br><br>
+          Collected Dimension Cores: <b style="color:#ffd23f;font-size:24px">${this.minigameCores || 0}</b><br>
+          Victory Reward: <b style="color:#00ffcc;font-size:26px">+${bonusCredits} 💎 Neon Credits</b>
+        ` : `
+          Dimensions-Rallye abgeschlossen! Du hast den 3-Minuten-Arcade-Parcours gemeistert!<br><br>
+          Gesammelte Dimensions-Kerne: <b style="color:#ffd23f;font-size:24px">${this.minigameCores || 0}</b><br>
+          Sieg-Belohnung: <b style="color:#00ffcc;font-size:26px">+${bonusCredits} 💎 Neon Credits</b>
+        `;
+      }
+      window.UI.showScreen('victory');
+      return;
+    }
+
     window.SaveSystem.data.stats.runsWon++;
     window.SaveSystem.data.stats.bestSurvivalTime = Math.max(window.SaveSystem.data.stats.bestSurvivalTime || 0, this.time);
     const bonusCredits = window.SaveSystem.addCredits(1000) || 0;
@@ -1034,8 +1082,6 @@ class GameController {
     window.SaveSystem.checkAchievements();
     if (window.DiscordRPC) window.DiscordRPC.setVictory(bonusCredits);
 
-    const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
-    const vicStats = document.getElementById('vstats');
     if (vicStats) {
       vicStats.innerHTML = lang === 'en' ? `
         You have defeated the Arch-Sentinel and liberated the Neon Matrix!<br><br>

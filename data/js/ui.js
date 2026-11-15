@@ -512,6 +512,7 @@ class UIEngine {
       dist: { de: 'Flugdistanz', en: 'Flight Distance' },
       waves: { de: 'Beste Endlos-Welle', en: 'Best Endless Wave' },
       portals: { de: 'Portale gemeistert', en: 'Portals Mastered' },
+      minigames: { de: 'Minispiele gewonnen', en: 'Minigames Won' },
       arcade: { de: 'Arcade-Highscore', en: 'Arcade High Score' }
     };
 
@@ -519,6 +520,7 @@ class UIEngine {
       { icon: '☠️', label: labels.kills[lang] || labels.kills.de, val: (st.totalKills || 0).toLocaleString(loc) },
       { icon: '👑', label: labels.bosses[lang] || labels.bosses.de, val: (st.totalBossKills || 0).toLocaleString(loc) },
       { icon: '🌊', label: labels.waves[lang] || labels.waves.de, val: st.bestEndlessWave || 1 },
+      { icon: '🏁', label: labels.minigames[lang] || labels.minigames.de, val: st.minigamesWon || 0 },
       { icon: '🌀', label: labels.portals[lang] || labels.portals.de, val: st.portalsMastered || 0 },
       { icon: '🎯', label: labels.arcade[lang] || labels.arcade.de, val: (st.arcadeHighScore || 0).toLocaleString(loc) },
       { icon: '⏱️', label: labels.time[lang] || labels.time.de, val: `${hrs}h ${mins}m` },
@@ -553,7 +555,8 @@ class UIEngine {
       { id: 'left', label: { de: 'Links', en: 'Left' } },
       { id: 'right', label: { de: 'Rechts', en: 'Right' } },
       { id: 'dash', label: { de: 'Dash', en: 'Dash' } },
-      { id: 'overload', label: { de: 'Neon Overload', en: 'Neon Overload' } },
+      { id: 'secondary', label: { de: 'Spezialfähigkeit (Q)', en: 'Secondary Ability (Q)' } },
+      { id: 'overload', label: { de: 'Neon Overload (E)', en: 'Neon Overload (E)' } },
       { id: 'pause', label: { de: 'Pause', en: 'Pause' } }
     ];
 
@@ -578,6 +581,12 @@ class UIEngine {
             list[0] = ev.code;
           }
           s.keys[a.id] = list;
+          // Deconflict secondary vs overload to prevent double trigger
+          if (a.id === 'secondary' && s.keys.overload) {
+            s.keys.overload = s.keys.overload.filter(c => c !== ev.code);
+          } else if (a.id === 'overload' && s.keys.secondary) {
+            s.keys.secondary = s.keys.secondary.filter(c => c !== ev.code);
+          }
           window.SaveSystem.saveSettings(s);
           this.renderKeybindings();
           this.showToast(`${labelText}: ${ev.code}`);

@@ -83,6 +83,7 @@ class EntityManager {
     this.hazards = [];
     this.turrets = [];
     this.portals = [];
+    this.minigameCoresList = [];
     this.portalChallenge = null;
     this.hazardSpawnTimer = 0;
   }
@@ -105,6 +106,7 @@ class EntityManager {
     this.hazards.length = 0;
     this.turrets.length = 0;
     this.portals.length = 0;
+    this.minigameCoresList.length = 0;
     this.portalChallenge = null;
     this.hazardSpawnTimer = 0;
   }
@@ -437,6 +439,7 @@ class EntityManager {
     this.updateActiveSkills(dt, P);
     this.updatePortals(dt, P);
     this.updatePortalChallenge(dt, P);
+    this.updateMinigameCores(dt, P);
 
     // 1. Insert active enemies into grid
     for (let i = 0; i < this.enemies.length; i++) {
@@ -1731,6 +1734,49 @@ class EntityManager {
       }
     }
     this.portalChallenge = null;
+  }
+
+  // ==========================================
+  // MINIGAME-MODUS (DIMENSIONS-RALLYE)
+  // ==========================================
+  spawnMinigameCore(x, y) {
+    this.minigameCoresList.push({
+      x, y,
+      r: 16,
+      pulse: Math.random() * 6,
+      life: 35.0,
+      dead: false
+    });
+    this.spawnParticle(x, y, '#00ffcc', 14, 180, 3.5, 0.45);
+    this.fx.push({ type: 'ring', x, y, r0: 6, r1: 65, life: 0.3, max: 0.3, col: '#00ffcc' });
+  }
+
+  updateMinigameCores(dt, P) {
+    if (!this.minigameCoresList || !this.minigameCoresList.length) return;
+    for (const c of this.minigameCoresList) {
+      c.pulse += dt * 4;
+      c.life -= dt;
+      if (c.life <= 0) { c.dead = true; continue; }
+
+      const d = Math.hypot(P.x - c.x, P.y - c.y);
+      if (d < P.r + c.r + 14) {
+        c.dead = true;
+        if (window.GameState) {
+          window.GameState.minigameCores = (window.GameState.minigameCores || 0) + 1;
+          window.GameState.bonusScore = (window.GameState.bonusScore || 0) + 500;
+          P.overloadGauge = Math.min(100, (P.overloadGauge || 0) + 12);
+        }
+        this.spawnParticle(c.x, c.y, '#00ffcc', 24, 240, 4.5, 0.5);
+        this.addText(c.x, c.y, `+1 KERN (+500 ⭐)`, '#00ffcc', true);
+        this.fx.push({ type: 'ring', x: c.x, y: c.y, r0: 10, r1: 140, life: 0.32, max: 0.32, col: '#00ffcc' });
+        this.grid.query(c.x, c.y, 140, e => {
+          if (e.dead) return;
+          this.hurtEnemy(e, 45 * P.dmgMul, (e.x - c.x) * 3, (e.y - c.y) * 3);
+        });
+        if (window.SoundSystem) window.SoundSystem.sfx('minigame_combo');
+      }
+    }
+    this.minigameCoresList = this.minigameCoresList.filter(c => !c.dead);
   }
 }
 
