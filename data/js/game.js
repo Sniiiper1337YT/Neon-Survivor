@@ -322,6 +322,10 @@ class GameController {
     const P = this.player;
     if (!P || P.secondaryCd > 0 || this.state !== 'play') return;
     P.secondaryCd = P.secondaryMaxCd || 10;
+    if (window.SaveSystem && window.SaveSystem.data && window.SaveSystem.data.stats) {
+      window.SaveSystem.data.stats.secondariesUsed = (window.SaveSystem.data.stats.secondariesUsed || 0) + 1;
+      window.SaveSystem.checkAchievements();
+    }
     if (window.Entities) window.Entities.triggerSecondary(P.secondary, P);
   }
 
@@ -515,6 +519,10 @@ class GameController {
         P.inv = Math.max(P.inv, 0.35);
         P.dashCd = P.dashMaxCd || 1.0;
         this.dashHitSet.clear();
+        if (window.SaveSystem && window.SaveSystem.data && window.SaveSystem.data.stats) {
+          window.SaveSystem.data.stats.dashesUsed = (window.SaveSystem.data.stats.dashesUsed || 0) + 1;
+          window.SaveSystem.checkAchievements();
+        }
         if (window.SoundSystem) window.SoundSystem.sfx('dash');
         if (window.Input) window.Input.vibrate(100, 0.4, 0.6);
       }

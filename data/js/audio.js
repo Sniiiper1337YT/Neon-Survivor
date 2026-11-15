@@ -369,6 +369,16 @@ class SoundSystem {
         [1046, 880, 659, 523].forEach((f, i) => this.note(t + i * 0.07, f, 0.35, 'triangle', 0.12, D, 0.7));
         break;
 
+      case 'secondary_solar':
+        [220, 330, 440, 660, 880].forEach((f, i) => this.note(t + i * 0.04, f, 0.28, 'sawtooth', 0.15, D, 1.4, 2800));
+        this.noise(t, 0.35, 0.22, 2400, 'bandpass', D);
+        break;
+
+      case 'secondary_glitch':
+        [880, 240, 1320, 180, 1760].forEach((f, i) => this.note(t + i * 0.03, f, 0.18, 'square', 0.16, D, 0.5, 3000));
+        this.noise(t + 0.05, 0.28, 0.25, 4000, 'highpass', D);
+        break;
+
       case 'portal_enter':
       case 'portal_open':
         [330, 440, 660, 880, 1320].forEach((f, i) => this.note(t + i * 0.06, f, 0.28, 'sine', 0.11, D, 1.2));

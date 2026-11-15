@@ -56,7 +56,9 @@ class SaveSystem {
         bestEndlessWave: 1,
         portalsMastered: 0,
         arcadeHighScore: 0,
-        minigamesWon: 0
+        minigamesWon: 0,
+        dashesUsed: 0,
+        secondariesUsed: 0
       },
       settings: {
         volMaster: 0.8,
@@ -439,6 +441,7 @@ class SaveSystem {
     u('credits_2000', this.data.lifetimeCredits >= 2000);
     u('credits_5000', this.data.lifetimeCredits >= 5000);
     u('credits_10000', this.data.lifetimeCredits >= 10000);
+    u('credits_25000', this.data.lifetimeCredits >= 25000);
 
     // Skilltree achievements
     const totalSkills = Object.values(this.data.skilltree).reduce((acc, v) => acc + v, 0);
@@ -446,8 +449,25 @@ class SaveSystem {
     u('skills_15', totalSkills >= 15);
     u('skills_30', totalSkills >= 30);
 
+    // Endless waves & Portals
+    u('waves_5', (s.bestEndlessWave || 0) >= 5);
+    u('waves_10', (s.bestEndlessWave || 0) >= 10);
+    u('waves_20', (s.bestEndlessWave || 0) >= 20);
+    u('portal_master_1', (s.portalsMastered || 0) >= 1);
+    u('portal_master_5', (s.portalsMastered || 0) >= 5);
+    u('rally_win', (s.minigamesWon || 0) >= 1);
+
+    // Ability & Dash usage
+    u('secondary_10', (s.secondariesUsed || 0) >= 10);
+    u('secondary_50', (s.secondariesUsed || 0) >= 50);
+    u('dash_100', (s.dashesUsed || 0) >= 100);
+
     // Ensure unlocks are up-to-date before checking map/mode achievements
     this.checkUnlockRewards();
+
+    // Ship unlocks achievements
+    u('ship_solar', this.data.unlockedCharacters.includes('solar'));
+    u('ship_glitch', this.data.unlockedCharacters.includes('glitch'));
 
     // Map & Mode unlock achievements
     u('map_matrix', this.data.unlockedMaps.includes('matrix'));
@@ -466,6 +486,8 @@ class SaveSystem {
     if (a['kills_2500']) this.unlockCharacter('havoc');
     if (a['skills_15']) this.unlockCharacter('specter');
     if (a['boss_final']) this.unlockCharacter('chronos');
+    if (a['waves_10'] || a['ship_solar']) this.unlockCharacter('solar');
+    if (a['portal_master_5'] || a['ship_glitch']) this.unlockCharacter('glitch');
 
     // Map unlocks
     if (a['kills_100']) this.unlockMap('matrix');

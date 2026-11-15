@@ -1515,6 +1515,56 @@ class EntityManager {
         if (window.SoundSystem) window.SoundSystem.sfx('secondary_chronos');
         break;
       }
+
+      case 'solar_flare': {
+        this.fx.push({ type: 'ring', x: P.x, y: P.y, r0: 20, r1: 420, life: 0.5, max: 0.5, col: '#ffaa00' });
+        this.spawnParticle(P.x, P.y, '#ffaa00', 48, 380, 6, 0.65);
+        this.spawnParticle(P.x, P.y, '#ff3d00', 24, 280, 4, 0.5);
+        for (const eb of this.ebullets) {
+          if (Math.hypot(eb.x - P.x, eb.y - P.y) < 460) {
+            eb.dead = true;
+            this.spawnParticle(eb.x, eb.y, '#ffaa00', 3, 100, 2, 0.2);
+          }
+        }
+        this.grid.query(P.x, P.y, 420, e => {
+          if (e.dead) return;
+          const dx = e.x - P.x, dy = e.y - P.y, d = Math.hypot(dx, dy) || 1;
+          const force = (1 - d / 420) * 16;
+          e.burning = Math.max(e.burning || 0, 5.0);
+          this.hurtEnemy(e, 120 * P.dmgMul, (dx / d) * force, (dy / d) * force, true);
+        });
+        this.addText(P.x, P.y - 32, lang === 'en' ? '☀️ SOLAR FLARE!' : '☀️ SONNEN-ERUPTION!', '#ffaa00', true);
+        if (window.SoundSystem) window.SoundSystem.sfx('secondary_solar');
+        break;
+      }
+
+      case 'reality_rift': {
+        const riftX = P.x, riftY = P.y;
+        this.fx.push({ type: 'ring', x: riftX, y: riftY, r0: 480, r1: 30, life: 0.55, max: 0.55, col: '#00ffaa' });
+        this.spawnParticle(riftX, riftY, '#00ffaa', 40, 320, 5, 0.6);
+        this.spawnParticle(riftX, riftY, '#ff00aa', 20, 220, 4, 0.5);
+        this.grid.query(riftX, riftY, 480, e => {
+          if (e.dead) return;
+          const dx = riftX - e.x, dy = riftY - e.y, d = Math.hypot(dx, dy) || 1;
+          e.x += (dx / d) * Math.min(d, 220);
+          e.y += (dy / d) * Math.min(d, 220);
+          e.stunned = Math.max(e.stunned || 0, 2.0);
+          this.hurtEnemy(e, 140 * P.dmgMul, 0, 0, true);
+        });
+        for (const g of this.gems) {
+          if (!g.dead && Math.hypot(g.x - P.x, g.y - P.y) < 550) {
+            g.pulled = true;
+          }
+        }
+        for (const pu of this.powerups) {
+          if (!pu.dead && Math.hypot(pu.x - P.x, pu.y - P.y) < 550) {
+            pu.x = P.x; pu.y = P.y;
+          }
+        }
+        this.addText(P.x, P.y - 32, lang === 'en' ? '🌀 REALITY RIFT!' : '🌀 REALITÄTS-RISS!', '#00ffaa', true);
+        if (window.SoundSystem) window.SoundSystem.sfx('secondary_glitch');
+        break;
+      }
     }
   }
 

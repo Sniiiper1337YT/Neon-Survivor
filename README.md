@@ -19,7 +19,7 @@
 
 ## 🌟 Key Features
 
-### 🚀 8 Unique Starships & Active Secondary Abilities
+### 🚀 10 Unique Starships & Active Secondary Abilities
 Every playable starship comes with distinctive base attributes and a specialized tactical ability on cooldown (*Triggered via `Q` or `Right-Click`*):
 - **Apex-1:** *Drone Squadron* — Deploys 3 autonomous escort interceptors.
 - **Valkyrie:** *Warp Leap* — High-velocity 320px forward blink with kinetic shockwave & invulnerability frames.
@@ -29,6 +29,8 @@ Every playable starship comes with distinctive base attributes and a specialized
 - **Havoc-X:** *Cluster Barrage* — Wide-angle cluster-bomb missile spread for crowd clearing.
 - **Nova-Core:** *Fusion Shockwave* — Disintegrates incoming projectiles, knocks enemies back, and recharges +15% Overload energy.
 - **Chronos-X:** *Chronostasis* — Freezes all nearby enemies and enemy bullets in temporal suspension for 3.5s.
+- **Solaris-Prime:** *Solar Flare* — Unleashes an expanding 360° coronal wave (120 DMG, 48 radiant particles, burn DoT, projectile vaporizing).
+- **Glitch-Zero:** *Reality Rift* — Opens an imploding 480px singularity (140 DMG, 2s vortex stun, auto-vacuums all nearby gems & pickups).
 
 ### 🗡️ 15 Weapons & 15 Synergistic Evolutions
 Discover, upgrade, and evolve your arsenal into ultimate sci-fi superweapons:
@@ -49,9 +51,10 @@ Experience razor-sharp combat maneuvering. Your ship steers directly and respons
 - **Dedicated Cyberpunk Menu Soundtrack:** Smooth, atmospheric synthwave track playing seamlessly throughout all menus.
 - **Master Dynamics Limiter:** Integrated brickwall compressor preventing digital distortion during extreme screen-clearing explosions.
 
-### 💎 Permanent Meta-Progression
+### 💎 Permanent Meta-Progression & Career Stats
 - **Skill Tree:** Spend earned Neon Credits on permanent upgrades (Max HP, Armor, Critical Hit, Magnet Range, Flight Speed, XP Gain, Health Regen).
-- **50 Unlockable Achievements:** Track career milestones with in-game banners and credit bonuses.
+- **65 Unlockable Achievements:** Track career milestones with in-game banners and credit bonuses.
+- **Career Statistics:** Monitor lifetime kills, bosses eliminated, runs won, dashes executed, secondary abilities triggered, and total credits accumulated.
 - **Discord Rich Presence:** Automatically broadcasts your ship, level, kills, and arena live to Discord.
 
 ---
@@ -73,7 +76,7 @@ Experience razor-sharp combat maneuvering. Your ship steers directly and respons
 ## 🚀 Download & Installation
 
 1. Go to the [Latest Releases Page](https://github.com/Sniiiper1337YT/Neon-Survivor/releases/latest).
-2. Download the ready-to-play package: **`Neon-Survivor-Windows-v1.2.0.zip`**.
+2. Download the ready-to-play package: **`Neon-Survivor-Windows-v1.3.0.zip`**.
 3. Extract the ZIP archive anywhere on your PC (`Right-Click` → *Extract All...*).
 4. Launch **`Neon Survivor.exe`** and jump straight into the action!
 

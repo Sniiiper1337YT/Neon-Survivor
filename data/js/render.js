@@ -1088,6 +1088,28 @@ class RenderEngine {
         ctx.lineTo(-16, 16);
         ctx.lineTo(4, 14);
         break;
+      case 'solaris': // Solaris-Prime (Solar Trident Wing)
+        ctx.moveTo(26, 0);
+        ctx.lineTo(14, -8);
+        ctx.lineTo(20, -16);
+        ctx.lineTo(-4, -18);
+        ctx.lineTo(-12, -8);
+        ctx.lineTo(-6, 0);
+        ctx.lineTo(-12, 8);
+        ctx.lineTo(-4, 18);
+        ctx.lineTo(20, 16);
+        ctx.lineTo(14, 8);
+        break;
+      case 'glitch': // Glitch-Zero (Asymmetric Stealth Fighter)
+        ctx.moveTo(25, -2);
+        ctx.lineTo(14, -12);
+        ctx.lineTo(-6, -16);
+        ctx.lineTo(-14, -8);
+        ctx.lineTo(-18, 0);
+        ctx.lineTo(-10, 8);
+        ctx.lineTo(-4, 16);
+        ctx.lineTo(16, 8);
+        break;
       default: // Apex-1 Standard
         ctx.moveTo(20, 0);
         ctx.lineTo(-12, -13);
@@ -1111,6 +1133,22 @@ class RenderEngine {
       ctx.lineTo(10, 0);
       ctx.lineTo(-2, 9);
       ctx.strokeStyle = '#3dfcff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    } else if (hull === 'solaris') {
+      ctx.beginPath();
+      ctx.moveTo(8, -6);
+      ctx.lineTo(16, 0);
+      ctx.lineTo(8, 6);
+      ctx.strokeStyle = '#ffd23f';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+    } else if (hull === 'glitch') {
+      ctx.beginPath();
+      ctx.moveTo(-6, -6);
+      ctx.lineTo(6, 0);
+      ctx.lineTo(-6, 6);
+      ctx.strokeStyle = '#00ffaa';
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }

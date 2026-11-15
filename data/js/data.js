@@ -384,6 +384,32 @@ window.GAME_DATA = {
         icon: '⏳'
       },
       unlock: { de: 'Besiege den Endboss (Arch-Sentinel)', en: 'Defeat the final Arch-Sentinel' }
+    },
+    solar: {
+      name: 'Solaris-Prime', role: { de: 'Solar-Titan', en: 'Solar Titan' },
+      weapon: 'fire', col: '#ffaa00', hull: 'solaris',
+      stats: { hp: 160, spd: 220, dmg: 1.2, armor: 3, regen: 0.5, crit: 0.10, burnBonus: 1.5 },
+      secondary: {
+        id: 'solar_flare',
+        name: { de: 'Sonnen-Eruption', en: 'Solar Flare' },
+        desc: { de: 'Entfesselt einen radialen Sonnensturm (360°), der alle Feinde verbrennt & Schilde schmilzt', en: 'Unleashes a 360° solar coronal burst burning all foes & melting shields' },
+        cd: 9,
+        icon: '☀️'
+      },
+      unlock: { de: 'Überlebe 10 Wellen im Endlos-Modus', en: 'Survive 10 waves in Endless Mode' }
+    },
+    glitch: {
+      name: 'Glitch-Zero', role: { de: 'Dimensions-Brecher', en: 'Reality Breaker' },
+      weapon: 'mine', col: '#00ffaa', hull: 'glitch',
+      stats: { hp: 105, spd: 260, dmg: 1.35, armor: 1, regen: 0.25, crit: 0.22, warpCrit: true },
+      secondary: {
+        id: 'reality_rift',
+        name: { de: 'Realitäts-Riss', en: 'Reality Rift' },
+        desc: { de: 'Reißt ein Dimensionsloch auf: Saugt Gegner zusammen, implodiert für Flächenschaden & zieht alle Gems an', en: 'Opens a dimensional rift: Pulls enemies together, implodes for AoE damage & vacuums all gems' },
+        cd: 11,
+        icon: '🌀'
+      },
+      unlock: { de: 'Meistere 5 Dimensions-Portale', en: 'Master 5 Dimensional Portals' }
     }
   },
 
@@ -565,7 +591,28 @@ window.GAME_DATA = {
     map_reactor:  { icon: '☢️', title: { de: 'Im Reaktor', en: 'In the Reactor' }, desc: { de: 'Schalte den Plasma-Reaktor frei', en: 'Unlock Plasma Reactor map' } },
     mode_endless: { icon: '♾️', title: { de: 'Ohne Ende', en: 'Unending' }, desc: { de: 'Schalte den Endlos-Modus frei', en: 'Unlock Endless Mode' } },
     mode_bossrush:{ icon: '⚔️', title: { de: 'Sturm der Bosse', en: 'Boss Storm' }, desc: { de: 'Schalte den Boss-Rush frei', en: 'Unlock Boss Rush mode' } },
-    hardcore_win: { icon: '💀', title: { de: 'Reine Perfektion', en: 'Flawless Victory' }, desc: { de: 'Überlebe 10 Minuten im Hardcore-Modus', en: 'Survive 10 min in Hardcore mode' } }
+    hardcore_win: { icon: '💀', title: { de: 'Reine Perfektion', en: 'Flawless Victory' }, desc: { de: 'Überlebe 10 Minuten im Hardcore-Modus', en: 'Survive 10 min in Hardcore mode' } },
+
+    // Endlos-Wellen & Rallye (51-56)
+    waves_5:      { icon: '🌊', title: { de: 'Wellenreiter', en: 'Wave Rider' }, desc: { de: 'Erreiche Welle 5 im Endlos-Modus', en: 'Reach Wave 5 in Endless Mode' } },
+    waves_10:     { icon: '🏄', title: { de: 'Gezeiten-Bändiger', en: 'Tide Tamer' }, desc: { de: 'Erreiche Welle 10 im Endlos-Modus', en: 'Reach Wave 10 in Endless Mode' } },
+    waves_20:     { icon: '🌀', title: { de: 'Endlos-Titan', en: 'Endless Titan' }, desc: { de: 'Erreiche Welle 20 im Endlos-Modus', en: 'Reach Wave 20 in Endless Mode' } },
+    portal_master_1: { icon: '🚪', title: { de: 'Dimensions-Pionier', en: 'Dimension Pioneer' }, desc: { de: 'Meistere 1 Dimensions-Portal', en: 'Master 1 Dimensional Portal' } },
+    portal_master_5: { icon: '🌌', title: { de: 'Herr der Portale', en: 'Portal Conqueror' }, desc: { de: 'Meistere 5 Dimensions-Portale', en: 'Master 5 Dimensional Portals' } },
+    rally_win:    { icon: '🏁', title: { de: 'Rallye-Champion', en: 'Rally Champion' }, desc: { de: 'Überlebe die 3-Minuten Dimensions-Rallye', en: 'Survive the 3-minute Dimension Rally' } },
+
+    // Fähigkeiten & Kampf (57-61)
+    secondary_10: { icon: '⚡', title: { de: 'Taktiker', en: 'Tactician' }, desc: { de: 'Setze 10-mal deine Spezialfähigkeit (Q) ein', en: 'Use Secondary Ability (Q) 10 times' } },
+    secondary_50: { icon: '🎯', title: { de: 'Fähigkeiten-Meister', en: 'Ability Master' }, desc: { de: 'Setze 50-mal deine Spezialfähigkeit (Q) ein', en: 'Use Secondary Ability (Q) 50 times' } },
+    dash_100:     { icon: '💨', title: { de: 'Schatten-Sprint', en: 'Shadow Sprinter' }, desc: { de: 'Führe 100 Dash-Ausweichmanöver durch', en: 'Perform 100 dash maneuvers' } },
+    ship_solar:   { icon: '☀️', title: { de: 'Solar-Erweckung', en: 'Solar Awakening' }, desc: { de: 'Schalte das Raumschiff Solaris-Prime frei', en: 'Unlock the Solaris-Prime starship' } },
+    ship_glitch:  { icon: '👾', title: { de: 'Glitch-Infiltration', en: 'Glitch Infiltration' }, desc: { de: 'Schalte das Raumschiff Glitch-Zero frei', en: 'Unlock the Glitch-Zero starship' } },
+
+    // Endgame & Meisterschaft (62-65)
+    credits_25000:{ icon: '💎', title: { de: 'Credit-Imperator', en: 'Credit Emperor' }, desc: { de: 'Verdiene 25.000 Neon Credits insgesamt', en: 'Earn 25,000 lifetime Neon Credits' } },
+    all_evos_run: { icon: '🧬', title: { de: 'Singularitäts-Gott', en: 'Evolution Overlord' }, desc: { de: 'Halte 4 Waffen-Evolutionen gleichzeitig in einem Run', en: 'Hold 4 weapon evolutions at once in a run' } },
+    pacifist_3m:  { icon: '🕊️', title: { de: 'Pazifist im Sturm', en: 'Eye of the Storm' }, desc: { de: 'Überlebe 3 Minuten ohne Schaden zu nehmen', en: 'Survive 3 minutes without taking damage' } },
+    chaos_master: { icon: '🔥', title: { de: 'Chaos-Herrscher', en: 'Chaos Master' }, desc: { de: 'Gewinne eine Runde im Chaos-Modus', en: 'Win a run in Chaos Mode' } }
   },
 
   // ----------------------------------------------------
@@ -591,7 +638,7 @@ window.GAME_DATA = {
   // ----------------------------------------------------
   UI_TEXTS: {
     de: {
-      subTitle: '15 Waffen · 6 Bosse · 50 Erfolge · Meta-Progression',
+      subTitle: '10 Raumschiffe · 15 Waffen · 6 Bosse · 65 Erfolge · Meta-Progression',
       play: '▶ SPIELEN',
       ships: '🚀 Raumschiffe',
       maps: '🗺️ Arenen',
@@ -608,7 +655,7 @@ window.GAME_DATA = {
       mapModalTitle: 'WÄHLE DEINE ARENA',
       modeModalTitle: 'WÄHLE DEINEN SPIELMODUS',
       skillModalTitle: 'TALENTBAUM (PERMANENTE BONI)',
-      achModalTitle: '50 ERFOLGE',
+      achModalTitle: '65 ERFOLGE',
       statsModalTitle: 'KARRIERE-STATISTIKEN',
       settingsModalTitle: 'EINSTELLUNGEN',
       
@@ -704,7 +751,7 @@ window.GAME_DATA = {
       portalComplete: '🎉 PORTAL-HERAUSFORDERUNG MEISTERHAFT GELÖST!'
     },
     en: {
-      subTitle: '15 Weapons · 6 Bosses · 50 Achievements · Meta-Progression',
+      subTitle: '10 Starships · 15 Weapons · 6 Bosses · 65 Achievements · Meta-Progression',
       play: '▶ PLAY',
       ships: '🚀 Starships',
       maps: '🗺️ Arenas',
@@ -721,7 +768,7 @@ window.GAME_DATA = {
       mapModalTitle: 'CHOOSE YOUR ARENA',
       modeModalTitle: 'CHOOSE YOUR GAME MODE',
       skillModalTitle: 'SKILL TREE (PERMANENT BONUSES)',
-      achModalTitle: '50 ACHIEVEMENTS',
+      achModalTitle: '65 ACHIEVEMENTS',
       statsModalTitle: 'CAREER STATISTICS',
       settingsModalTitle: 'SETTINGS',
       

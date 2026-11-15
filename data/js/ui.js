@@ -52,7 +52,7 @@ class UIEngine {
     const titleDivs = document.querySelectorAll('#title > div');
     if (titleDivs.length >= 2) {
       titleDivs[titleDivs.length - 2].innerHTML = t.controlsHint;
-      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.2.0';
+      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.3.0';
       titleDivs[titleDivs.length - 1].innerHTML = `Neon Survivor <span id="lblCurrentVer">v${ver}</span> &nbsp;·&nbsp; ${t.footerDev}`;
     }
 
@@ -523,7 +523,8 @@ class UIEngine {
       waves: { de: 'Beste Endlos-Welle', en: 'Best Endless Wave' },
       portals: { de: 'Portale gemeistert', en: 'Portals Mastered' },
       minigames: { de: 'Minispiele gewonnen', en: 'Minigames Won' },
-      arcade: { de: 'Arcade-Highscore', en: 'Arcade High Score' }
+      secondaries: { de: 'Spezialfähigkeiten genutzt', en: 'Secondary Skills Used' },
+      dashes: { de: 'Dashes ausgeführt', en: 'Dashes Performed' }
     };
 
     const rows = [
@@ -532,6 +533,8 @@ class UIEngine {
       { icon: '🌊', label: labels.waves[lang] || labels.waves.de, val: st.bestEndlessWave || 1 },
       { icon: '🏁', label: labels.minigames[lang] || labels.minigames.de, val: st.minigamesWon || 0 },
       { icon: '🌀', label: labels.portals[lang] || labels.portals.de, val: st.portalsMastered || 0 },
+      { icon: '⚡', label: labels.secondaries[lang] || labels.secondaries.de, val: (st.secondariesUsed || 0).toLocaleString(loc) },
+      { icon: '💨', label: labels.dashes[lang] || labels.dashes.de, val: (st.dashesUsed || 0).toLocaleString(loc) },
       { icon: '⏱️', label: labels.time[lang] || labels.time.de, val: `${hrs}h ${mins}m` },
       { icon: '⏳', label: labels.best[lang] || labels.best.de, val: bestStr },
       { icon: '⭐', label: labels.level[lang] || labels.level.de, val: st.highestLevel || 1 },
