@@ -39,8 +39,8 @@ class WeaponEngine {
               vx: Math.cos(a) * (isEvo ? 850 : 700),
               vy: Math.sin(a) * (isEvo ? 850 : 700),
               r: isEvo ? 7 : 5.5,
-              dmg: (isEvo ? 55 + l * 8 : 14 + 6 * l) * dmgMul,
-              pierce: isEvo ? 5 : (1 + Math.floor(l / 3)),
+              dmg: (isEvo ? 65 + l * 10 : 16 + 8 * l) * dmgMul,
+              pierce: isEvo ? 6 : (1 + Math.floor(l / 2)),
               life: 1.4,
               hit: new Set()
             });
@@ -96,14 +96,14 @@ class WeaponEngine {
       if (w.t <= 0) {
         const isEvo = w.evolved;
         const l = w.lv;
-        const rad = (isEvo ? 280 : (130 + 22 * l)) * aoeMult;
+        const rad = (isEvo ? 300 : (140 + 24 * l)) * aoeMult;
         w.t = (isEvo ? 1.8 : (2.8 - 0.22 * (l - 1))) / rateMul;
 
         window.Entities.grid.query(P.x, P.y, rad, e => {
           if (e.dead) return;
           const dx = e.x - P.x, dy = e.y - P.y, d = Math.hypot(dx, dy) || 1;
           if (d < rad + e.r) {
-            window.Entities.hurtEnemy(e, (isEvo ? 80 + l * 14 : 24 + 12 * l) * dmgMul, (dx / d) * 650, (dy / d) * 650);
+            window.Entities.hurtEnemy(e, (isEvo ? 95 + l * 16 : 28 + 14 * l) * dmgMul, (dx / d) * 650, (dy / d) * 650);
           }
         });
 
@@ -132,7 +132,7 @@ class WeaponEngine {
           for (let j = 0; j < maxJumps && cur; j++) {
             hit.add(cur);
             pts.push([cur.x, cur.y]);
-            window.Entities.hurtEnemy(cur, (isEvo ? 65 + l * 10 : 25 + 10 * l) * dmgMul, 0, 0, isEvo);
+            window.Entities.hurtEnemy(cur, (isEvo ? 75 + l * 12 : 28 + 12 * l) * dmgMul, 0, 0, isEvo);
             window.Entities.spawnParticle(cur.x, cur.y, '#9fd8ff', 6, 180, 2, 0.3);
             cur = window.Entities.grid.nearest(cur.x, cur.y, 250, hit);
           }
@@ -176,8 +176,8 @@ class WeaponEngine {
               vy: Math.sin(a) * 260,
               spd: 260,
               life: 3.5,
-              dmg: (isEvo ? 85 + l * 15 : 28 + 12 * l) * dmgMul,
-              rad: (isEvo ? 130 : (70 + 8 * l)) * aoeMult,
+              dmg: (isEvo ? 95 + l * 18 : 34 + 14 * l) * dmgMul,
+              rad: (isEvo ? 145 : (80 + 10 * l)) * aoeMult,
               tg: null
             });
           }
@@ -314,8 +314,8 @@ class WeaponEngine {
           window.Entities.bullets.push({
             x: P.x, y: P.y,
             vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
-            r: isEvo ? 6 : 4, dmg: (isEvo ? 35 : 12 + l * 4) * dmgMul,
-            pierce: isEvo ? 3 : 1, life: 0.65, hit: new Set(),
+            r: isEvo ? 6.5 : 4.5, dmg: (isEvo ? 40 : 14 + l * 5) * dmgMul,
+            pierce: isEvo ? 4 : (l >= 4 ? 2 : 1), life: 0.65, hit: new Set(),
             isHellstorm: isEvo, col: isEvo ? '#ff8a3d' : '#ffd23f'
           });
         }
@@ -397,7 +397,7 @@ class WeaponEngine {
           col: col,
           size: (isEvo ? 14 : 9 + l * 1.5) * (0.8 + Math.random() * 0.6),
           isFlame: true,
-          dmg: (isEvo ? 50 : 16 + l * 4) * dmgMul
+          dmg: (isEvo ? 65 : 22 + l * 6) * dmgMul
         });
       }
 
@@ -410,7 +410,7 @@ class WeaponEngine {
           const toAng = Math.atan2(dy, dx);
           const diff = Math.abs(((toAng - P.face + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
           if (diff <= coneHalfAngle + 0.12) {
-            window.Entities.hurtEnemy(e, (isEvo ? 58 : 20 + l * 6) * dmgMul * dt * 4, dx * 0.25, dy * 0.25);
+            window.Entities.hurtEnemy(e, (isEvo ? 68 : 24 + l * 7) * dmgMul * dt * 4.5, dx * 0.25, dy * 0.25);
           }
         }
       });
@@ -430,7 +430,7 @@ class WeaponEngine {
             x: P.x, y: P.y,
             vx: Math.cos(a) * 480, vy: Math.sin(a) * 480,
             r: isEvo ? 14 : 9,
-            dmg: (isEvo ? 70 : 25 + l * 8) * dmgMul,
+            dmg: (isEvo ? 85 : 30 + l * 10) * dmgMul,
             pierce: 999, life: 1.6, hit: new Set(),
             isBoomerang: true, isStarScythe: isEvo,
             col: isEvo ? '#ff2d95' : '#ffd23f',

@@ -748,7 +748,7 @@ class GameController {
   spawnSwarm() {
     if (this.selectedMode === 'sandbox') return;
     const powerScore = (window.Entities && window.Entities.getPlayerPowerScore) ? window.Entities.getPlayerPowerScore() : 0;
-    const n = Math.min(65, 12 + Math.floor(this.time / 25) + Math.floor(powerScore * 2.5));
+    const n = Math.min(38, 12 + Math.floor(this.time / 40) + Math.floor(powerScore * 1.5));
     const R = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 50;
     const type = (this.time > 120 || powerScore >= 4) ? 'runner' : 'grunt';
     for (let i = 0; i < n; i++) {
@@ -764,13 +764,14 @@ class GameController {
   updateSpawning(dt) {
     if (this.selectedMode === 'sandbox' || this.sandboxPauseSpawns) return;
     const powerScore = (window.Entities && window.Entities.getPlayerPowerScore) ? window.Entities.getPlayerPowerScore() : 0;
-    const maxEnemies = Math.min(300, 220 + Math.floor(powerScore * 4));
-    if (window.Entities.enemies.length >= maxEnemies) return;
     const m = this.time / 60;
-    const chaosMul = this.activeChaosEvent === 'turbo_horde' ? 2.0 : 1.0;
-    const glitchMul = this.selectedMap === 'glitch' ? 1.25 : 1.0;
-    const powerSpawnMul = 1.0 + Math.min(1.5, powerScore * 0.08);
-    const spawnRate = (0.75 + m * 1.45 + m * m * 0.42) * chaosMul * glitchMul * powerSpawnMul * dt;
+    // Dynamisches Gegnerlimit: 110 früh -> 180-210 spät bei starkem Build (kein 300er-Klumpen)
+    const maxEnemies = Math.min(210, 110 + Math.floor(m * 4) + Math.floor(powerScore * 3));
+    if (window.Entities.enemies.length >= maxEnemies) return;
+    const chaosMul = this.activeChaosEvent === 'turbo_horde' ? 1.7 : 1.0;
+    const glitchMul = this.selectedMap === 'glitch' ? 1.2 : 1.0;
+    const powerSpawnMul = 1.0 + Math.min(0.45, powerScore * 0.05);
+    const spawnRate = (1.1 + m * 0.50 + Math.min(m * 0.12, 1.8)) * chaosMul * glitchMul * powerSpawnMul * dt;
     if (Math.random() < spawnRate) {
       const type = this.pickSpawnType();
       const a = Math.random() * Math.PI * 2;

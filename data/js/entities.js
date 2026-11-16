@@ -331,31 +331,33 @@ class EntityManager {
     const m = (window.GameState ? window.GameState.time : 0) / 60;
     const powerScore = this.getPlayerPowerScore();
 
-    // Dynamische Skalierung basierend auf Spieler-Stärke:
-    // Wenn der Spieler viele Waffen, EVOs und Buffs hat, skalieren HP und Tempo progressiv mit,
-    // damit Gegner nicht schon off-screen verpuffen und der Spieler immer packende Kämpfe hat.
-    const adaptiveHpMul = 1.0 + Math.pow(powerScore, 1.35) * 0.65;
-    const adaptiveSpdMul = 1.0 + Math.min(0.65, Math.pow(powerScore, 0.75) * 0.08);
-    const adaptiveDmgMul = 1.0 + Math.min(2.5, powerScore * 0.09);
+    // Lineare & faire zeitbasierte Skalierung (kein exponentieller Runaway bei Minute 8+):
+    // Minute 1: ~1.2x | Minute 5: ~2.0x | Minute 8: ~2.7x | Minute 15: ~4.5x | Minute 30: ~8.0x
+    const baseHpMul = 1.0 + m * 0.18 + Math.min(m * 0.06, 1.8);
+    const baseSpdMul = 1.0 + Math.min(m * 0.015, 0.35);
 
-    // Zeitbasierte Pacing-Skalierung
-    const baseHpMul = 0.90 + m * 0.55 + Math.pow(m, 2.05) * 0.08;
-    const baseSpdMul = 1.0 + Math.min(m * 0.035, 0.55);
+    // Progressive Skalierung bei starkem Spieler-Loadout ("gut aufgestellt"):
+    // Skaliert moderat mit (max +60% HP, +28% Speed, +40% Dmg),
+    // damit starke Builds gefordert werden, aber Mobs niemals zu unbesiegbaren Bullet-Sponges mutieren.
+    const adaptiveHpMul = 1.0 + Math.min(0.60, powerScore * 0.08);
+    const adaptiveSpdMul = 1.0 + Math.min(0.28, Math.pow(powerScore, 0.7) * 0.06);
+    const adaptiveDmgMul = 1.0 + Math.min(0.40, powerScore * 0.05);
 
     const hpMul = baseHpMul * adaptiveHpMul;
     const spdMul = baseSpdMul * adaptiveSpdMul;
 
     // Elite & Overcharged Champion Chance:
-    // Steigt mit Spielzeit und Spieler-Stärke deutlich an
-    const eliteChance = Math.min(0.40, 0.04 + m * 0.015 + (powerScore * 0.02));
+    // Belohnende und spannende Mini-Herausforderungen (max 18% Eliten)
+    const eliteChance = Math.min(0.18, 0.03 + m * 0.007 + powerScore * 0.008);
     const isElite = forceElite || (m >= 1.5 && Math.random() < eliteChance && type !== 'mini');
 
-    // Wenn der Spieler besonders stark ist (PowerScore >= 6), können Eliten zu Overcharged Champions mutieren
-    const isOvercharged = isElite && (powerScore >= 6.0) && (Math.random() < Math.min(0.55, (powerScore - 5.0) * 0.08));
+    // Overcharged Champions nur bei hochgradig ausgerüsteten Spielern (PowerScore >= 6), Chance max 25%
+    const isOvercharged = isElite && (powerScore >= 6.0) && (Math.random() < Math.min(0.25, (powerScore - 5.0) * 0.05));
 
-    const finalHpMul = hpMul * (isOvercharged ? 6.0 : (isElite ? 3.5 : 1.0));
-    const finalSpdMul = spdMul * (isOvercharged ? 1.35 : (isElite ? 1.25 : 1.0));
-    const finalR = isOvercharged ? def.r * 1.5 : (isElite ? def.r * 1.35 : def.r);
+    // Faire HP-Multiplikatoren: 2.2x für Elite, 3.5x für Overcharged
+    const finalHpMul = hpMul * (isOvercharged ? 3.5 : (isElite ? 2.2 : 1.0));
+    const finalSpdMul = spdMul * (isOvercharged ? 1.20 : (isElite ? 1.12 : 1.0));
+    const finalR = isOvercharged ? def.r * 1.35 : (isElite ? def.r * 1.20 : def.r);
     const finalCol = isOvercharged ? '#ff0055' : (isElite ? '#ffd23f' : def.col);
 
     return {
@@ -365,8 +367,8 @@ class EntityManager {
       hp: def.hp * finalHpMul,
       maxHp: def.hp * finalHpMul,
       spd: def.spd * finalSpdMul * (0.92 + Math.random() * 0.16),
-      dmg: def.dmg * (1 + m * 0.08) * adaptiveDmgMul * (isOvercharged ? 1.8 : (isElite ? 1.4 : 1.0)),
-      xp: def.xp * (isOvercharged ? 6 : (isElite ? 3 : 1)),
+      dmg: def.dmg * (1 + m * 0.03) * adaptiveDmgMul * (isOvercharged ? 1.4 : (isElite ? 1.2 : 1.0)),
+      xp: def.xp * (isOvercharged ? 5 : (isElite ? 2.5 : 1)),
       col: finalCol,
       shape: def.shape,
       flash: 0,
@@ -388,8 +390,8 @@ class EntityManager {
     if (!def) return null;
     const m = window.GameState.time / 60;
     const powerScore = this.getPlayerPowerScore();
-    const bossPowerHp = 1.0 + Math.pow(powerScore, 1.2) * 0.35;
-    const hp = def.hp * (1 + m * 0.08) * bossPowerHp;
+    const bossPowerHp = 1.0 + Math.min(0.55, powerScore * 0.06);
+    const hp = def.hp * (1 + m * 0.03) * bossPowerHp;
 
     const b = {
       id: bossKey,
@@ -1062,16 +1064,17 @@ class EntityManager {
       }
     }
 
-    // Soft crowd separation
+    // Natürliche Schwarm-Separation (Anti-Katamari / Anti-Clumping):
+    // Verhindert, dass Mobs zu einem undurchdringlichen Klumpen verschmelzen
     let sx = 0, sy = 0;
-    this.grid.query(e.x, e.y, e.r, o => {
+    this.grid.query(e.x, e.y, e.r + 16, o => {
       if (o === e || o.dead) return;
       const ox = e.x - o.x, oy = e.y - o.y, dd = ox * ox + oy * oy;
-      const mm = e.r + o.r + 6;
-      if (dd < mm * mm && dd > 0.01) {
-        const q = Math.sqrt(dd);
-        const force = o.isBoss ? 7.5 : (e.isBoss ? 0.3 : 2.2);
-        const f = ((mm - q) / mm) * force;
+      const mm = e.r + o.r + 8;
+      if (dd < mm * mm) {
+        const q = Math.sqrt(dd) || 0.1;
+        const force = o.isBoss ? 8.0 : (e.isBoss ? 0.3 : 3.2);
+        const f = Math.pow((mm - q) / mm, 1.2) * force;
         sx += (ox / q) * f;
         sy += (oy / q) * f;
       }
@@ -1082,8 +1085,8 @@ class EntityManager {
     e.kx *= damp;
     e.ky *= damp;
 
-    e.x += (mvx * currentSpd + sx * 180 + e.kx) * dt;
-    e.y += (mvy * currentSpd + sy * 180 + e.ky) * dt;
+    e.x += (mvx * currentSpd + sx * 220 + e.kx) * dt;
+    e.y += (mvy * currentSpd + sy * 220 + e.ky) * dt;
 
     if (e.shape === 'tri') e.rot = Math.atan2(dy, dx);
     else e.rot += dt * 1.5;
