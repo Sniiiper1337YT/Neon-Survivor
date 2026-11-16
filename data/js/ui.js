@@ -130,9 +130,11 @@ class UIEngine {
     if (lvlSub) lvlSub.innerHTML = lang === 'en' ? 'Choose an upgrade &nbsp;(1 / 2 / 3 or Click)' : 'Wähle ein Upgrade &nbsp;(1 / 2 / 3 oder Klick)';
     setT('rerollBtn', t.rerollBtn);
 
-    // Update banner
-    setT('btnUpdateDownload', t.updateDlBtn);
-    setT('btnUpdateDismiss', t.updateDismissBtn);
+    // Update banner i18n
+    setT('lblUpdateHeader', t.updateAvailable || (lang === 'en' ? '🚀 NEW UPDATE AVAILABLE:' : '🚀 NEUES UPDATE VERFÜGBAR:'));
+    setT('updateNotes', t.updateSub || (lang === 'en' ? 'A new version of Neon Survivor is available for download!' : 'Eine neue Version von Neon Survivor steht zum Download bereit!'));
+    setT('btnUpdateDownload', t.updateDlBtn || (lang === 'en' ? '⬇️ Update Now' : '⬇️ Jetzt Aktualisieren'));
+    setT('btnUpdateDismiss', t.updateDismissBtn || (lang === 'en' ? 'Later' : 'Später'));
 
     // Refresh whichever modal is currently active
     if (this.activeScreen === 'charModal') this.renderCharacterSelect();
