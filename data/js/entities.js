@@ -285,8 +285,8 @@ class EntityManager {
       window.SaveSystem.checkAchievements();
     }
 
-    // Victory check for 30m Arch-Sentinel (or 6th boss in Boss Rush) in finite modes (NEVER in sandbox/test mode)
-    if (boss.id === 'arch_sentinel' && window.GameState.selectedMode !== 'endless' && window.GameState.selectedMode !== 'sandbox') {
+    // Victory check for 30m Arch-Sentinel (or 6th boss in Boss Rush) in finite modes (NEVER in sandbox/test mode or active overtime)
+    if (boss.id === 'arch_sentinel' && window.GameState.selectedMode !== 'endless' && !window.GameState.isEndlessOvertime && window.GameState.selectedMode !== 'sandbox') {
       window.GameState.triggerVictory();
     }
   }

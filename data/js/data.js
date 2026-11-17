@@ -483,10 +483,10 @@ window.GAME_DATA = {
       unlock: { de: 'Standardmäßig verfügbar', en: 'Unlocked by default' }
     },
     endless: {
-      name: { de: 'Endlos (Wellen-Modus)', en: 'Endless (Wave Mode)' },
+      name: { de: 'Endlos (Wellen & Overtime)', en: 'Endless (Waves & Overtime)' },
       duration: 0,
-      desc: { de: 'Überlebe unendliche Feindwellen mit Event-Wellen, Boss-Duellen und Wellen-Boni.', en: 'Survive infinite enemy waves with event surges, boss duels, and wave clearing bonuses.' },
-      unlock: { de: 'Besiege deinen ersten Boss', en: 'Defeat your first boss' }
+      desc: { de: 'Überlebe unendliche Feindwellen mit Event-Wellen, Boss-Schlachten und Wellen-Boni für echte Rekordjäger!', en: 'Survive infinite enemy waves with event surges, boss battles, and wave clearing bonuses for true highscore hunters!' },
+      unlock: { de: 'Sofort verfügbar', en: 'Available from the start' }
     },
     bossrush: {
       name: { de: 'Boss-Rush', en: 'Boss Rush' },
@@ -691,6 +691,7 @@ window.GAME_DATA = {
       
       victoryTitle: 'SIEG!',
       vicAgainBtn: 'ZUM HAUPTMENÜ',
+      vicContinueBtn: '♾️ ENDLOS WEITERSPIELEN',
       
       levelUpTitle: 'STUFENAUFSTIEG!',
       levelUpSub: 'Wähle eine Waffe oder ein Upgrade:',
@@ -804,6 +805,7 @@ window.GAME_DATA = {
       
       victoryTitle: 'VICTORY!',
       vicAgainBtn: 'MAIN MENU',
+      vicContinueBtn: '♾️ CONTINUE ENDLESS',
       
       levelUpTitle: 'LEVEL UP!',
       levelUpSub: 'Choose a weapon or upgrade:',

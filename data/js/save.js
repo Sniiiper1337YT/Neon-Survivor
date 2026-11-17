@@ -33,7 +33,7 @@ class SaveSystem {
       },
       unlockedCharacters: ['apex'], // 'apex', 'valkyrie', 'colossus', 'tesla', 'specter', 'havoc', 'nova', 'chronos'
       unlockedMaps: ['void'],       // 'void', 'matrix', 'abyss', 'reactor', 'asteroids', 'glitch'
-      unlockedModes: ['classic', 'minigame', 'sandbox'],   // 'classic', 'minigame', 'endless', 'bossrush', 'hardcore', 'chaos', 'sandbox'
+      unlockedModes: ['classic', 'minigame', 'endless', 'sandbox'],   // 'classic', 'minigame', 'endless', 'bossrush', 'hardcore', 'chaos', 'sandbox'
       selectedCharacter: 'apex',
       selectedMap: 'void',
       selectedMode: 'classic',
@@ -192,9 +192,10 @@ class SaveSystem {
     if (!d.settings.discordClientId || d.settings.discordClientId === '1306300000000000000') {
       d.settings.discordClientId = '1570824779005689919';
     }
-    if (!Array.isArray(d.unlockedModes)) d.unlockedModes = ['classic', 'minigame', 'sandbox'];
+    if (!Array.isArray(d.unlockedModes)) d.unlockedModes = ['classic', 'minigame', 'endless', 'sandbox'];
     if (!d.unlockedModes.includes('sandbox')) d.unlockedModes.push('sandbox');
     if (!d.unlockedModes.includes('minigame')) d.unlockedModes.push('minigame');
+    if (!d.unlockedModes.includes('endless')) d.unlockedModes.push('endless');
     if (typeof d.stats.minigamesWon !== 'number') d.stats.minigamesWon = 0;
 
     // Tastenbelegung bereinigen: KeyQ / KeyF / KeyR dürfen nie auf Overload liegen

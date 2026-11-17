@@ -53,7 +53,7 @@ class UIEngine {
     const titleDivs = document.querySelectorAll('#title > div');
     if (titleDivs.length >= 2) {
       titleDivs[titleDivs.length - 2].innerHTML = t.controlsHint;
-      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.3.2';
+      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.3.3';
       titleDivs[titleDivs.length - 1].innerHTML = `Neon Survivor <span id="lblCurrentVer">v${ver}</span> &nbsp;·&nbsp; ${t.footerDev}`;
     }
 
@@ -125,6 +125,7 @@ class UIEngine {
 
     setModalH1('victory', t.victoryTitle);
     setT('btnVicAgain', t.vicAgainBtn);
+    setT('btnVicContinue', t.vicContinueBtn || (lang === 'en' ? '♾️ CONTINUE ENDLESS' : '♾️ ENDLOS WEITERSPIELEN'));
 
     setModalH1('levelup', t.levelUpTitle);
     const lvlSub = document.querySelector('#levelup > div');
@@ -523,6 +524,7 @@ class UIEngine {
       credits: { de: 'Credits gesamt verdient', en: 'Lifetime Credits Earned' },
       dist: { de: 'Flugdistanz', en: 'Flight Distance' },
       waves: { de: 'Beste Endlos-Welle', en: 'Best Endless Wave' },
+      endlessTime: { de: 'Beste Endlos-Zeit', en: 'Best Endless Time' },
       portals: { de: 'Portale gemeistert', en: 'Portals Mastered' },
       minigames: { de: 'Minispiele gewonnen', en: 'Minigames Won' },
       secondaries: { de: 'Spezialfähigkeiten genutzt', en: 'Secondary Skills Used' },
@@ -533,6 +535,7 @@ class UIEngine {
       { icon: '☠️', label: labels.kills[lang] || labels.kills.de, val: (st.totalKills || 0).toLocaleString(loc) },
       { icon: '👑', label: labels.bosses[lang] || labels.bosses.de, val: (st.totalBossKills || 0).toLocaleString(loc) },
       { icon: '🌊', label: labels.waves[lang] || labels.waves.de, val: st.bestEndlessWave || 1 },
+      { icon: '♾️', label: labels.endlessTime[lang] || labels.endlessTime.de, val: `${Math.floor((st.bestEndlessTime || 0) / 60)}m ${Math.floor((st.bestEndlessTime || 0) % 60)}s` },
       { icon: '🏁', label: labels.minigames[lang] || labels.minigames.de, val: st.minigamesWon || 0 },
       { icon: '🌀', label: labels.portals[lang] || labels.portals.de, val: st.portalsMastered || 0 },
       { icon: '⚡', label: labels.secondaries[lang] || labels.secondaries.de, val: (st.secondariesUsed || 0).toLocaleString(loc) },

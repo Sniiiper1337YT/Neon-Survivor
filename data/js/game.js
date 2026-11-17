@@ -25,6 +25,7 @@ class GameController {
     this.selectedCharacter = 'apex';
     this.selectedMap = 'void';
     this.selectedMode = 'classic';
+    this.isEndlessOvertime = false;
     this.currentBoss = null;
     this.sandboxGodMode = false;
     this.sandboxPauseSpawns = false;
@@ -163,6 +164,7 @@ class GameController {
     }
 
     this.time = 0;
+    this.isEndlessOvertime = false;
     this.endlessWave = 1;
     this.endlessWaveTimer = 60.0;
     this.portalSpawnTimer = 180.0;
@@ -351,6 +353,7 @@ class GameController {
 
     if (window.SaveSystem && window.SaveSystem.data && window.SaveSystem.data.stats) {
       window.SaveSystem.data.stats.bestEndlessWave = Math.max(window.SaveSystem.data.stats.bestEndlessWave || 1, this.endlessWave);
+      window.SaveSystem.data.stats.bestEndlessTime = Math.max(window.SaveSystem.data.stats.bestEndlessTime || 0, this.time);
       window.SaveSystem.save();
     }
 
@@ -449,8 +452,8 @@ class GameController {
       P.overloadCooldown = Math.max(0, P.overloadCooldown - dt);
     }
 
-    // Endless mode wave timer
-    if (this.selectedMode === 'endless') {
+    // Endless mode wave timer & Overtime
+    if (this.selectedMode === 'endless' || this.isEndlessOvertime) {
       this.endlessWaveTimer -= dt;
       if (this.endlessWaveTimer <= 0) {
         this.completeEndlessWave();
@@ -721,11 +724,11 @@ class GameController {
       return;
     }
 
-    if (this.selectedMode === 'endless') {
+    if (this.selectedMode === 'endless' || this.isEndlessOvertime) {
       if (this.time >= this.nextBossTime) {
         const nextKey = bossSchedule[this.nextBossIdx % bossSchedule.length];
         this.nextBossIdx++;
-        this.nextBossTime += 300;
+        this.nextBossTime += 180;
         const a = Math.random() * Math.PI * 2;
         const d = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 80;
         window.Entities.createBoss(nextKey, this.player.x + Math.cos(a) * d, this.player.y + Math.sin(a) * d);
@@ -1032,8 +1035,9 @@ class GameController {
     const score = Math.floor(this.time) * 10 + this.kills * 10 + this.bossKills * 2500 + this.bonusScore;
     window.SaveSystem.data.stats.highestScore = Math.max(window.SaveSystem.data.stats.highestScore, score);
     window.SaveSystem.data.stats.bestSurvivalTime = Math.max(window.SaveSystem.data.stats.bestSurvivalTime || 0, this.time);
-    if (this.selectedMode === 'endless') {
+    if (this.selectedMode === 'endless' || this.isEndlessOvertime) {
       window.SaveSystem.data.stats.bestEndlessWave = Math.max(window.SaveSystem.data.stats.bestEndlessWave || 1, this.endlessWave || 1);
+      window.SaveSystem.data.stats.bestEndlessTime = Math.max(window.SaveSystem.data.stats.bestEndlessTime || 0, this.time);
     }
     window.SaveSystem.save();
     window.SaveSystem.checkAchievements();
@@ -1042,8 +1046,9 @@ class GameController {
     const overStatsEl = document.getElementById('ostats');
     if (overStatsEl) {
       overStatsEl.innerHTML = `
+        ${this.isEndlessOvertime ? `<div style="color:#ffd23f;font-weight:900;font-size:16px;margin-bottom:6px;">★ ${lang === 'en' ? 'VICTORY OVERTIME RECAP' : 'SIEG-OVERTIME ABRECHNUNG'} ★</div>` : ''}
         ${lang === 'en' ? 'Survived' : 'Überlebt'}: <b>${Math.floor(this.time / 60)}m ${Math.floor(this.time % 60)}s</b><br>
-        ${this.selectedMode === 'endless' ? `${lang === 'en' ? 'Endless Wave Reached' : 'Erreichte Endlos-Welle'}: <b style="color:#3dfcff;font-size:20px;">🌊 ${this.endlessWave || 1}</b><br>` : ''}
+        ${(this.selectedMode === 'endless' || this.isEndlessOvertime) ? `${lang === 'en' ? 'Endless Wave Reached' : 'Erreichte Endlos-Welle'}: <b style="color:#3dfcff;font-size:20px;">🌊 ${this.endlessWave || 1}</b><br>` : ''}
         ${this.selectedMode === 'minigame' ? `${lang === 'en' ? 'Dimension Cores Collected' : 'Gesammelte Dimensions-Kerne'}: <b style="color:#ffd23f;font-size:20px;">🎯 ${this.minigameCores || 0}</b><br>` : ''}
         Kills: <b>${this.kills}</b> &nbsp;·&nbsp; ${lang === 'en' ? 'Bosses' : 'Wächter'}: <b>${this.bossKills}</b><br>
         ${lang === 'en' ? 'Neon Credits earned' : 'Neon Credits verdient'}: <b style="color:#00ffcc;font-size:24px">+${finalCredits} 💎</b><br>
@@ -1107,6 +1112,28 @@ class GameController {
       `;
     }
     window.UI.showScreen('victory');
+  }
+
+  continueEndlessOvertime() {
+    this.isEndlessOvertime = true;
+    this.state = 'play';
+    this.endlessWave = this.endlessWave || 1;
+    this.endlessWaveTimer = 60.0;
+    if (this.nextBossTime <= this.time) {
+      this.nextBossTime = this.time + 120;
+    }
+    if (window.UI) {
+      window.UI.showScreen(null);
+      const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+      const msg = lang === 'en'
+        ? '♾️ ENDLESS OVERTIME ACTIVATED! HOW LONG CAN YOU SURVIVE?'
+        : '♾️ ENDLOS-OVERTIME AKTIVIERT! WIE LANGE HÄLTST DU DURCH?';
+      window.UI.showBanner(msg, '#ffd23f');
+    }
+    if (window.SoundSystem) {
+      window.SoundSystem.sfx('overload');
+      window.SoundSystem.setTheme('boss');
+    }
   }
 
   loop() {

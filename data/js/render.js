@@ -1311,7 +1311,7 @@ class RenderEngine {
       const coresCount = window.GameState.minigameCores || 0;
       const mgText = lang === 'en' ? `🎯 MINIGAME · CORES: ${coresCount}` : `🎯 MINISPIEL · KERNE: ${coresCount}`;
       ctx.fillText(mgText, W / 2, 22);
-    } else if (window.GameState.selectedMode === 'endless') {
+    } else if (window.GameState.selectedMode === 'endless' || window.GameState.isEndlessOvertime) {
       const wave = window.GameState.endlessWave || 1;
       const wRemain = Math.ceil(window.GameState.endlessWaveTimer || 0);
       const wM = Math.floor(wRemain / 60);
@@ -1319,8 +1319,11 @@ class RenderEngine {
       const wStr = `${String(wM).padStart(2, '0')}:${String(wS).padStart(2, '0')}`;
       const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
       ctx.font = '900 13px Segoe UI';
-      ctx.fillStyle = '#3dfcff';
-      const waveText = lang === 'en' ? `🌊 WAVE ${wave} · NEXT IN ${wStr}` : `🌊 WELLE ${wave} · NÄCHSTE IN ${wStr}`;
+      ctx.fillStyle = window.GameState.isEndlessOvertime ? '#ffd23f' : '#3dfcff';
+      const isOt = window.GameState.isEndlessOvertime;
+      const waveText = isOt
+        ? (lang === 'en' ? `♾️ OVERTIME · WAVE ${wave} · NEXT IN ${wStr}` : `♾️ ENDLOS-OVERTIME · WELLE ${wave} · NÄCHSTE IN ${wStr}`)
+        : (lang === 'en' ? `🌊 WAVE ${wave} · NEXT IN ${wStr}` : `🌊 WELLE ${wave} · NÄCHSTE IN ${wStr}`);
       ctx.fillText(waveText, W / 2, 22);
     }
 
