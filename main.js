@@ -349,8 +349,22 @@ ipcMain.handle('discord:reconnect', () => {
 });
 
 // ==========================================
-// GITHUB AUTO-UPDATE CHECKER
+// GITHUB AUTO-UPDATER
+// ------------------------------------------
+// 1. On every start the game asks GitHub for the latest release.
+// 2. If it is newer, the small game package (app.asar, ~1 MB) attached to the
+//    release is downloaded straight into %APPDATA%\Neon Survivor\updates.
+// 3. The package is verified (size, SHA-256, asar structure, version) and the
+//    game restarts itself. bootstrap.js then boots the new version.
+// The heavy Electron runtime stays untouched - no ZIP, no installer, no admin.
 // ==========================================
+const UPDATE_API = process.env.NEON_UPDATE_API || 'https://api.github.com/repos/Sniiiper1337YT/Neon-Survivor/releases/latest';
+const RELEASES_PAGE = 'https://github.com/Sniiiper1337YT/Neon-Survivor/releases/latest';
+const UPDATE_INFO = global.__neonUpdate || { overlay: false };
+
+let ofs = fs;
+try { ofs = require('original-fs'); } catch (e) { /* plain Node fallback */ }
+
 function getAppVersion() {
   try {
     const pkgPath = path.join(__dirname, 'package.json');
@@ -359,7 +373,7 @@ function getAppVersion() {
       if (pkg && pkg.version) return pkg.version;
     }
   } catch (e) {}
-  return app.getVersion() || '1.3.1';
+  return app.getVersion() || '0.0.0';
 }
 
 ipcMain.on('app:getVersionSync', (event) => {
@@ -384,34 +398,251 @@ function compareSemver(remote, current) {
   return 0;
 }
 
-ipcMain.handle('app:checkUpdate', async () => {
+function cleanVersion(v) {
+  const p = parseSemver(String(v || ''));
+  return `${p[0]}.${p[1]}.${p[2]}`;
+}
+
+function updatesDir() {
+  return path.join(app.getPath('userData'), 'updates');
+}
+
+function updateLog(msg) {
   try {
-    const res = await fetch('https://api.github.com/repos/Sniiiper1337YT/Neon-Survivor/releases/latest', {
-      headers: { 'User-Agent': 'Neon-Survivor-Game' }
-    });
-    if (!res.ok) return { updateAvailable: false };
-    const rel = await res.json();
-    const remoteVer = rel.tag_name || rel.name || '';
-    const currentVer = getAppVersion();
-    const isNewer = compareSemver(remoteVer, currentVer) > 0;
-    let downloadUrl = rel.html_url;
-    if (Array.isArray(rel.assets) && rel.assets.length > 0) {
-      const zipAsset = rel.assets.find(a => a.name && a.name.endsWith('.zip')) || rel.assets[0];
-      if (zipAsset && zipAsset.browser_download_url) {
-        downloadUrl = zipAsset.browser_download_url;
-      }
+    const dir = updatesDir();
+    ofs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'update.log');
+    try { if (ofs.statSync(file).size > 256 * 1024) ofs.unlinkSync(file); } catch (e) {}
+    ofs.appendFileSync(file, `[${new Date().toISOString()}] ${msg}\n`);
+  } catch (e) { /* ignore */ }
+}
+
+function readBlockedVersions() {
+  try {
+    const list = JSON.parse(ofs.readFileSync(path.join(updatesDir(), 'blocked.json'), 'utf8'));
+    return Array.isArray(list) ? list.map(String) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// Reads an asar archive header without Electron's asar fs patching
+// Format: [uint32 4][uint32 headerPickleSize][uint32 payloadSize][uint32 jsonLen][json...]
+function readAsarPackageJson(file) {
+  const fd = ofs.openSync(file, 'r');
+  try {
+    const head = Buffer.alloc(16);
+    if (ofs.readSync(fd, head, 0, 16, 0) !== 16) throw new Error('archive too small');
+    if (head.readUInt32LE(0) !== 4) throw new Error('not an asar archive');
+    const headerPickleSize = head.readUInt32LE(4);
+    const jsonLen = head.readUInt32LE(12);
+    if (jsonLen <= 0 || jsonLen > 16 * 1024 * 1024) throw new Error('invalid asar header');
+    const jsonBuf = Buffer.alloc(jsonLen);
+    ofs.readSync(fd, jsonBuf, 0, jsonLen, 16);
+    const header = JSON.parse(jsonBuf.toString('utf8'));
+    const files = header && header.files;
+    if (!files || !files['main.js'] || !files['preload.js'] || !files['package.json'] || !files['data']) {
+      throw new Error('archive is missing game files');
     }
+    const entry = files['package.json'];
+    const size = Number(entry.size);
+    if (entry.unpacked || !Number.isFinite(size) || size <= 0 || size > 1024 * 1024) throw new Error('invalid package.json entry');
+    const buf = Buffer.alloc(size);
+    ofs.readSync(fd, buf, 0, size, 8 + headerPickleSize + Number(entry.offset));
+    return JSON.parse(buf.toString('utf8'));
+  } finally {
+    ofs.closeSync(fd);
+  }
+}
+
+let latestRelease = null;  // last result of the GitHub check (main process only - never trust renderer URLs)
+let installJob = null;     // running download promise
+let installedVersion = null;
+
+function canSelfUpdate() {
+  return app.isPackaged;
+}
+
+async function fetchLatestRelease() {
+  const res = await fetch(UPDATE_API, {
+    headers: { 'User-Agent': 'Neon-Survivor-Game', 'Accept': 'application/vnd.github+json' },
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!res.ok) throw new Error(`GitHub API HTTP ${res.status}`);
+  const rel = await res.json();
+  const version = cleanVersion(rel.tag_name || rel.name || '');
+  const assets = Array.isArray(rel.assets) ? rel.assets : [];
+  const zip = assets.find(a => a && /\.zip$/i.test(a.name || ''));
+  const asar = assets.find(a => a && /\.asar$/i.test(a.name || '') && a.browser_download_url);
+  return {
+    version,
+    title: rel.name || version,
+    notes: rel.body ? String(rel.body).slice(0, 400) : '',
+    pageUrl: rel.html_url || RELEASES_PAGE,
+    zipUrl: zip && zip.browser_download_url ? zip.browser_download_url : (rel.html_url || RELEASES_PAGE),
+    asar: asar ? {
+      url: asar.browser_download_url,
+      size: Number(asar.size) || 0,
+      sha256: typeof asar.digest === 'string' && /^sha256:[0-9a-f]{64}$/i.test(asar.digest) ? asar.digest.slice(7).toLowerCase() : null
+    } : null
+  };
+}
+
+ipcMain.handle('app:checkUpdate', async () => {
+  const currentVer = getAppVersion();
+  try {
+    const rel = await fetchLatestRelease();
+    latestRelease = rel;
+    const isNewer = compareSemver(rel.version, currentVer) > 0;
+    const blocked = readBlockedVersions().includes(rel.version);
+    const autoUpdate = isNewer && canSelfUpdate() && !!rel.asar && !blocked;
+    if (isNewer) updateLog(`Update found: v${currentVer} -> v${rel.version} (auto: ${autoUpdate})`);
     return {
       updateAvailable: isNewer,
+      autoUpdate,
+      readyToRestart: isNewer && installedVersion === rel.version,
       currentVersion: currentVer,
-      latestVersion: remoteVer,
-      downloadUrl,
-      title: rel.name || remoteVer,
-      notes: rel.body ? rel.body.slice(0, 200) : ''
+      latestVersion: rel.version,
+      downloadUrl: rel.zipUrl,
+      pageUrl: rel.pageUrl,
+      downloadSize: rel.asar ? rel.asar.size : 0,
+      title: rel.title,
+      notes: rel.notes
     };
   } catch (e) {
-    return { updateAvailable: false };
+    return { updateAvailable: false, currentVersion: currentVer, error: String(e && e.message || e) };
   }
+});
+
+async function downloadAndInstall(rel, sender) {
+  const dir = updatesDir();
+  ofs.mkdirSync(dir, { recursive: true });
+  const finalFile = path.join(dir, `app-${rel.version}.asar`);
+  const tmpFile = finalFile + '.download';
+  const expected = rel.asar.size;
+
+  let lastSent = 0;
+  const progress = (transferred, total, force) => {
+    const now = Date.now();
+    if (!force && now - lastSent < 80) return;
+    lastSent = now;
+    if (sender && !sender.isDestroyed()) {
+      sender.send('app:updateProgress', {
+        version: rel.version,
+        transferred,
+        total,
+        percent: total > 0 ? Math.min(100, Math.round((transferred / total) * 100)) : 0
+      });
+    }
+  };
+
+  updateLog(`Downloading v${rel.version} from ${rel.asar.url} (${expected} bytes)`);
+  const controller = new AbortController();
+  let idleTimer = null;
+  const armIdle = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => controller.abort(new Error('download stalled')), 30000);
+  };
+  armIdle();
+
+  let out = null;
+  try {
+    const res = await fetch(rel.asar.url, {
+      headers: { 'User-Agent': 'Neon-Survivor-Game', 'Accept': 'application/octet-stream' },
+      redirect: 'follow',
+      signal: controller.signal
+    });
+    if (!res.ok || !res.body) throw new Error(`download HTTP ${res.status}`);
+    const total = expected || Number(res.headers.get('content-length')) || 0;
+
+    const hash = crypto.createHash('sha256');
+    out = ofs.openSync(tmpFile, 'w');
+    let transferred = 0;
+    progress(0, total, true);
+    const reader = res.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      armIdle();
+      const chunk = Buffer.from(value);
+      ofs.writeSync(out, chunk);
+      hash.update(chunk);
+      transferred += chunk.length;
+      if (transferred > 64 * 1024 * 1024) throw new Error('download too large');
+      progress(transferred, total, false);
+    }
+    ofs.closeSync(out);
+    out = null;
+    progress(transferred, total, true);
+
+    // --- Verification ---
+    if (expected && transferred !== expected) throw new Error(`size mismatch (${transferred}/${expected})`);
+    const digest = hash.digest('hex');
+    if (rel.asar.sha256 && digest !== rel.asar.sha256) throw new Error('checksum mismatch');
+    const pkg = readAsarPackageJson(tmpFile);
+    if (cleanVersion(pkg.version) !== rel.version) throw new Error(`package version ${pkg.version} != ${rel.version}`);
+    if (pkg.minElectron && compareSemver(process.versions.electron, String(pkg.minElectron)) < 0) {
+      throw new Error(`requires Electron ${pkg.minElectron}`);
+    }
+    // Lets a future release demand a newer base game (e.g. bootstrapper changes)
+    if (pkg.minBaseVersion && compareSemver(UPDATE_INFO.baseVersion || getAppVersion(), String(pkg.minBaseVersion)) < 0) {
+      throw new Error(`requires base game ${pkg.minBaseVersion}`);
+    }
+
+    // --- Activate: the bootstrapper picks the newest app-<ver>.asar on next start ---
+    try { ofs.unlinkSync(finalFile); } catch (e) {}
+    ofs.renameSync(tmpFile, finalFile);
+    installedVersion = rel.version;
+    updateLog(`Installed v${rel.version} (sha256 ${digest})`);
+    return { ok: true, version: rel.version };
+  } catch (e) {
+    if (out !== null) { try { ofs.closeSync(out); } catch (e2) {} }
+    try { ofs.unlinkSync(tmpFile); } catch (e2) {}
+    const reason = (controller.signal.aborted && controller.signal.reason && controller.signal.reason.message) || (e && e.message) || String(e);
+    updateLog(`Update v${rel.version} failed: ${reason}`);
+    const needsFullDownload = /requires (Electron|base game)/.test(reason);
+    return { ok: false, error: reason, needsFullDownload, downloadUrl: rel.zipUrl };
+  } finally {
+    clearTimeout(idleTimer);
+  }
+}
+
+ipcMain.handle('app:installUpdate', async (event) => {
+  if (!canSelfUpdate()) return { ok: false, error: 'not packaged' };
+  if (installJob) return installJob;
+  installJob = (async () => {
+    try {
+      const rel = latestRelease || await fetchLatestRelease();
+      latestRelease = rel;
+      if (compareSemver(rel.version, getAppVersion()) <= 0) return { ok: false, error: 'already up to date' };
+      if (installedVersion === rel.version) return { ok: true, version: rel.version };
+      if (!rel.asar) return { ok: false, error: 'no update package', needsFullDownload: true, downloadUrl: rel.zipUrl };
+      return await downloadAndInstall(rel, event.sender);
+    } catch (e) {
+      return { ok: false, error: String(e && e.message || e) };
+    } finally {
+      installJob = null;
+    }
+  })();
+  return installJob;
+});
+
+ipcMain.handle('app:restartForUpdate', () => {
+  if (!installedVersion) return false;
+  updateLog(`Restarting into v${installedVersion}`);
+  setTimeout(() => {
+    app.relaunch();
+    app.quit();
+  }, 150);
+  return true;
+});
+
+ipcMain.on('app:updateInfoSync', (event) => {
+  event.returnValue = {
+    overlay: !!UPDATE_INFO.overlay,
+    baseVersion: UPDATE_INFO.baseVersion || getAppVersion(),
+    canSelfUpdate: canSelfUpdate()
+  };
 });
 
 ipcMain.handle('app:openExternal', (_e, url) => {

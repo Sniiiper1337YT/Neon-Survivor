@@ -510,6 +510,34 @@ canvas { display: block; }
   background: rgba(255, 45, 149, 0.25);
   border-color: #ff2d95;
 }
+/* ===== AUTO-UPDATE BANNER ===== */
+.upd-banner {
+  display: none; max-width: 540px; margin: 12px auto 16px auto; padding: 10px 18px;
+  background: rgba(0, 255, 204, 0.08); border: 1.5px solid #00ffcc; border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0, 255, 204, 0.25); text-align: center;
+  animation: modalIn .35s ease-out;
+}
+.upd-banner.show { display: block; }
+.upd-banner[data-state="error"] { border-color: #ff3366; background: rgba(255, 51, 102, 0.08); box-shadow: 0 0 20px rgba(255, 51, 102, 0.25); }
+.upd-banner[data-state="ready"], .upd-banner[data-state="updated"] { border-color: #ffd23f; background: rgba(255, 210, 63, 0.08); box-shadow: 0 0 22px rgba(255, 210, 63, 0.3); }
+.upd-head { font-weight: 900; color: #00ffcc; font-size: 15px; letter-spacing: 1px; }
+.upd-banner[data-state="error"] .upd-head { color: #ff3366; }
+.upd-banner[data-state="ready"] .upd-head, .upd-banner[data-state="updated"] .upd-head { color: #ffd23f; }
+.upd-notes { font-size: 12px; color: #aaa; margin: 4px 0 8px 0; }
+.upd-progress { display: none; margin: 6px 0 4px 0; }
+.upd-banner[data-state="downloading"] .upd-progress { display: block; }
+.upd-bar { position: relative; height: 10px; border-radius: 6px; overflow: hidden; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(0, 255, 204, 0.4); }
+.upd-fill {
+  height: 100%; width: 0%; border-radius: 6px; transition: width .15s linear;
+  background: linear-gradient(90deg, #00ffcc, #00b3ff, #ff00e6); background-size: 200% 100%;
+  box-shadow: 0 0 12px rgba(0, 255, 204, 0.8); animation: updFlow 1.2s linear infinite;
+}
+@keyframes updFlow { from { background-position: 0% 0; } to { background-position: 200% 0; } }
+.upd-meta { font-size: 11px; color: #8fe; margin-top: 4px; font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+.upd-actions { display: flex; justify-content: center; gap: 10px; }
+.upd-actions .btn { padding: 6px 16px; font-size: 12px; margin: 0; }
+.upd-actions #btnUpdateDismiss { padding: 6px 12px; border-color: #555; color: #888; }
+.upd-actions .btn[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -521,17 +549,19 @@ canvas { display: block; }
   <div class="logo">NEON<br><span>SURVIVOR</span></div>
   <div class="sub">10 Raumschiffe · 15 Waffen · 6 Bosse · 65 Erfolge · Meta-Progression</div>
 
-  <!-- DYNAMIC GITHUB UPDATE BANNER -->
-  <div id="updateBanner" style="display:none; max-width:540px; margin: 12px auto 16px auto; background: rgba(0, 255, 204, 0.08); border: 1.5px solid #00ffcc; border-radius: 8px; padding: 10px 18px; box-shadow: 0 0 20px rgba(0, 255, 204, 0.25); text-align: center;">
-    <div style="font-weight:900; color:#00ffcc; font-size:15px; letter-spacing:1px;">
+  <!-- DYNAMIC GITHUB AUTO-UPDATE BANNER -->
+  <div id="updateBanner" class="upd-banner" data-state="hidden">
+    <div class="upd-head">
       <span id="lblUpdateHeader">🚀 NEUES UPDATE VERFÜGBAR:</span> <span id="updateTag"></span>
     </div>
-    <div style="font-size:12px; color:#aaa; margin: 4px 0 8px 0;" id="updateNotes">
-      Eine neue Version von Neon Survivor steht zum Download bereit!
+    <div class="upd-notes" id="updateNotes">Eine neue Version von Neon Survivor steht zum Download bereit!</div>
+    <div class="upd-progress" id="updateProgress">
+      <div class="upd-bar"><div class="upd-fill" id="updateProgressFill"></div></div>
+      <div class="upd-meta" id="updateProgressLabel">0%</div>
     </div>
-    <div style="display:flex; justify-content:center; gap:10px;">
-      <button class="btn act" id="btnUpdateDownload" style="padding:6px 16px; font-size:12px; margin:0;">⬇️ Jetzt Aktualisieren</button>
-      <button class="btn sec" id="btnUpdateDismiss" style="padding:6px 12px; font-size:12px; margin:0; border-color:#555; color:#888;">Später</button>
+    <div class="upd-actions">
+      <button class="btn act" id="btnUpdateDownload">⬇️ Jetzt Aktualisieren</button>
+      <button class="btn sec" id="btnUpdateDismiss">Später</button>
     </div>
   </div>
 
@@ -965,83 +995,290 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
-  // GITHUB AUTO-UPDATE CHECKER
+  // GITHUB AUTO-UPDATER (UI)
+  // Checks on every start, downloads the update in the background,
+  // verifies it and restarts the game - fully automatic, no ZIP needed.
   // ==========================================
-  const checkUpdates = async () => {
-    try {
-      const currentVer = (window.NeonNative && window.NeonNative.appVersion) || '1.3.1';
-      const lblVer = document.getElementById('lblCurrentVer');
-      if (lblVer) lblVer.innerText = 'v' + currentVer;
+  window.NeonUpdater = (() => {
+    const N = window.NeonNative || null;
+    const JUST_UPDATED_KEY = 'neon_update_justUpdated';
+    const RECHECK_MS = 30 * 60 * 1000;
+    const COUNTDOWN_S = 5;
 
-      let info = null;
-      if (window.NeonNative && window.NeonNative.checkForUpdates) {
-        info = await window.NeonNative.checkForUpdates();
-      } else {
-        const res = await fetch('https://api.github.com/repos/Sniiiper1337YT/Neon-Survivor/releases/latest');
-        if (res.ok) {
-          const rel = await res.json();
-          const remoteVer = rel.tag_name || rel.name || '';
-          const parse = v => (v || '').replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
-          const r = parse(remoteVer), c = parse(currentVer);
-          let isNewer = false;
-          for (let i = 0; i < 3; i++) {
-            if ((r[i] || 0) > (c[i] || 0)) { isNewer = true; break; }
-            if ((r[i] || 0) < (c[i] || 0)) break;
-          }
-          if (isNewer) {
-            let dl = rel.html_url;
-            if (Array.isArray(rel.assets) && rel.assets.length > 0) {
-              const zipAsset = rel.assets.find(a => a.name && a.name.endsWith('.zip')) || rel.assets[0];
-              if (zipAsset && zipAsset.browser_download_url) dl = zipAsset.browser_download_url;
-            }
-            info = {
-              updateAvailable: true,
-              latestVersion: remoteVer,
-              downloadUrl: dl,
-              notes: rel.name || 'Neues Update verfügbar!'
-            };
-          }
-        }
+    const TEXTS = {
+      de: {
+        available: '🚀 NEUES UPDATE VERFÜGBAR:',
+        availableSub: 'Eine neue Version von Neon Survivor ist da – sie wird automatisch installiert.',
+        manualSub: 'Lade diese Version einmalig herunter – danach aktualisiert sich das Spiel von selbst.',
+        fullSub: 'Dieses Update benötigt einmalig den vollständigen Download.',
+        updateBtn: '⬇️ Jetzt Aktualisieren',
+        later: 'Später',
+        downloading: '⬇️ UPDATE WIRD GELADEN:',
+        downloadingSub: 'Das Update wird automatisch heruntergeladen und installiert …',
+        verifying: 'Wird überprüft …',
+        ready: '✅ UPDATE INSTALLIERT:',
+        readyCountdown: n => `Neon Survivor startet in ${n} Sekunde${n === 1 ? '' : 'n'} neu, um das Update zu aktivieren.`,
+        readySub: 'Wird beim nächsten Start automatisch aktiv – oder starte jetzt neu.',
+        restartBtn: '🔄 Jetzt neu starten',
+        restarting: 'Neustart …',
+        error: '⚠️ UPDATE FEHLGESCHLAGEN:',
+        errorSub: 'Das Update konnte nicht geladen werden. Prüfe deine Internetverbindung.',
+        retryBtn: '🔁 Erneut versuchen',
+        manualBtn: '🌐 Manuell laden',
+        updated: '✨ AKTUALISIERT AUF',
+        updatedSub: 'Das Spiel ist jetzt auf dem neuesten Stand. Viel Spaß!',
+        ok: 'OK'
+      },
+      en: {
+        available: '🚀 NEW UPDATE AVAILABLE:',
+        availableSub: 'A new version of Neon Survivor is here – it will be installed automatically.',
+        manualSub: 'Download this version once – after that the game updates itself.',
+        fullSub: 'This update requires a one-time full download.',
+        updateBtn: '⬇️ Update Now',
+        later: 'Later',
+        downloading: '⬇️ DOWNLOADING UPDATE:',
+        downloadingSub: 'The update is being downloaded and installed automatically …',
+        verifying: 'Verifying …',
+        ready: '✅ UPDATE INSTALLED:',
+        readyCountdown: n => `Neon Survivor restarts in ${n} second${n === 1 ? '' : 's'} to apply the update.`,
+        readySub: 'It will be applied on the next start – or restart now.',
+        restartBtn: '🔄 Restart Now',
+        restarting: 'Restarting …',
+        error: '⚠️ UPDATE FAILED:',
+        errorSub: 'The update could not be downloaded. Please check your internet connection.',
+        retryBtn: '🔁 Try Again',
+        manualBtn: '🌐 Download Manually',
+        updated: '✨ UPDATED TO',
+        updatedSub: 'Your game is now up to date. Have fun!',
+        ok: 'OK'
       }
+    };
 
-      if (info && info.updateAvailable) {
-        const banner = document.getElementById('updateBanner');
-        const tag = document.getElementById('updateTag');
-        const notes = document.getElementById('updateNotes');
-        const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
-        const t = (window.GAME_DATA && window.GAME_DATA.UI_TEXTS && (window.GAME_DATA.UI_TEXTS[lang] || window.GAME_DATA.UI_TEXTS.de)) || {};
+    const st = {
+      state: 'hidden',      // hidden | available | downloading | ready | error | updated
+      info: null,
+      progress: { percent: 0, transferred: 0, total: 0 },
+      countdown: 0,
+      countdownTimer: null,
+      dismissed: false,
+      needsFull: false,
+      checking: false
+    };
 
-        if (tag && info.latestVersion) tag.innerText = info.latestVersion;
-        if (notes) {
-          notes.innerText = t.updateSub || (lang === 'en' ? 'A new version of Neon Survivor is available for download!' : 'Eine neue Version von Neon Survivor steht zum Download bereit!');
-        }
-        if (window.UI && window.UI.applyLanguage) {
-          window.UI.applyLanguage(lang);
-        }
-        if (banner) banner.style.display = 'block';
+    const $ = id => document.getElementById(id);
+    const lang = () => {
+      try { return (window.SaveSystem && window.SaveSystem.getSettings().lang) === 'en' ? 'en' : 'de'; } catch (e) { return 'de'; }
+    };
+    const T = () => TEXTS[lang()];
+    const currentVersion = () => (N && N.appVersion) || '0.0.0';
+    const fmtSize = b => {
+      if (!b) return '0 KB';
+      return b >= 1024 * 1024 ? (b / 1048576).toFixed(2) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
+    };
+    const isMenuIdle = () => {
+      const gs = window.GameState;
+      const inRun = gs && ['play', 'pause', 'levelup'].includes(gs.state);
+      const screen = window.UI ? window.UI.activeScreen : 'title';
+      return !inRun && screen === 'title';
+    };
+    const openUrl = url => {
+      const target = url || 'https://github.com/Sniiiper1337YT/Neon-Survivor/releases/latest';
+      if (N && N.openExternal) N.openExternal(target);
+      else window.open(target, '_blank');
+    };
 
-        const btnDl = document.getElementById('btnUpdateDownload');
-        if (btnDl) {
-          btnDl.onclick = () => {
-            const targetUrl = info.downloadUrl || 'https://github.com/Sniiiper1337YT/Neon-Survivor/releases';
-            if (window.NeonNative && window.NeonNative.openExternal) {
-              window.NeonNative.openExternal(targetUrl);
-            } else {
-              window.open(targetUrl, '_blank');
-            }
-          };
-        }
-        const btnDismiss = document.getElementById('btnUpdateDismiss');
-        if (btnDismiss) {
-          btnDismiss.onclick = () => { if (banner) banner.style.display = 'none'; };
-        }
-      }
-    } catch (err) {
-      console.log('Update-Check übersprungen:', err.message);
+    function setState(s) {
+      st.state = s;
+      if (s !== 'ready') stopCountdown();
+      render();
     }
-  };
 
-  setTimeout(checkUpdates, 1500);
+    function stopCountdown() {
+      if (st.countdownTimer) clearInterval(st.countdownTimer);
+      st.countdownTimer = null;
+      st.countdown = 0;
+    }
+
+    function startCountdown() {
+      if (st.state !== 'ready' || st.dismissed || st.countdownTimer || !isMenuIdle()) return;
+      st.countdown = COUNTDOWN_S;
+      st.countdownTimer = setInterval(() => {
+        if (!isMenuIdle()) { stopCountdown(); render(); return; } // player started a run / opened a menu
+        st.countdown--;
+        if (st.countdown <= 0) { stopCountdown(); restart(); return; }
+        render();
+      }, 1000);
+      render();
+    }
+
+    function render() {
+      const banner = $('updateBanner');
+      if (!banner) return;
+      const t = T();
+      const head = $('lblUpdateHeader'), tag = $('updateTag'), notes = $('updateNotes');
+      const btnA = $('btnUpdateDownload'), btnB = $('btnUpdateDismiss');
+      const fill = $('updateProgressFill'), plabel = $('updateProgressLabel');
+      const ver = st.info && st.info.latestVersion ? 'v' + String(st.info.latestVersion).replace(/^v/i, '') : '';
+
+      banner.dataset.state = st.state;
+      banner.classList.toggle('show', st.state !== 'hidden' && !(st.dismissed && st.state !== 'downloading'));
+      const setBtn = (btn, label, handler) => {
+        if (!btn) return;
+        btn.hidden = !label;
+        btn.disabled = false;
+        if (label) btn.innerText = label;
+        btn.onclick = handler || null;
+      };
+
+      switch (st.state) {
+        case 'available': {
+          const auto = st.info && st.info.autoUpdate && !st.needsFull;
+          head.innerText = t.available; tag.innerText = ver;
+          notes.innerText = auto ? t.availableSub : (st.needsFull ? t.fullSub : t.manualSub);
+          setBtn(btnA, t.updateBtn, () => auto ? install() : openUrl(st.info && st.info.downloadUrl));
+          setBtn(btnB, t.later, () => { st.dismissed = true; render(); });
+          break;
+        }
+        case 'downloading': {
+          const p = st.progress;
+          head.innerText = t.downloading; tag.innerText = ver;
+          notes.innerText = t.downloadingSub;
+          if (fill) fill.style.width = (p.percent || 0) + '%';
+          if (plabel) {
+            plabel.innerText = p.percent >= 100 ? t.verifying
+              : `${p.percent || 0}%  ·  ${fmtSize(p.transferred)} / ${fmtSize(p.total)}`;
+          }
+          setBtn(btnA, null); setBtn(btnB, null);
+          break;
+        }
+        case 'ready':
+          head.innerText = t.ready; tag.innerText = ver;
+          notes.innerText = st.countdown > 0 ? t.readyCountdown(st.countdown) : t.readySub;
+          setBtn(btnA, t.restartBtn, restart);
+          setBtn(btnB, t.later, () => { st.dismissed = true; stopCountdown(); render(); });
+          break;
+        case 'error':
+          head.innerText = t.error; tag.innerText = ver;
+          notes.innerText = t.errorSub;
+          setBtn(btnA, t.retryBtn, install);
+          setBtn(btnB, t.manualBtn, () => openUrl(st.info && st.info.downloadUrl));
+          break;
+        case 'updated':
+          head.innerText = t.updated; tag.innerText = 'v' + currentVersion();
+          notes.innerText = t.updatedSub;
+          setBtn(btnA, null);
+          setBtn(btnB, t.ok, () => setState('hidden'));
+          break;
+        default:
+          break;
+      }
+    }
+
+    async function install() {
+      if (!N || !N.installUpdate || st.state === 'downloading') return;
+      st.dismissed = false;
+      st.progress = { percent: 0, transferred: 0, total: (st.info && st.info.downloadSize) || 0 };
+      setState('downloading');
+      let res = null;
+      try { res = await N.installUpdate(); } catch (e) { res = { ok: false, error: String(e) }; }
+      if (res && res.ok) {
+        try { localStorage.setItem(JUST_UPDATED_KEY, res.version); } catch (e) {}
+        setState('ready');
+        startCountdown();
+      } else if (res && res.needsFullDownload) {
+        st.needsFull = true;
+        if (res.downloadUrl && st.info) st.info.downloadUrl = res.downloadUrl;
+        setState('available');
+      } else {
+        console.warn('[Updater] Update failed:', res && res.error);
+        setState('error');
+      }
+    }
+
+    async function restart() {
+      if (!N || !N.restartForUpdate) return;
+      stopCountdown();
+      const btnA = $('btnUpdateDownload');
+      if (btnA) { btnA.disabled = true; btnA.innerText = T().restarting; }
+      try {
+        if (window.SaveSystem && typeof window.SaveSystem.save === 'function') window.SaveSystem.save();
+      } catch (e) {}
+      const ok = await N.restartForUpdate();
+      if (!ok) setState('error');
+    }
+
+    async function check() {
+      if (st.checking || st.state === 'downloading' || st.state === 'ready') return;
+      st.checking = true;
+      try {
+        let info = null;
+        if (N && N.checkForUpdates) {
+          info = await N.checkForUpdates();
+        } else {
+          // Browser version: notification only
+          const res = await fetch('https://api.github.com/repos/Sniiiper1337YT/Neon-Survivor/releases/latest');
+          if (res.ok) {
+            const rel = await res.json();
+            const remote = (rel.tag_name || '').replace(/^v/i, '');
+            const p = v => (v || '').split('.').map(n => parseInt(n, 10) || 0);
+            const r = p(remote), c = p(currentVersion());
+            let newer = false;
+            for (let i = 0; i < 3; i++) { if ((r[i] || 0) !== (c[i] || 0)) { newer = (r[i] || 0) > (c[i] || 0); break; } }
+            info = { updateAvailable: newer, autoUpdate: false, latestVersion: remote, downloadUrl: rel.html_url };
+          }
+        }
+        if (!info || !info.updateAvailable) return;
+        st.info = info;
+        if (info.readyToRestart) { setState('ready'); startCountdown(); return; }
+        if (info.autoUpdate) {
+          install(); // fully automatic - no click needed
+        } else if (st.state !== 'error') {
+          setState('available');
+        }
+      } catch (e) {
+        console.log('[Updater] Check skipped:', e && e.message);
+      } finally {
+        st.checking = false;
+      }
+    }
+
+    function init() {
+      const lblVer = $('lblCurrentVer');
+      if (lblVer) lblVer.innerText = 'v' + currentVersion();
+
+      if (N && N.onUpdateProgress) {
+        N.onUpdateProgress(p => {
+          st.progress = p || st.progress;
+          if (st.state === 'downloading') render();
+        });
+      }
+
+      // Show a short "updated" confirmation right after an auto-update restart
+      try {
+        const just = localStorage.getItem(JUST_UPDATED_KEY);
+        if (just) {
+          localStorage.removeItem(JUST_UPDATED_KEY);
+          if (just === currentVersion()) {
+            setState('updated');
+            setTimeout(() => { if (st.state === 'updated') setState('hidden'); }, 9000);
+          }
+        }
+      } catch (e) {}
+
+      setTimeout(check, 1200);
+      setInterval(() => { if (st.state === 'hidden' || st.state === 'updated') check(); }, RECHECK_MS);
+    }
+
+    return {
+      init,
+      check,
+      render,
+      onTitleShown: () => { if (st.state === 'ready') startCountdown(); render(); },
+      get state() { return st.state; }
+    };
+  })();
+
+  window.NeonUpdater.init();
 });
 </script>
 </body>

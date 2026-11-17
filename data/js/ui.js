@@ -17,6 +17,7 @@ class UIEngine {
     const screens = document.querySelectorAll('.ov');
     screens.forEach(s => s.classList.toggle('on', s.id === id));
     this.activeScreen = id;
+    if (id === 'title' && window.NeonUpdater) window.NeonUpdater.onTitleShown();
     if (window.SoundSystem) {
       window.SoundSystem.sfx('click');
       if (id === 'title') {
@@ -52,7 +53,7 @@ class UIEngine {
     const titleDivs = document.querySelectorAll('#title > div');
     if (titleDivs.length >= 2) {
       titleDivs[titleDivs.length - 2].innerHTML = t.controlsHint;
-      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.3.1';
+      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.3.2';
       titleDivs[titleDivs.length - 1].innerHTML = `Neon Survivor <span id="lblCurrentVer">v${ver}</span> &nbsp;·&nbsp; ${t.footerDev}`;
     }
 
@@ -130,11 +131,8 @@ class UIEngine {
     if (lvlSub) lvlSub.innerHTML = lang === 'en' ? 'Choose an upgrade &nbsp;(1 / 2 / 3 or Click)' : 'Wähle ein Upgrade &nbsp;(1 / 2 / 3 oder Klick)';
     setT('rerollBtn', t.rerollBtn);
 
-    // Update banner i18n
-    setT('lblUpdateHeader', t.updateAvailable || (lang === 'en' ? '🚀 NEW UPDATE AVAILABLE:' : '🚀 NEUES UPDATE VERFÜGBAR:'));
-    setT('updateNotes', t.updateSub || (lang === 'en' ? 'A new version of Neon Survivor is available for download!' : 'Eine neue Version von Neon Survivor steht zum Download bereit!'));
-    setT('btnUpdateDownload', t.updateDlBtn || (lang === 'en' ? '⬇️ Update Now' : '⬇️ Jetzt Aktualisieren'));
-    setT('btnUpdateDismiss', t.updateDismissBtn || (lang === 'en' ? 'Later' : 'Später'));
+    // Update banner i18n (texts depend on the live updater state)
+    if (window.NeonUpdater) window.NeonUpdater.render();
 
     // Refresh whichever modal is currently active
     if (this.activeScreen === 'charModal') this.renderCharacterSelect();

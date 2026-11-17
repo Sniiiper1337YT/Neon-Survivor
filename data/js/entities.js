@@ -1064,29 +1064,66 @@ class EntityManager {
       }
     }
 
-    // Natürliche Schwarm-Separation (Anti-Katamari / Anti-Clumping):
-    // Verhindert, dass Mobs zu einem undurchdringlichen Klumpen verschmelzen
+    // Natürliche Schwarm-Separation & Tangential-Flanking (Anti-Katamari / Anti-Clumping):
+    // Verhindert das Zusammenballen zu dichten "Deathballs" und lässt Mobs
+    // den Spieler in dynamischen Sicheln und Ringen umzingeln.
     let sx = 0, sy = 0;
-    this.grid.query(e.x, e.y, e.r + 16, o => {
-      if (o === e || o.dead) return;
-      const ox = e.x - o.x, oy = e.y - o.y, dd = ox * ox + oy * oy;
-      const mm = e.r + o.r + 8;
-      if (dd < mm * mm) {
-        const q = Math.sqrt(dd) || 0.1;
-        const force = o.isBoss ? 8.0 : (e.isBoss ? 0.3 : 3.2);
-        const f = Math.pow((mm - q) / mm, 1.2) * force;
-        sx += (ox / q) * f;
-        sy += (oy / q) * f;
-      }
-    });
+    let tanX = 0, tanY = 0;
+    const perpX = -mvy, perpY = mvx; // Senkrechte zum Spieler-Bewegungsvektor
+
+    if (!e.isBoss) {
+      this.grid.query(e.x, e.y, e.r + 32, o => {
+        if (o === e || o.dead) return;
+        const ox = e.x - o.x, oy = e.y - o.y;
+        const dd = ox * ox + oy * oy;
+        const touchDist = e.r + o.r;
+        const flockDist = touchDist + 22;
+
+        if (dd < flockDist * flockDist) {
+          const q = Math.sqrt(dd) || 0.1;
+          const nx = ox / q, ny = oy / q;
+
+          // 1. Physische Überlappungs-Korrektur (Hard Push)
+          if (dd < touchDist * touchDist) {
+            const overlap = touchDist - q;
+            const pushWeight = o.isBoss ? 1.0 : 0.5;
+            e.x += nx * overlap * pushWeight * 0.75;
+            e.y += ny * overlap * pushWeight * 0.75;
+          }
+
+          // 2. Weiche Abstoßungskraft (Flocking Separation)
+          const force = o.isBoss ? 7.5 : 3.8;
+          const sep = Math.pow((flockDist - q) / flockDist, 1.1) * force;
+          sx += nx * sep;
+          sy += ny * sep;
+
+          // 3. Tangentiales Auffächern (Umfassungsmanöver):
+          // Liegt der Verbündete o vor uns auf dem Weg zum Spieler,
+          // gleitet e seitlich vorbei, statt sich im Rücken zu stauen.
+          if (!o.isBoss) {
+            const frontDot = -(ox * mvx + oy * mvy);
+            if (frontDot > 0) {
+              const side = ox * perpX + oy * perpY;
+              const steerDir = side >= 0 ? 1 : -1;
+              const flankWeight = ((flockDist - q) / flockDist) * 1.6;
+              tanX += perpX * steerDir * flankWeight;
+              tanY += perpY * steerDir * flankWeight;
+            }
+          }
+        }
+      });
+    }
 
     // Knockback decay
     const damp = Math.max(0, 1 - dt * 7);
     e.kx *= damp;
     e.ky *= damp;
 
-    e.x += (mvx * currentSpd + sx * 220 + e.kx) * dt;
-    e.y += (mvy * currentSpd + sy * 220 + e.ky) * dt;
+    // Bewegung zusammensetzen: Vorwärtsdrang + Separation + Flanken-Steering + Knockback
+    const moveX = mvx * currentSpd + (sx * 200 + tanX * 160) + e.kx;
+    const moveY = mvy * currentSpd + (sy * 200 + tanY * 160) + e.ky;
+    e.x += moveX * dt;
+    e.y += moveY * dt;
 
     if (e.shape === 'tri') e.rot = Math.atan2(dy, dx);
     else e.rot += dt * 1.5;
