@@ -80,6 +80,7 @@ class EntityManager {
     this.texts = [];
     this.fx = [];
     this.drones = [];
+    this.companion = null;
     this.hazards = [];
     this.turrets = [];
     this.portals = [];
@@ -103,6 +104,7 @@ class EntityManager {
     this.texts.length = 0;
     this.fx.length = 0;
     this.drones.length = 0;
+    this.companion = null;
     this.hazards.length = 0;
     this.turrets.length = 0;
     this.portals.length = 0;
@@ -438,6 +440,7 @@ class EntityManager {
     this.updateHazards(dt, P);
     this.updateTurrets(dt, P);
     this.updateDrones(dt, P);
+    this.updateCompanion(dt, P);
     this.updateActiveSkills(dt, P);
     this.updatePortals(dt, P);
     this.updatePortalChallenge(dt, P);
@@ -1676,6 +1679,110 @@ class EntityManager {
           });
           this.spawnParticle(d.x, d.y, d.col, 2, 80, 2, 0.2);
           if (window.SoundSystem) window.SoundSystem.sfx('shoot');
+        }
+      }
+    }
+  }
+
+  // ==========================================
+  // COMPANION DRONE SYSTEM (BEGLEITER-DROHNE)
+  // ==========================================
+  initCompanion(type) {
+    if (!type || !window.GAME_DATA.COMPANIONS || !window.GAME_DATA.COMPANIONS[type]) {
+      this.companion = null;
+      return;
+    }
+    const def = window.GAME_DATA.COMPANIONS[type];
+    const P = window.GameState && window.GameState.player;
+    const px = P ? P.x : 0;
+    const py = P ? P.y : 0;
+    this.companion = {
+      type: def.id,
+      name: def.name,
+      col: def.col,
+      shape: def.shape,
+      x: px + 35,
+      y: py + 35,
+      angle: 0,
+      orbitDist: 48,
+      orbitSpeed: 2.0,
+      timer: 0,
+      animPulse: 0
+    };
+  }
+
+  updateCompanion(dt, P) {
+    if (!P) return;
+    if (!this.companion) {
+      const selectedComp = (window.SaveSystem && window.SaveSystem.data && window.SaveSystem.data.selectedCompanion) || 'scout';
+      this.initCompanion(selectedComp);
+      if (!this.companion) return;
+    }
+
+    const c = this.companion;
+    c.angle += c.orbitSpeed * dt;
+    c.animPulse += dt * 3.5;
+
+    // Follow smoothly in orbital position around ship
+    const targetX = P.x + Math.cos(c.angle) * c.orbitDist;
+    const targetY = P.y + Math.sin(c.angle) * c.orbitDist;
+    c.x += (targetX - c.x) * Math.min(1, dt * 10);
+    c.y += (targetY - c.y) * Math.min(1, dt * 10);
+
+    c.timer += dt;
+
+    if (c.type === 'scout') {
+      // Scout Drone: magnetizes distant gems (within 380px) every 4.5s
+      if (c.timer >= 4.5) {
+        c.timer = 0;
+        let sucked = 0;
+        for (let i = 0; i < this.gems.length; i++) {
+          const g = this.gems[i];
+          if (!g.dead && !g.pull) {
+            const d = Math.hypot(g.x - c.x, g.y - c.y);
+            if (d < 380) {
+              g.pull = true;
+              sucked++;
+              if (sucked >= 8) break; // Balanced limit per pulse
+            }
+          }
+        }
+        if (sucked > 0) {
+          this.spawnParticle(c.x, c.y, c.col, 5, 110, 2.5, 0.4);
+          this.addText(c.x, c.y - 14, `🧲 +${sucked}`, c.col, false);
+          if (window.SoundSystem) window.SoundSystem.sfx('exp');
+        }
+      }
+    } else if (c.type === 'medic') {
+      // Med Drone: repairs 4 HP every 8.0s if player damaged
+      if (c.timer >= 8.0) {
+        c.timer = 0;
+        if (P.hp < P.maxHp) {
+          const healAmt = 4;
+          P.hp = Math.min(P.maxHp, P.hp + healAmt);
+          this.spawnParticle(c.x, c.y, c.col, 6, 120, 2.5, 0.5);
+          this.spawnParticle(P.x, P.y, c.col, 6, 100, 2.5, 0.4);
+          this.addText(P.x, P.y - 26, `+${healAmt} HP`, c.col, true);
+          if (window.SoundSystem) window.SoundSystem.sfx('heal');
+        }
+      }
+    } else if (c.type === 'guardian') {
+      // Guardian Drone: neutralizes 1 enemy projectile in close proximity (75px) every 10s
+      if (c.timer >= 10.0) {
+        let neutralized = false;
+        for (let i = 0; i < this.ebullets.length; i++) {
+          const eb = this.ebullets[i];
+          if (!eb.dead && Math.hypot(eb.x - c.x, eb.y - c.y) < 75) {
+            eb.dead = true;
+            neutralized = true;
+            this.spawnParticle(eb.x, eb.y, c.col, 7, 150, 3, 0.4);
+            this.addText(c.x, c.y - 18, 'AEGIS BLOCK', c.col, true);
+            if (window.SoundSystem) window.SoundSystem.sfx('shield_break');
+            break;
+          }
+        }
+        if (neutralized) {
+          c.timer = 0; // Reset cooldown after successfully blocking
         }
       }
     }

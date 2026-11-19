@@ -209,7 +209,12 @@ class GameController {
       this.passives[k] = 0;
     }
 
+    // Active Curse & Blessing Modules (Fluch & Segen)
+    this.activeModules = {};
+
     window.Entities.reset();
+    const selComp = (window.SaveSystem && window.SaveSystem.data && window.SaveSystem.data.selectedCompanion) || 'scout';
+    window.Entities.initCompanion(selComp);
   }
 
   startRun() {
@@ -845,6 +850,15 @@ class GameController {
       }
     }
 
+    // 4. Risk-Reward Modules (Fluch & Segen, 15% Chance ab Level 5)
+    if (this.player && this.player.lvl >= 5 && window.GAME_DATA.MODULES) {
+      for (const mKey in window.GAME_DATA.MODULES) {
+        if (!this.activeModules || !this.activeModules[mKey]) {
+          pool.push({ kind: 'm', id: mKey, wgt: 0.35 });
+        }
+      }
+    }
+
     const out = [];
     while (out.length < 3 && pool.length) {
       let sum = 0;
@@ -911,6 +925,11 @@ class GameController {
     } else if (c.kind === 'p') {
       this.passives[c.id]++;
       this.applyPassiveEffect(c.id);
+    } else if (c.kind === 'm') {
+      if (!this.activeModules) this.activeModules = {};
+      this.activeModules[c.id] = true;
+      this.applyModuleEffect(c.id);
+      if (window.SoundSystem) window.SoundSystem.sfx('overload');
     } else if (c.id === 'heal') {
       P.hp = Math.min(P.maxHp, P.hp + 50);
     } else if (c.id === 'overload') {
@@ -952,6 +971,32 @@ class GameController {
       case 'overload_boost':
         P.overloadChargeRate *= 1.2;
         P.overloadDurMul = (P.overloadDurMul || 1) + 0.2;
+        break;
+    }
+  }
+
+  applyModuleEffect(modId) {
+    const P = this.player;
+    if (!P) return;
+    switch (modId) {
+      case 'glass_cannon':
+        P.dmgMul += 0.20;
+        if (this.selectedMode !== 'hardcore') {
+          P.maxHp = Math.max(10, Math.round(P.maxHp * 0.85));
+          P.hp = Math.min(P.maxHp, P.hp);
+        }
+        break;
+      case 'hyper_drive':
+        P.speed *= 1.18;
+        P.magnet *= 1.10;
+        P.armor = Math.max(0, P.armor - 2);
+        break;
+      case 'blood_converter':
+        P.rateMul += 0.15;
+        P.regen = Math.max(0, P.regen - 0.3);
+        break;
+      case 'greed_reactor':
+        P.xpMul = (P.xpMul || 1) * 1.25;
         break;
     }
   }

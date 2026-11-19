@@ -518,6 +518,102 @@ window.GAME_DATA = {
   },
 
   // ----------------------------------------------------
+  // COMPANION DRONES (BEGLEITER-SYSTEM)
+  // ----------------------------------------------------
+  COMPANIONS: {
+    scout: {
+      id: 'scout',
+      name: { de: 'Scout-Drohne (Loot-Bot)', en: 'Scout Drone (Loot-Bot)' },
+      icon: '🛸',
+      col: '#3dfcff',
+      shape: 'scout',
+      desc: {
+        de: 'Umkreist das Schiff und saugt alle 4.5s automatisch entfernte EXP-Gems im Umkreis an.',
+        en: 'Orbits your ship and automatically magnetizes faraway EXP gems every 4.5s.'
+      },
+      unlock: { de: 'Standardmäßig aktiv', en: 'Default' }
+    },
+    medic: {
+      id: 'medic',
+      name: { de: 'Med-Drohne (Nano-Heiler)', en: 'Med Drone (Nano-Healer)' },
+      icon: '💚',
+      col: '#5dff6a',
+      shape: 'medic',
+      desc: {
+        de: 'Führt alle 8s eine Nano-Reparatur durch und stellt 4 HP wieder her.',
+        en: 'Performs nano-field repairs every 8s, restoring 4 HP.'
+      },
+      unlock: { de: 'Erreiche Level 15 in einem beliebigen Run', en: 'Reach Level 15 in any run' }
+    },
+    guardian: {
+      id: 'guardian',
+      name: { de: 'Aegis-Satellit (Abfang-Drohne)', en: 'Aegis Satellite (Interceptor)' },
+      icon: '🛡️',
+      col: '#b44dff',
+      shape: 'guardian',
+      desc: {
+        de: 'Schirmt das Schiff ab: Fängt alle 10s ein gegnerisches Geschoss ab oder pariert 1 Treffer.',
+        en: 'Shields your ship: Intercepts an enemy projectile every 10s or parries 1 hit.'
+      },
+      unlock: { de: 'Besiege 1 Boss', en: 'Defeat 1 boss' }
+    }
+  },
+
+  // ----------------------------------------------------
+  // RISK-REWARD MODULES (FLUCH & SEGEN)
+  // ----------------------------------------------------
+  MODULES: {
+    glass_cannon: {
+      id: 'glass_cannon',
+      name: { de: 'Glas-Kanone', en: 'Glass Cannon' },
+      icon: '⚡',
+      col: '#ff0055',
+      buff: { de: '+20% Gesamtschaden', en: '+20% Total Damage' },
+      curse: { de: '-15% Max-HP', en: '-15% Max HP' },
+      desc: {
+        de: '+20% Gesamtschaden, aber -15% Max-HP.',
+        en: '+20% Total Damage, but -15% Max HP.'
+      }
+    },
+    hyper_drive: {
+      id: 'hyper_drive',
+      name: { de: 'Hyper-Antrieb', en: 'Hyper Thrusters' },
+      icon: '🚀',
+      col: '#00e5ff',
+      buff: { de: '+18% Flugtempo & +10% Magnet', en: '+18% Speed & +10% Magnet' },
+      curse: { de: '-2 Rüstung (min. 0)', en: '-2 Armor (min. 0)' },
+      desc: {
+        de: '+18% Flugtempo & +10% Magnet, aber -2 Rüstung.',
+        en: '+18% Flight Speed & +10% Magnet, but -2 Armor.'
+      }
+    },
+    blood_converter: {
+      id: 'blood_converter',
+      name: { de: 'Siphon-Konverter', en: 'Siphon Converter' },
+      icon: '🩸',
+      col: '#ffd23f',
+      buff: { de: '+15% Angriffsrate', en: '+15% Attack Speed' },
+      curse: { de: '-0.3 HP/s Regeneration', en: '-0.3 HP/s Regeneration' },
+      desc: {
+        de: '+15% Angriffsrate, aber -0.3 HP/s Regeneration.',
+        en: '+15% Attack Speed, but -0.3 HP/s Regeneration.'
+      }
+    },
+    greed_reactor: {
+      id: 'greed_reactor',
+      name: { de: 'Gier-Reaktor', en: 'Greed Reactor' },
+      icon: '💎',
+      col: '#d500f9',
+      buff: { de: '+25% EXP-Gewinn & Credits', en: '+25% EXP & Credits' },
+      curse: { de: '+10% Gegner-Tempo', en: '+10% Enemy Speed' },
+      desc: {
+        de: '+25% EXP-Gewinn & Credits, aber Gegner bewegen sich 10% schneller.',
+        en: '+25% EXP & Credits, but enemies move 10% faster.'
+      }
+    }
+  },
+
+  // ----------------------------------------------------
   // 50 ACHIEVEMENTS
   // ----------------------------------------------------
   ACHIEVEMENTS: {
@@ -643,6 +739,7 @@ window.GAME_DATA = {
       ships: '🚀 Raumschiffe',
       maps: '🗺️ Arenen',
       modes: '⚡ Spielmodi',
+      companions: '🛸 Begleiter',
       skills: '💎 Talentbaum',
       achs: '🏆 Erfolge',
       stats: '📊 Statistiken',
@@ -654,6 +751,7 @@ window.GAME_DATA = {
       charModalTitle: 'WÄHLE DEIN RAUMSCHIFF',
       mapModalTitle: 'WÄHLE DEINE ARENA',
       modeModalTitle: 'WÄHLE DEINEN SPIELMODUS',
+      companionModalTitle: 'WÄHLE DEINEN BEGLEITER',
       skillModalTitle: 'TALENTBAUM (PERMANENTE BONI)',
       achModalTitle: '65 ERFOLGE',
       statsModalTitle: 'KARRIERE-STATISTIKEN',
@@ -757,6 +855,7 @@ window.GAME_DATA = {
       ships: '🚀 Starships',
       maps: '🗺️ Arenas',
       modes: '⚡ Game Modes',
+      companions: '🛸 Companions',
       skills: '💎 Skill Tree',
       achs: '🏆 Achievements',
       stats: '📊 Statistics',
@@ -768,6 +867,7 @@ window.GAME_DATA = {
       charModalTitle: 'CHOOSE YOUR STARSHIP',
       mapModalTitle: 'CHOOSE YOUR ARENA',
       modeModalTitle: 'CHOOSE YOUR GAME MODE',
+      companionModalTitle: 'CHOOSE YOUR COMPANION',
       skillModalTitle: 'SKILL TREE (PERMANENT BONUSES)',
       achModalTitle: '65 ACHIEVEMENTS',
       statsModalTitle: 'CAREER STATISTICS',

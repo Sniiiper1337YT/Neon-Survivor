@@ -44,6 +44,7 @@ class UIEngine {
     setT('btnChars', t.ships);
     setT('btnMaps', t.maps);
     setT('btnModes', t.modes);
+    setT('btnCompanions', t.companions || '🛸 Begleiter');
     setT('btnSkill', t.skills);
     setT('btnAchs', t.achs);
     setT('btnStats', t.stats);
@@ -53,7 +54,7 @@ class UIEngine {
     const titleDivs = document.querySelectorAll('#title > div');
     if (titleDivs.length >= 2) {
       titleDivs[titleDivs.length - 2].innerHTML = t.controlsHint;
-      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.3.3';
+      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.4.0';
       titleDivs[titleDivs.length - 1].innerHTML = `Neon Survivor <span id="lblCurrentVer">v${ver}</span> &nbsp;·&nbsp; ${t.footerDev}`;
     }
 
@@ -65,6 +66,7 @@ class UIEngine {
     setModalH2('charModal', t.charModalTitle);
     setModalH2('mapModal', t.mapModalTitle);
     setModalH2('modeModal', t.modeModalTitle);
+    setModalH2('companionModal', t.companionModalTitle || 'WÄHLE DEINEN BEGLEITER');
     setModalH2('skillModal', t.skillModalTitle);
     setModalH2('achModal', t.achModalTitle);
     setModalH2('statsModal', t.statsModalTitle);
@@ -74,6 +76,7 @@ class UIEngine {
     setT('btnCharBack', t.doneBtn);
     setT('btnMapBack', t.doneBtn);
     setT('btnModeBack', t.doneBtn);
+    setT('btnCompanionBack', t.doneBtn);
     setT('btnSkillBack', t.doneBtn);
     setT('btnAchBack', t.doneBtn);
     setT('btnStatsBack', t.doneBtn);
@@ -139,6 +142,7 @@ class UIEngine {
     if (this.activeScreen === 'charModal') this.renderCharacterSelect();
     else if (this.activeScreen === 'mapModal') this.renderMapSelect();
     else if (this.activeScreen === 'modeModal') this.renderModeSelect();
+    else if (this.activeScreen === 'companionModal') this.renderCompanionSelect();
     else if (this.activeScreen === 'skillModal') this.renderSkilltree();
     else if (this.activeScreen === 'achModal') this.renderAchievements();
     else if (this.activeScreen === 'statsModal') this.renderStats();
@@ -303,6 +307,41 @@ class UIEngine {
     }
   }
 
+  renderCompanionSelect() {
+    const container = document.getElementById('companionGrid');
+    if (!container) return;
+    container.innerHTML = '';
+    const unlocked = window.SaveSystem.data.unlockedCompanions || ['scout'];
+    const selected = window.SaveSystem.data.selectedCompanion || 'scout';
+    const lang = window.SaveSystem.getSettings().lang || 'de';
+
+    for (const k in window.GAME_DATA.COMPANIONS) {
+      const c = window.GAME_DATA.COMPANIONS[k];
+      const isUnlocked = unlocked.includes(k);
+      const isSel = selected === k;
+
+      const card = document.createElement('div');
+      card.className = `menu-card ${isSel ? 'sel' : ''} ${!isUnlocked ? 'locked' : ''}`;
+      card.innerHTML = `
+        <div class="card-icon" style="color:${c.col}">${c.icon}</div>
+        <div class="card-title">${c.name[lang] || c.name.de}</div>
+        <div class="card-desc">${c.desc[lang] || c.desc.de}</div>
+        ${!isUnlocked ? `<div class="lock-req">🔒 ${c.unlock[lang] || c.unlock.de}</div>` : ''}
+      `;
+
+      if (isUnlocked) {
+        card.onclick = () => {
+          window.SaveSystem.data.selectedCompanion = k;
+          window.SaveSystem.save();
+          if (window.Entities) window.Entities.initCompanion(k);
+          this.renderCompanionSelect();
+          if (window.SoundSystem) window.SoundSystem.sfx('click');
+        };
+      }
+      container.appendChild(card);
+    }
+  }
+
   renderSkilltree() {
     const container = document.getElementById('skillGrid');
     if (!container) return;
@@ -416,6 +455,13 @@ class UIEngine {
         tag = l === 0 ? t.newPassive : `Lv ${l} → ${l + 1}`;
         tagCls = l === 0 ? '' : 'up';
         desc = def.desc[lang];
+      } else if (c.kind === 'm') {
+        const def = window.GAME_DATA.MODULES[c.id];
+        icon = def.icon;
+        name = def.name[lang] || def.name.de;
+        tag = lang === 'en' ? 'OVERCLOCK MOD' : 'FLUCH & SEGEN';
+        tagCls = 'mod-tag';
+        desc = `<span style="color:#00ffcc;">▲ ${def.buff[lang] || def.buff.de}</span><br><span style="color:#ff3366;">▼ ${def.curse[lang] || def.curse.de}</span>`;
       } else if (c.id === 'heal') {
         icon = '🔧';
         name = t.bonusRepair;
@@ -437,7 +483,8 @@ class UIEngine {
       }
 
       const d = document.createElement('div');
-      d.className = `card ${isEvolution ? 'evo-card' : ''}`;
+      const isMod = c.kind === 'm';
+      d.className = `card ${isEvolution ? 'evo-card' : ''} ${isMod ? 'mod-card' : ''}`;
       d.innerHTML = `
         <div class="key">${i + 1}</div>
         <div class="ic">${icon}</div>
@@ -489,11 +536,27 @@ class UIEngine {
       passiveChips.push(`<span class="sum-chip">${def.icon} ${def.name[lang] || def.name.de} Lv.${lv}</span>`);
     }
 
+    const modChips = [];
+    if (gs.activeModules) {
+      for (const k in gs.activeModules) {
+        if (!gs.activeModules[k]) continue;
+        const def = window.GAME_DATA.MODULES[k];
+        if (def) {
+          modChips.push(`<span class="sum-chip mod">${def.icon} ${def.name[lang] || def.name.de}</span>`);
+        }
+      }
+    }
+
+    const companionChip = (window.Entities && window.Entities.companion)
+      ? `<span class="sum-chip comp">🛸 ${window.GAME_DATA.COMPANIONS[window.Entities.companion.type]?.name[lang] || 'Drohne'}</span>`
+      : '';
+
     el.innerHTML = `
       <div>${lang === 'en' ? 'Time:' : 'Zeit:'} <b style="color:#3dfcff">${timeStr}</b> &nbsp;·&nbsp; Level: <b style="color:#ffd23f">${P.lvl}</b> &nbsp;·&nbsp; Kills: <b style="color:#ff3366">${gs.kills}</b></div>
       <div style="font-size:15px;opacity:0.9;">HP: <b>${Math.ceil(P.hp)}/${P.maxHp}</b> &nbsp;·&nbsp; DMG: <b>${Math.round(P.dmgMul * 100)}%</b> &nbsp;·&nbsp; ${lang === 'en' ? 'Speed:' : 'Tempo:'} <b>${Math.round(P.rateMul * 100)}%</b></div>
       <div class="sum-row">${weaponChips.join('')}</div>
       ${passiveChips.length ? `<div class="sum-row">${passiveChips.join('')}</div>` : ''}
+      ${modChips.length || companionChip ? `<div class="sum-row">${companionChip}${modChips.join('')}</div>` : ''}
     `;
   }
 

@@ -34,9 +34,11 @@ class SaveSystem {
       unlockedCharacters: ['apex'], // 'apex', 'valkyrie', 'colossus', 'tesla', 'specter', 'havoc', 'nova', 'chronos'
       unlockedMaps: ['void'],       // 'void', 'matrix', 'abyss', 'reactor', 'asteroids', 'glitch'
       unlockedModes: ['classic', 'minigame', 'endless', 'sandbox'],   // 'classic', 'minigame', 'endless', 'bossrush', 'hardcore', 'chaos', 'sandbox'
+      unlockedCompanions: ['scout'], // 'scout', 'medic', 'guardian'
       selectedCharacter: 'apex',
       selectedMap: 'void',
       selectedMode: 'classic',
+      selectedCompanion: 'scout',
       achievements: {},             // id: timestamp
       stats: {
         runsStarted: 0,
@@ -198,6 +200,10 @@ class SaveSystem {
     if (!d.unlockedModes.includes('endless')) d.unlockedModes.push('endless');
     if (typeof d.stats.minigamesWon !== 'number') d.stats.minigamesWon = 0;
 
+    if (!Array.isArray(d.unlockedCompanions)) d.unlockedCompanions = ['scout'];
+    if (!d.unlockedCompanions.includes('scout')) d.unlockedCompanions.push('scout');
+    if (!d.selectedCompanion) d.selectedCompanion = 'scout';
+
     // Tastenbelegung bereinigen: KeyQ / KeyF / KeyR dürfen nie auf Overload liegen
     if (d.settings && d.settings.keys) {
       if (Array.isArray(d.settings.keys.overload)) {
@@ -242,6 +248,7 @@ class SaveSystem {
     snap.selectedCharacter = this.data.selectedCharacter;
     snap.selectedMap = this.data.selectedMap;
     snap.selectedMode = this.data.selectedMode;
+    snap.selectedCompanion = this.data.selectedCompanion;
     return snap;
   }
 
@@ -357,6 +364,16 @@ class SaveSystem {
   unlockMode(modeId) {
     if (!this.data.unlockedModes.includes(modeId)) {
       this.data.unlockedModes.push(modeId);
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  unlockCompanion(compId) {
+    if (!this.data.unlockedCompanions) this.data.unlockedCompanions = ['scout'];
+    if (!this.data.unlockedCompanions.includes(compId)) {
+      this.data.unlockedCompanions.push(compId);
       this.save();
       return true;
     }
@@ -502,6 +519,11 @@ class SaveSystem {
     if (a['boss_5']) this.unlockMode('bossrush');
     if (a['level_30']) this.unlockMode('hardcore');
     if (a['boss_final']) this.unlockMode('chaos');
+
+    // Companion drone unlocks
+    this.unlockCompanion('scout');
+    if (a['level_20'] || a['level_10'] || (this.data.stats && this.data.stats.highestLevel >= 15)) this.unlockCompanion('medic');
+    if (a['boss_1'] || (this.data.stats && this.data.stats.totalBossKills >= 1)) this.unlockCompanion('guardian');
   }
 
   resetAll() {

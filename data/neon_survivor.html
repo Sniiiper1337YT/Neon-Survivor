@@ -238,6 +238,8 @@ canvas { display: block; }
 .sum-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
 .sum-chip { background: rgba(61,252,255,0.12); border: 1px solid rgba(61,252,255,0.45); border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
 .sum-chip.evo { background: rgba(255,210,63,0.16); border-color: #ffd23f; color: #ffd23f; }
+.sum-chip.mod { background: rgba(213,0,249,0.16); border-color: #d500f9; color: #f38fff; }
+.sum-chip.comp { background: rgba(93,255,106,0.16); border-color: #5dff6a; color: #5dff6a; }
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 18px; }
 .stat-box { background: rgba(255,255,255,0.04); border: 1px solid rgba(61,252,255,0.3); border-radius: 12px; padding: 14px; }
 .stat-icon { font-size: 26px; margin-bottom: 4px; }
@@ -252,6 +254,11 @@ canvas { display: block; }
   box-shadow: 0 0 40px rgba(255, 210, 63, 0.5);
   animation: pulseGold 2s infinite;
 }
+.card.mod-card {
+  border: 3px solid #d500f9;
+  background: linear-gradient(180deg, rgba(45, 5, 55, 0.95), rgba(20, 2, 28, 0.98));
+  box-shadow: 0 0 35px rgba(213, 0, 249, 0.45);
+}
 @keyframes pulseGold {
   0%, 100% { border-color: #ffd23f; }
   50% { border-color: #fff; box-shadow: 0 0 55px rgba(255, 210, 63, 0.8); }
@@ -261,6 +268,7 @@ canvas { display: block; }
 .card .tg { display: inline-block; font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 12px; background: #ff2d95; margin-bottom: 12px; }
 .card .tg.up { background: #3d6bff; }
 .card .tg.evo-tag { background: #ffd23f; color: #07020f; font-weight: 900; }
+.card .tg.mod-tag { background: #d500f9; color: #fff; font-weight: 900; }
 .card .ds { font-size: 14px; opacity: 0.88; line-height: 1.4; }
 .card .key { position: absolute; top: 10px; left: 14px; font-weight: 900; opacity: 0.45; }
 
@@ -573,6 +581,7 @@ canvas { display: block; }
     <button class="btn sec" id="btnChars">🚀 Raumschiffe</button>
     <button class="btn sec" id="btnMaps">🗺️ Arenen</button>
     <button class="btn sec" id="btnModes">⚡ Spielmodi</button>
+    <button class="btn sec" id="btnCompanions">🛸 Begleiter</button>
     <button class="btn sec" id="btnSkill">💎 Talentbaum</button>
     <button class="btn sec" id="btnAchs">🏆 Erfolge</button>
     <button class="btn sec" id="btnStats">📊 Statistiken</button>
@@ -616,6 +625,17 @@ canvas { display: block; }
     <div id="modeGrid" class="grid-cards"></div>
     <div style="margin-top:25px;">
       <button class="btn" id="btnModeBack">ZURÜCK</button>
+    </div>
+  </div>
+</div>
+
+<!-- 4b. COMPANION SELECT MODAL -->
+<div id="companionModal" class="ov">
+  <div class="modal-content">
+    <h2 style="font-size:32px;color:#3dfcff;margin-top:0;">WÄHLE DEINEN BEGLEITER</h2>
+    <div id="companionGrid" class="grid-cards"></div>
+    <div style="margin-top:25px;">
+      <button class="btn" id="btnCompanionBack">ZURÜCK</button>
     </div>
   </div>
 </div>
@@ -882,6 +902,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnChars').onclick = () => { window.UI.renderCharacterSelect(); window.UI.showScreen('charModal'); };
   document.getElementById('btnMaps').onclick = () => { window.UI.renderMapSelect(); window.UI.showScreen('mapModal'); };
   document.getElementById('btnModes').onclick = () => { window.UI.renderModeSelect(); window.UI.showScreen('modeModal'); };
+  document.getElementById('btnCompanions').onclick = () => { window.UI.renderCompanionSelect(); window.UI.showScreen('companionModal'); };
   document.getElementById('btnSkill').onclick = () => { window.UI.renderSkilltree(); window.UI.showScreen('skillModal'); };
   document.getElementById('btnAchs').onclick = () => { window.UI.renderAchievements(); window.UI.showScreen('achModal'); };
   document.getElementById('btnStats').onclick = () => { window.UI.renderStats(); window.UI.showScreen('statsModal'); };
@@ -891,6 +912,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnCharBack').onclick = () => window.UI.showScreen('title');
   document.getElementById('btnMapBack').onclick = () => window.UI.showScreen('title');
   document.getElementById('btnModeBack').onclick = () => window.UI.showScreen('title');
+  document.getElementById('btnCompanionBack').onclick = () => window.UI.showScreen('title');
   document.getElementById('btnSkillBack').onclick = () => window.UI.showScreen('title');
   document.getElementById('btnAchBack').onclick = () => window.UI.showScreen('title');
   document.getElementById('btnStatsBack').onclick = () => window.UI.showScreen('title');

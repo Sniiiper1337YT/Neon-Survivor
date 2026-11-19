@@ -687,6 +687,49 @@ class RenderEngine {
       }
     }
 
+    // 5c-2. Companion Drone (Begleiter-Drohne)
+    if (entities.companion) {
+      const c = entities.companion;
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.angle + Math.PI / 2);
+
+      ctx.fillStyle = '#0a1a2e';
+      ctx.strokeStyle = c.col;
+      ctx.lineWidth = 2.0;
+
+      if (c.shape === 'medic') {
+        // Cross / Health drone shape
+        ctx.beginPath();
+        ctx.moveTo(-3, -8); ctx.lineTo(3, -8); ctx.lineTo(3, -3); ctx.lineTo(8, -3);
+        ctx.lineTo(8, 3); ctx.lineTo(3, 3); ctx.lineTo(3, 8); ctx.lineTo(-3, 8);
+        ctx.lineTo(-3, 3); ctx.lineTo(-8, 3); ctx.lineTo(-8, -3); ctx.lineTo(-3, -3);
+        ctx.closePath();
+      } else if (c.shape === 'guardian') {
+        // Shield diamond shape
+        ctx.beginPath();
+        ctx.moveTo(0, -9); ctx.lineTo(8, -2); ctx.lineTo(5, 7); ctx.lineTo(0, 10);
+        ctx.lineTo(-5, 7); ctx.lineTo(-8, -2);
+        ctx.closePath();
+      } else {
+        // Scout / Loot drone triangle stealth shape
+        ctx.beginPath();
+        ctx.moveTo(9, 0); ctx.lineTo(-7, -6); ctx.lineTo(-3, 0); ctx.lineTo(-7, 6);
+        ctx.closePath();
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      // Soft center energy core
+      ctx.fillStyle = c.col;
+      ctx.beginPath();
+      ctx.arc(0, 0, 2.5 + Math.sin(c.animPulse || 0) * 0.8, 0, this.TAU);
+      ctx.fill();
+
+      this.drawGlow(0, 0, 24, c.col, 0.6);
+      ctx.restore();
+    }
+
     // 5d. Dimensional Portals (In-Run Minigame Events)
     if (entities.portals && entities.portals.length) {
       for (const port of entities.portals) {
