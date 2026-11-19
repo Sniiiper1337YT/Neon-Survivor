@@ -560,16 +560,16 @@ canvas { display: block; }
   <!-- DYNAMIC GITHUB AUTO-UPDATE BANNER -->
   <div id="updateBanner" class="upd-banner" data-state="hidden">
     <div class="upd-head">
-      <span id="lblUpdateHeader">🚀 NEUES UPDATE VERFÜGBAR:</span> <span id="updateTag"></span>
+      <span id="lblUpdateHeader">🚀 NEW UPDATE AVAILABLE:</span> <span id="updateTag"></span>
     </div>
-    <div class="upd-notes" id="updateNotes">Eine neue Version von Neon Survivor steht zum Download bereit!</div>
+    <div class="upd-notes" id="updateNotes">A new version of Neon Survivor is available for download!</div>
     <div class="upd-progress" id="updateProgress">
       <div class="upd-bar"><div class="upd-fill" id="updateProgressFill"></div></div>
       <div class="upd-meta" id="updateProgressLabel">0%</div>
     </div>
     <div class="upd-actions">
-      <button class="btn act" id="btnUpdateDownload">⬇️ Jetzt Aktualisieren</button>
-      <button class="btn sec" id="btnUpdateDismiss">Später</button>
+      <button class="btn act" id="btnUpdateDownload">⬇️ Update Now</button>
+      <button class="btn sec" id="btnUpdateDismiss">Later</button>
     </div>
   </div>
 
@@ -1040,26 +1040,26 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const TEXTS = {
       de: {
-        available: '🚀 NEUES UPDATE VERFÜGBAR:',
-        availableSub: 'Eine neue Version von Neon Survivor ist da – sie wird automatisch installiert.',
-        manualSub: 'Lade diese Version einmalig herunter – danach aktualisiert sich das Spiel von selbst.',
-        fullSub: 'Dieses Update benötigt einmalig den vollständigen Download.',
-        updateBtn: '⬇️ Jetzt Aktualisieren',
-        later: 'Später',
-        downloading: '⬇️ UPDATE WIRD GELADEN:',
-        downloadingSub: 'Das Update wird automatisch heruntergeladen und installiert …',
-        verifying: 'Wird überprüft …',
-        ready: '✅ UPDATE INSTALLIERT:',
-        readyCountdown: n => `Neon Survivor startet in ${n} Sekunde${n === 1 ? '' : 'n'} neu, um das Update zu aktivieren.`,
-        readySub: 'Wird beim nächsten Start automatisch aktiv – oder starte jetzt neu.',
-        restartBtn: '🔄 Jetzt neu starten',
-        restarting: 'Neustart …',
-        error: '⚠️ UPDATE FEHLGESCHLAGEN:',
-        errorSub: 'Das Update konnte nicht geladen werden. Prüfe deine Internetverbindung.',
-        retryBtn: '🔁 Erneut versuchen',
-        manualBtn: '🌐 Manuell laden',
-        updated: '✨ AKTUALISIERT AUF',
-        updatedSub: 'Das Spiel ist jetzt auf dem neuesten Stand. Viel Spaß!',
+        available: '🚀 NEW UPDATE AVAILABLE:',
+        availableSub: 'A new version of Neon Survivor is here – it will be installed automatically.',
+        manualSub: 'Download this version once – after that the game updates itself.',
+        fullSub: 'This update requires a one-time full download.',
+        updateBtn: '⬇️ Update Now',
+        later: 'Later',
+        downloading: '⬇️ DOWNLOADING UPDATE:',
+        downloadingSub: 'The update is being downloaded and installed automatically …',
+        verifying: 'Verifying …',
+        ready: '✅ UPDATE INSTALLED:',
+        readyCountdown: n => `Neon Survivor restarts in ${n} second${n === 1 ? '' : 's'} to apply the update.`,
+        readySub: 'It will be applied on the next start – or restart now.',
+        restartBtn: '🔄 Restart Now',
+        restarting: 'Restarting …',
+        error: '⚠️ UPDATE FAILED:',
+        errorSub: 'The update could not be downloaded. Please check your internet connection.',
+        retryBtn: '🔁 Try Again',
+        manualBtn: '🌐 Download Manually',
+        updated: '✨ UPDATED TO',
+        updatedSub: 'Your game is now up to date. Have fun!',
         ok: 'OK'
       },
       en: {

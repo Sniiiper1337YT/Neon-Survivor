@@ -812,10 +812,10 @@ window.GAME_DATA = {
       saveImported: 'Spielstand erfolgreich geladen!',
       saveInvalid: 'Ungültige Speicherdatei!',
       
-      updateAvailable: '🚀 NEUES UPDATE VERFÜGBAR:',
-      updateSub: 'Eine neue Version von Neon Survivor steht zum Download bereit!',
-      updateDlBtn: '⬇️ Jetzt Aktualisieren',
-      updateDismissBtn: 'Später',
+      updateAvailable: '🚀 NEW UPDATE AVAILABLE:',
+      updateSub: 'A new version of Neon Survivor is available for download!',
+      updateDlBtn: '⬇️ Update Now',
+      updateDismissBtn: 'Later',
 
       reconnectBtn: '🔄 Neu verbinden',
       discordChecking: '○ Prüfe Verbindung...',
