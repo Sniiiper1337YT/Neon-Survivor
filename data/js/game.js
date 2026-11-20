@@ -1,3 +1,4 @@
+
 // ==========================================
 // NEON SURVIVOR - CORE GAME LOOP & CONTROLLER
 // Pacing, Spawning, Neon Overload, Evolutions,
@@ -773,19 +774,25 @@ class GameController {
     if (this.selectedMode === 'sandbox' || this.sandboxPauseSpawns) return;
     const powerScore = (window.Entities && window.Entities.getPlayerPowerScore) ? window.Entities.getPlayerPowerScore() : 0;
     const m = this.time / 60;
-    // Dynamisches Gegnerlimit: 110 früh -> 180-210 spät bei starkem Build (kein 300er-Klumpen)
-    const maxEnemies = Math.min(210, 110 + Math.floor(m * 4) + Math.floor(powerScore * 3));
+    // Skaliertes Gegnerlimit: 150 früh bis 280 bei starkem Build
+    const maxEnemies = Math.min(280, 150 + Math.floor(m * 6) + Math.floor(powerScore * 4));
     if (window.Entities.enemies.length >= maxEnemies) return;
     const chaosMul = this.activeChaosEvent === 'turbo_horde' ? 1.7 : 1.0;
     const glitchMul = this.selectedMap === 'glitch' ? 1.2 : 1.0;
-    const powerSpawnMul = 1.0 + Math.min(0.45, powerScore * 0.05);
-    const spawnRate = (1.1 + m * 0.50 + Math.min(m * 0.12, 1.8)) * chaosMul * glitchMul * powerSpawnMul * dt;
+    const powerSpawnMul = 1.0 + Math.min(0.70, powerScore * 0.08);
+    // Höhere Spawn-Frequenz: Spawnt in kleinen Rudeln (1-3 Gegner gleichzeitig), damit Wellen Druck aufbauen
+    const spawnRate = (2.2 + m * 0.95 + Math.min(m * 0.25, 3.5)) * chaosMul * glitchMul * powerSpawnMul * dt;
     if (Math.random() < spawnRate) {
-      const type = this.pickSpawnType();
-      const a = Math.random() * Math.PI * 2;
-      const d = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 60 + Math.random() * 80;
-      const e = window.Entities.createEnemy(type, this.player.x + Math.cos(a) * d, this.player.y + Math.sin(a) * d);
-      window.Entities.enemies.push(e);
+      const burstCount = Math.random() < 0.35 ? 2 : 1;
+      const baseAng = Math.random() * Math.PI * 2;
+      for (let bi = 0; bi < burstCount; bi++) {
+        if (window.Entities.enemies.length >= maxEnemies) break;
+        const type = this.pickSpawnType();
+        const a = baseAng + (bi - 0.5) * 0.22;
+        const d = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 50 + Math.random() * 70;
+        const e = window.Entities.createEnemy(type, this.player.x + Math.cos(a) * d, this.player.y + Math.sin(a) * d);
+        window.Entities.enemies.push(e);
+      }
     }
   }
 
@@ -1226,4 +1233,4 @@ class GameController {
   }
 }
 
-window.GameState = new GameController();
+window.GameState = new GameController()

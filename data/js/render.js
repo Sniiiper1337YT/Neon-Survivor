@@ -1,3 +1,4 @@
+;
 // ==========================================
 // NEON SURVIVOR - HIGH-END CANVAS 2D RENDERER
 // Neon Glow Shaders, 17 Enemies, 6 Bosses, 8 Ships,
@@ -1472,16 +1473,26 @@ class RenderEngine {
       this.rrect(bx - 2, by - 2, bw + 4, 16, 7);
       ctx.fill();
 
-      ctx.fillStyle = boss.isSurging ? '#ffd23f' : (boss.col || '#ff2d95');
+      ctx.fillStyle = (boss.invulnerable > 0) ? '#00e5ff' : (boss.isSurging ? '#ffd23f' : (boss.col || '#ff2d95'));
       this.rrect(bx, by, Math.max(12, bw * (boss.hp / boss.maxHp)), 12, 6);
       ctx.fill();
+
+      // Phasen-Markierungen auf dem Lebensbalken
+      if (boss.phases > 1) {
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        for (let p = 1; p < boss.phases; p++) {
+          const px = bx + (bw * (p / boss.phases));
+          ctx.fillRect(px - 1, by - 2, 2, 16);
+        }
+      }
 
       ctx.textAlign = 'center';
       ctx.font = '900 14px Segoe UI';
       ctx.fillStyle = '#ffffff';
       const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
       const huntingSuffix = boss.isSurging ? (lang === 'en' ? ' · ⚡ HUNTING!' : ' · ⚡ JAGT!') : '';
-      ctx.fillText('👑 ' + boss.name.toUpperCase() + ' · ' + bossDistM + 'm' + huntingSuffix, W / 2, by + 30);
+      const phaseSuffix = boss.phases > 1 ?  [PHASE /] : '';
+      ctx.fillText('👑 ' + boss.name.toUpperCase() + phaseSuffix + ' · ' + bossDistM + 'm' + huntingSuffix, W / 2, by + 30);
 
       // Off-screen boss directional edge indicator
       const scrX = (boss.x - window.GameState.cam.x) + W / 2;
@@ -1796,4 +1807,4 @@ class RenderEngine {
   }
 }
 
-window.Renderer = new RenderEngine();
+window.Renderer = new RenderEngine()

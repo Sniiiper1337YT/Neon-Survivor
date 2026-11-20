@@ -1,3 +1,4 @@
+;
 // ==========================================
 // NEON SURVIVOR - ENTITIES & COMBAT SYSTEM
 // Spatial Grid, Particles, Projectiles, 17 Enemies,
@@ -173,6 +174,18 @@ class EntityManager {
   hurtEnemy(e, dmg, kx = 0, ky = 0, isCrit = false) {
     if (e.dead) return;
     const P = window.GameState.player;
+
+    // Boss Phase-Gating & Shield Protection
+    if (e.isBoss) {
+      if (e.invulnerable > 0) {
+        this.addText(e.x, e.y - e.r, 'IMMUN', '#00e5ff', true);
+        return;
+      }
+      // Boss Damage Cap: Kein Schuss darf mehr als 3.5% der MaxHP auf einmal abziehen (Schutz vor 1-Hit Instakills)
+      const maxHit = e.maxHp * 0.035;
+      if (dmg > maxHit) dmg = maxHit;
+    }
+
     if (isCrit || Math.random() < P.crit) {
       dmg *= 2;
       isCrit = true;
@@ -181,7 +194,25 @@ class EntityManager {
     e.hp -= dmg;
     e.flash = 0.08;
 
-    const kb = e.isBoss ? 0.04 : (e.isOvercharged ? 0.18 : (e.isElite ? 0.35 : 1.0)) * (12 / e.r);
+    // Boss Phasen-Übergang prüfen:
+    if (e.isBoss && e.phases > 1) {
+      const nextThreshold = e.maxHp - (e.phase * (e.maxHp / e.phases));
+      if (e.hp <= nextThreshold && e.phase < e.phases) {
+        e.phase++;
+        e.invulnerable = 2.2; // 2.2s unverwundbar während Phasen-Burst
+        e.flash = 0.6;
+        e.st = 0.5; // Sofort Gegenangriff triggern
+        this.spawnParticle(e.x, e.y, e.col || '#ff0055', 45, 380, 5, 0.9);
+        this.fx.push({ type: 'ring', x: e.x, y: e.y, r0: 20, r1: 450, life: 0.7, max: 0.7, col: '#ff0055' });
+        window.GameState.shake = 28;
+        if (window.SoundSystem) window.SoundSystem.sfx('nova');
+        const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+        this.addText(e.x, e.y - e.r - 20, lang === 'en' ? PHASE ! : PHASE !, '#ffd23f', true);
+      }
+    }
+
+    // Drastisch reduzierter Knockback für Feinde und 0 für Bosse, damit sie nicht weggeschoben werden
+    const kb = e.isBoss ? 0.0 : (e.isOvercharged ? 0.04 : (e.isElite ? 0.08 : 0.22)) * (12 / e.r);
     e.kx += (kx || 0) * kb;
     e.ky += (ky || 0) * kb;
 
@@ -392,8 +423,9 @@ class EntityManager {
     if (!def) return null;
     const m = window.GameState.time / 60;
     const powerScore = this.getPlayerPowerScore();
-    const bossPowerHp = 1.0 + Math.min(0.55, powerScore * 0.06);
-    const hp = def.hp * (1 + m * 0.03) * bossPowerHp;
+    // Skaliert dynamisch mit der tatsächlichen Feuerkraft des Spielers
+    const bossPowerHp = 1.0 + Math.min(2.5, powerScore * 0.22);
+    const hp = def.hp * (1 + m * 0.08) * bossPowerHp;
 
     const b = {
       id: bossKey,
@@ -410,11 +442,14 @@ class EntityManager {
       shape: 'star',
       phases: def.phases,
       phase: 1,
+      phaseThreshold: hp / def.phases,
+      shield: 0,
+      invulnerable: 0,
       flash: 0,
       kx: 0, ky: 0,
       rot: 0,
       dead: false,
-      st: 2.0,
+      st: 1.5,
       pat: 0,
       telegraph: 0
     };
@@ -889,6 +924,7 @@ class EntityManager {
   updateEnemyAI(e, dt, P) {
     e.flash -= dt;
     if (e.oc > 0) e.oc -= dt;
+    if (e.invulnerable > 0) e.invulnerable -= dt;
     if (e.stunned > 0) {
       e.stunned -= dt;
       const dampS = Math.max(0, 1 - dt * 7);
@@ -902,7 +938,12 @@ class EntityManager {
     let freezeSlow = 1;
     if (e.frozen > 0) {
       e.frozen -= dt;
-      freezeSlow = (window.GameState.weapons.cryo && window.GameState.weapons.cryo.evolved) ? 0.25 : 0.35;
+      // Bosse können nicht extrem verlangsamt werden (max 15% Slow)
+      if (e.isBoss) {
+        freezeSlow = 0.85;
+      } else {
+        freezeSlow = (window.GameState.weapons.cryo && window.GameState.weapons.cryo.evolved) ? 0.35 : 0.50;
+      }
     }
     if (e.stunned > 0) {
       e.stunned -= dt;
@@ -913,22 +954,23 @@ class EntityManager {
     let mvx = dx / d, mvy = dy / d;
     let currentSpd = e.spd * freezeSlow;
 
-    // Boss special AI + distance catch-up speed
+    // Boss special AI + aggressive Verfolgung
     if (e.isBoss) {
-      if (d > 720) {
+      // Aggressive Jagdgeschwindigkeit: Der Boss ist schneller als der Spieler oder hält stets Druck aufrecht
+      const playerSpd = (P && P.speed) ? P.speed : 230;
+      if (d > 550) {
         e.isSurging = true;
-        const playerSpd = (P && P.speed) ? P.speed : 200;
-        const minCatchupSpd = Math.max(currentSpd * 3.2, playerSpd * 1.45 + (d - 720) * 0.65);
-        currentSpd = Math.min(1300, Math.max(currentSpd, minCatchupSpd));
+        const minCatchupSpd = Math.max(currentSpd * 2.5, playerSpd * 1.6 + (d - 550) * 0.7);
+        currentSpd = Math.min(1400, Math.max(currentSpd, minCatchupSpd));
         if (Math.random() < dt * 16) {
           this.spawnParticle(e.x, e.y, e.col || '#ff2d95', 1, 70, 4.5, 0.3);
         }
-      } else if (d > 420) {
+      } else if (d > 220) {
         e.isSurging = false;
-        const ramp = (d - 420) / 300;
-        currentSpd *= (1 + ramp * 2.2);
+        currentSpd = Math.max(currentSpd, playerSpd * 1.15);
       } else {
         e.isSurging = false;
+        currentSpd = Math.max(currentSpd, playerSpd * 0.95);
       }
       this.updateBossAI(e, dt, P, mvx, mvy, d);
     } else {
@@ -1094,21 +1136,19 @@ class EntityManager {
             e.y += ny * overlap * pushWeight * 0.75;
           }
 
-          // 2. Weiche Abstoßungskraft (Flocking Separation)
-          const force = o.isBoss ? 7.5 : 3.8;
+          // 2. Weiche Abstoßungskraft (Flocking Separation - moderat, damit sie den Spieler anstürmen können)
+          const force = o.isBoss ? 4.5 : 1.8;
           const sep = Math.pow((flockDist - q) / flockDist, 1.1) * force;
           sx += nx * sep;
           sy += ny * sep;
 
-          // 3. Tangentiales Auffächern (Umfassungsmanöver):
-          // Liegt der Verbündete o vor uns auf dem Weg zum Spieler,
-          // gleitet e seitlich vorbei, statt sich im Rücken zu stauen.
+          // 3. Tangentiales Auffächern (Umfassungsmanöver)
           if (!o.isBoss) {
             const frontDot = -(ox * mvx + oy * mvy);
             if (frontDot > 0) {
               const side = ox * perpX + oy * perpY;
               const steerDir = side >= 0 ? 1 : -1;
-              const flankWeight = ((flockDist - q) / flockDist) * 1.6;
+              const flankWeight = ((flockDist - q) / flockDist) * 1.1;
               tanX += perpX * steerDir * flankWeight;
               tanY += perpY * steerDir * flankWeight;
             }
@@ -1118,13 +1158,13 @@ class EntityManager {
     }
 
     // Knockback decay
-    const damp = Math.max(0, 1 - dt * 7);
+    const damp = Math.max(0, 1 - dt * 9);
     e.kx *= damp;
     e.ky *= damp;
 
-    // Bewegung zusammensetzen: Vorwärtsdrang + Separation + Flanken-Steering + Knockback
-    const moveX = mvx * currentSpd + (sx * 200 + tanX * 160) + e.kx;
-    const moveY = mvy * currentSpd + (sy * 200 + tanY * 160) + e.ky;
+    // Bewegung zusammensetzen: Vorwärtsdrang (Hauptkomponente!) + Separation + Flanken-Steering + Knockback
+    const moveX = mvx * currentSpd + (sx * 85 + tanX * 70) + e.kx;
+    const moveY = mvy * currentSpd + (sy * 85 + tanY * 70) + e.ky;
     e.x += moveX * dt;
     e.y += moveY * dt;
 

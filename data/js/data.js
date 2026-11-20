@@ -1,3 +1,4 @@
+;
 // ==========================================
 // NEON SURVIVOR - MASTER DATA & DATABASE
 // 17 Enemies, 6 Bosses, 15 Weapons, 15 Evolutions,
@@ -11,23 +12,23 @@ window.GAME_DATA = {
   // 17 ENEMY TYPES
   // ----------------------------------------------------
   ENEMIES: {
-    grunt:      { r: 12, hp: 14,  spd: 75,  dmg: 8,  xp: 1, col: '#ff3366', shape: 'tri', desc: 'Standard swarm fighter' },
-    runner:     { r: 9,  hp: 9,   spd: 135, dmg: 6,  xp: 1, col: '#ffd23f', shape: 'tri', desc: 'Fast aggressive rusher' },
-    tank:       { r: 24, hp: 95,  spd: 45,  dmg: 16, xp: 5, col: '#b44dff', shape: 'sq',  desc: 'Heavily armored bruiser' },
-    shooter:    { r: 13, hp: 28,  spd: 65,  dmg: 9,  xp: 3, col: '#3dfcff', shape: 'dia', desc: 'Fires ranged plasma bolts' },
-    splitter:   { r: 18, hp: 38,  spd: 68,  dmg: 10, xp: 3, col: '#5dff6a', shape: 'hex', desc: 'Splits into 2 minion splitters' },
-    mini:       { r: 9,  hp: 9,   spd: 105, dmg: 5,  xp: 1, col: '#5dff6a', shape: 'hex', desc: 'Mini spawn from splitter' },
-    dasher:     { r: 14, hp: 32,  spd: 60,  dmg: 14, xp: 3, col: '#ff0055', shape: 'tri', desc: 'Charges up and dashes forward with speed' },
-    shielder:   { r: 20, hp: 75,  spd: 52,  dmg: 12, xp: 4, col: '#00e5ff', shape: 'oct', desc: 'Blocks frontal projectiles with a forcefield' },
-    teleporter: { r: 14, hp: 42,  spd: 50,  dmg: 12, xp: 4, col: '#d500f9', shape: 'dia', desc: 'Teleports in bursts of static toward player' },
-    summoner:   { r: 22, hp: 85,  spd: 40,  dmg: 10, xp: 5, col: '#ff6d00', shape: 'hex', desc: 'Stays at distance and spawns runner drones' },
-    sniper:     { r: 15, hp: 35,  spd: 48,  dmg: 22, xp: 4, col: '#ff1744', shape: 'dia', desc: 'Aims with long laser line and fires high-velocity shot' },
-    mortar:     { r: 20, hp: 65,  spd: 42,  dmg: 18, xp: 5, col: '#aeea00', shape: 'sq',  desc: 'Lobs explosive shells with area danger indicators' },
-    orbiter:    { r: 11, hp: 22,  spd: 120, dmg: 8,  xp: 2, col: '#76ff03', shape: 'tri', desc: 'Spirals around the player at high speed' },
-    phantom:    { r: 13, hp: 26,  spd: 80,  dmg: 11, xp: 3, col: '#651fff', shape: 'tri', desc: 'Cloaks and becomes nearly invisible until close' },
-    leech:      { r: 16, hp: 48,  spd: 62,  dmg: 10, xp: 4, col: '#f50057', shape: 'hex', desc: 'Connects energy tether that slows player and drains HP' },
-    repulsor:   { r: 19, hp: 60,  spd: 55,  dmg: 9,  xp: 4, col: '#00b0ff', shape: 'oct', desc: 'Repels player bullets and shoves other mobs forward' },
-    kamikaze:   { r: 12, hp: 18,  spd: 110, dmg: 28, xp: 2, col: '#ff3d00', shape: 'tri', desc: 'Beeps red and detonates in massive explosion on touch' }
+    grunt:      { r: 12, hp: 26,  spd: 108, dmg: 10, xp: 1, col: '#ff3366', shape: 'tri', desc: 'Standard swarm fighter' },
+    runner:     { r: 9,  hp: 16,  spd: 175, dmg: 8,  xp: 1, col: '#ffd23f', shape: 'tri', desc: 'Fast aggressive rusher' },
+    tank:       { r: 24, hp: 160, spd: 72,  dmg: 20, xp: 5, col: '#b44dff', shape: 'sq',  desc: 'Heavily armored bruiser' },
+    shooter:    { r: 13, hp: 44,  spd: 88,  dmg: 11, xp: 3, col: '#3dfcff', shape: 'dia', desc: 'Fires ranged plasma bolts' },
+    splitter:   { r: 18, hp: 60,  spd: 92,  dmg: 12, xp: 3, col: '#5dff6a', shape: 'hex', desc: 'Splits into 2 minion splitters' },
+    mini:       { r: 9,  hp: 15,  spd: 135, dmg: 6,  xp: 1, col: '#5dff6a', shape: 'hex', desc: 'Mini spawn from splitter' },
+    dasher:     { r: 14, hp: 52,  spd: 95,  dmg: 18, xp: 3, col: '#ff0055', shape: 'tri', desc: 'Charges up and dashes forward with speed' },
+    shielder:   { r: 20, hp: 120, spd: 75,  dmg: 14, xp: 4, col: '#00e5ff', shape: 'oct', desc: 'Blocks frontal projectiles with a forcefield' },
+    teleporter: { r: 14, hp: 62,  spd: 75,  dmg: 15, xp: 4, col: '#d500f9', shape: 'dia', desc: 'Teleports in bursts of static toward player' },
+    summoner:   { r: 22, hp: 130, spd: 65,  dmg: 12, xp: 5, col: '#ff6d00', shape: 'hex', desc: 'Stays at distance and spawns runner drones' },
+    sniper:     { r: 15, hp: 55,  spd: 70,  dmg: 25, xp: 4, col: '#ff1744', shape: 'dia', desc: 'Aims with long laser line and fires high-velocity shot' },
+    mortar:     { r: 20, hp: 95,  spd: 62,  dmg: 22, xp: 5, col: '#aeea00', shape: 'sq',  desc: 'Lobs explosive shells with area danger indicators' },
+    orbiter:    { r: 11, hp: 36,  spd: 160, dmg: 10, xp: 2, col: '#76ff03', shape: 'tri', desc: 'Spirals around the player at high speed' },
+    phantom:    { r: 13, hp: 42,  spd: 115, dmg: 14, xp: 3, col: '#651fff', shape: 'tri', desc: 'Cloaks and becomes nearly invisible until close' },
+    leech:      { r: 16, hp: 75,  spd: 88,  dmg: 12, xp: 4, col: '#f50057', shape: 'hex', desc: 'Connects energy tether that slows player and drains HP' },
+    repulsor:   { r: 19, hp: 95,  spd: 78,  dmg: 11, xp: 4, col: '#00b0ff', shape: 'oct', desc: 'Repels player bullets and shoves other mobs forward' },
+    kamikaze:   { r: 12, hp: 30,  spd: 155, dmg: 32, xp: 2, col: '#ff3d00', shape: 'tri', desc: 'Beeps red and detonates in massive explosion on touch' }
   },
 
   // ----------------------------------------------------
@@ -37,42 +38,42 @@ window.GAME_DATA = {
     scorpio: {
       time: 300, // 5 min
       name: 'Cyber-Scorpio',
-      r: 45, hp: 2200, spd: 65, dmg: 26, col: '#ff0055',
+      r: 45, hp: 12500, spd: 82, dmg: 28, col: '#ff0055',
       phases: 2,
       desc: 'Venom tail plasma bursts & charging stings'
     },
     leviathan: {
       time: 600, // 10 min
       name: 'Neon-Leviathan',
-      r: 52, hp: 5500, spd: 58, dmg: 32, col: '#00e5ff',
+      r: 52, hp: 28000, spd: 74, dmg: 35, col: '#00e5ff',
       phases: 2,
       desc: 'Massive segmented serpent sweeping across the arena'
     },
     titan: {
       time: 900, // 15 min
       name: 'Mecha-Titan',
-      r: 58, hp: 11000, spd: 50, dmg: 38, col: '#b44dff',
+      r: 58, hp: 52000, spd: 66, dmg: 42, col: '#b44dff',
       phases: 3,
       desc: 'Rotating laser barriers, missile barrages & shockwaves'
     },
     vortex_eye: {
       time: 1200, // 20 min
       name: 'Vortex-Core',
-      r: 50, hp: 18000, spd: 46, dmg: 42, col: '#651fff',
+      r: 50, hp: 85000, spd: 62, dmg: 46, col: '#651fff',
       phases: 3,
       desc: 'Gravitational anomaly pulling players into bullet rings'
     },
     chronos: {
       time: 1500, // 25 min
       name: 'Chronos-Sentinel',
-      r: 54, hp: 28000, spd: 62, dmg: 48, col: '#ffd23f',
+      r: 54, hp: 130000, spd: 78, dmg: 52, col: '#ffd23f',
       phases: 3,
       desc: 'Time-distortion master, blink teleportation & clone mirages'
     },
     arch_sentinel: {
       time: 1800, // 30 min Finale!
       name: 'The Arch-Sentinel',
-      r: 66, hp: 45000, spd: 55, dmg: 55, col: '#ffffff',
+      r: 66, hp: 220000, spd: 72, dmg: 60, col: '#ffffff',
       phases: 4,
       desc: 'The ultimate guardian of the Neon Matrix with 4 devastating phases'
     }
@@ -966,4 +967,4 @@ window.GAME_DATA = {
       portalComplete: '🎉 PORTAL CHALLENGE MASTERED!'
     }
   }
-};
+}
