@@ -456,10 +456,22 @@ class WeaponEngine {
           if (Math.hypot(eb.x - P.x, eb.y - P.y) < rad) eb.dead = true;
         }
 
-        // Stun enemies
+        // Stun enemies (with CC resistance & post-stun immunity so mobs/bosses can't be perma-stunned)
+        const threat = (window.GameState && window.GameState.threatLevel) || 1.0;
+        const threatCcRes = 1.0 + Math.min(1.0, (Math.max(1.0, threat) - 1.0) * 0.18);
         window.Entities.grid.query(P.x, P.y, rad, e => {
           if (e.dead) return;
-          e.stunned = Math.max(e.stunned || 0, e.isBoss ? (isEvo ? 1.0 : 0.4) : (isEvo ? 4.0 : 2.0));
+          if (!(e.stunImmune > 0)) {
+            let stunDur = e.isBoss ? (isEvo ? 0.55 : 0.25) : (isEvo ? 2.1 : 1.3);
+            if (e.afkHunter) stunDur *= 0.25;
+            else if (e.isOvercharged) stunDur *= 0.35;
+            else if (e.isElite) stunDur *= 0.55;
+            stunDur /= threatCcRes;
+            if (stunDur >= 0.15) {
+              e.stunned = Math.max(e.stunned || 0, stunDur);
+              e.stunImmune = stunDur + (e.isBoss ? 5.0 : 2.5);
+            }
+          }
           window.Entities.hurtEnemy(e, (isEvo ? 60 : 20 + l * 5) * dmgMul, 0, 0);
         });
 

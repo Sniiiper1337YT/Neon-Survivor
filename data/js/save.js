@@ -288,7 +288,8 @@ class SaveSystem {
     if (this.isTestSession()) return 0; // No credits in the test lab
     if (!(amount > 0)) return 0;
     const bonus = 1 + (this.data.skilltree.creditBoost * 0.1);
-    const finalAmount = Math.round(amount * bonus);
+    const greedBonus = (window.GameState && window.GameState.state !== 'title' && window.GameState.activeModules && window.GameState.activeModules.greed_reactor) ? 1.25 : 1.0;
+    const finalAmount = Math.round(amount * bonus * greedBonus);
     this.data.credits += finalAmount;
     this.data.lifetimeCredits += finalAmount;
     this.save();

@@ -76,7 +76,7 @@ Experience razor-sharp combat maneuvering. Your ship steers directly and respons
 ## 🚀 Download & Installation
 
 1. Go to the [Latest Releases Page](https://github.com/Sniiiper1337YT/Neon-Survivor/releases/latest).
-2. Download the base game package: **`Neon-Survivor-Windows-v1.4.0.zip`**.
+2. Download the base game package: **`Neon-Survivor-Windows-v1.4.1.zip`**.
 3. Extract the ZIP archive anywhere on your PC (`Right-Click` → *Extract All...*).
 4. Launch **`Neon Survivor.exe`** and jump straight into the action!
 

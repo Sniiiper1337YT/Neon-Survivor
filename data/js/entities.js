@@ -87,6 +87,7 @@ class EntityManager {
     this.minigameCoresList = [];
     this.portalChallenge = null;
     this.hazardSpawnTimer = 0;
+    this.lastPowerupDropTime = -10;
   }
 
   reset() {
@@ -111,6 +112,7 @@ class EntityManager {
     this.minigameCoresList.length = 0;
     this.portalChallenge = null;
     this.hazardSpawnTimer = 0;
+    this.lastPowerupDropTime = -10;
   }
 
   spawnParticle(x, y, col, n = 1, spd = 200, size = 3, life = 0.5) {
@@ -181,7 +183,10 @@ class EntityManager {
     e.hp -= dmg;
     e.flash = 0.08;
 
-    const kb = e.isBoss ? 0.04 : (e.isOvercharged ? 0.18 : (e.isElite ? 0.35 : 1.0)) * (12 / e.r);
+    const threat = (window.GameState && window.GameState.threatLevel) || 1.0;
+    const threatKbRes = 1.0 + Math.min(2.0, (Math.max(1.0, threat) - 1.0) * 0.35);
+    const afkKbMul = e.afkHunter ? 0.15 : 1.0;
+    const kb = (e.isBoss ? 0.04 : (e.isOvercharged ? 0.16 : (e.isElite ? 0.30 : 1.0))) * (12 / e.r) * afkKbMul / threatKbRes;
     e.kx += (kx || 0) * kb;
     e.ky += (ky || 0) * kb;
 
@@ -219,14 +224,23 @@ class EntityManager {
       return;
     }
 
+    if (!e.isBoss && window.GameState && window.GameState.recordEnemyKill) {
+      window.GameState.recordEnemyKill(e);
+    }
+
     this.spawnParticle(e.x, e.y, e.col, 14, 250, 3.5, 0.6);
     if (window.SoundSystem) window.SoundSystem.sfx('kill');
 
     // Drop gems
     this.dropGem(e.x, e.y, e.xp);
 
-    // Random powerup chance (1.8%)
-    if (Math.random() < 0.018) {
+    // Random powerup chance (throttled & scales carefully with threat)
+    const threat = (window.GameState && window.GameState.threatLevel) || 1.0;
+    const nowT = (window.GameState && window.GameState.time) || 0;
+    const dropCd = 4.0 + Math.min(4.0, (threat - 1.0) * 0.6);
+    const dropChance = Math.max(0.005, 0.014 - (threat - 1.0) * 0.0015);
+    if (this.powerups.length < 6 && (nowT - (this.lastPowerupDropTime || -10)) >= dropCd && Math.random() < dropChance) {
+      this.lastPowerupDropTime = nowT;
       this.dropPowerup(e.x, e.y);
     }
 
@@ -259,6 +273,10 @@ class EntityManager {
       window.SaveSystem.data.stats.totalBossKills++;
     }
     window.GameState.currentBoss = null;
+    if (window.GameState.onDirectorBossDefeated) {
+      const fightDur = Math.max(1, window.GameState.time - (boss.spawnTime || window.GameState.time));
+      window.GameState.onDirectorBossDefeated(fightDur);
+    }
 
     // Massive drops
     for (let i = 0; i < 30; i++) {
@@ -332,33 +350,31 @@ class EntityManager {
     const def = window.GAME_DATA.ENEMIES[type] || window.GAME_DATA.ENEMIES.grunt;
     const m = (window.GameState ? window.GameState.time : 0) / 60;
     const powerScore = this.getPlayerPowerScore();
+    const threat = (window.GameState && window.GameState.threatLevel) || 1.0;
 
-    // Lineare & faire zeitbasierte Skalierung (kein exponentieller Runaway bei Minute 8+):
-    // Minute 1: ~1.2x | Minute 5: ~2.0x | Minute 8: ~2.7x | Minute 15: ~4.5x | Minute 30: ~8.0x
-    const baseHpMul = 1.0 + m * 0.18 + Math.min(m * 0.06, 1.8);
-    const baseSpdMul = 1.0 + Math.min(m * 0.015, 0.35);
+    // Zeit-, PowerScore- & Threat-basierte HP-Skalierung (ausbalanciert ohne Bullet-Sponges)
+    const timeHp = 1.0 + m * 0.30 + Math.pow(m, 1.6) * 0.10;
+    const powerHp = 1.0 + powerScore * 0.20;
+    const threatHp = 1.0 + (Math.max(1.0, threat) - 1.0) * 0.65;
+    const hpMul = timeHp * (0.5 * powerHp + 0.5 * threatHp + 0.35 * (powerHp - 1) * (threatHp - 1));
 
-    // Progressive Skalierung bei starkem Spieler-Loadout ("gut aufgestellt"):
-    // Skaliert moderat mit (max +60% HP, +28% Speed, +40% Dmg),
-    // damit starke Builds gefordert werden, aber Mobs niemals zu unbesiegbaren Bullet-Sponges mutieren.
-    const adaptiveHpMul = 1.0 + Math.min(0.60, powerScore * 0.08);
-    const adaptiveSpdMul = 1.0 + Math.min(0.28, Math.pow(powerScore, 0.7) * 0.06);
-    const adaptiveDmgMul = 1.0 + Math.min(0.40, powerScore * 0.05);
+    const baseSpdMul = 1.0 + Math.min(m * 0.022, 0.50);
+    const adaptiveSpdMul = 1.0 + Math.min(0.45, Math.pow(powerScore, 0.72) * 0.075);
+    const threatSpdMul = 1.0 + Math.min(0.45, (Math.max(1.0, threat) - 1.0) * 0.085);
+    const greedSpdMul = (window.GameState && window.GameState.activeModules && window.GameState.activeModules.greed_reactor) ? 1.10 : 1.0;
+    const spdMul = Math.min(2.35, baseSpdMul * adaptiveSpdMul * threatSpdMul * greedSpdMul);
 
-    const hpMul = baseHpMul * adaptiveHpMul;
-    const spdMul = baseSpdMul * adaptiveSpdMul;
+    const dmgMul = (1.0 + m * 0.05) * (1.0 + Math.min(0.60, powerScore * 0.03)) * (1.0 + Math.min(1.10, (Math.max(1.0, threat) - 1.0) * 0.20));
 
     // Elite & Overcharged Champion Chance:
-    // Belohnende und spannende Mini-Herausforderungen (max 18% Eliten)
-    const eliteChance = Math.min(0.18, 0.03 + m * 0.007 + powerScore * 0.008);
-    const isElite = forceElite || (m >= 1.5 && Math.random() < eliteChance && type !== 'mini');
+    const eliteChance = Math.min(0.36, 0.03 + m * 0.009 + powerScore * 0.010 + (Math.max(1.0, threat) - 1.0) * 0.035);
+    const isElite = forceElite || (m >= 1.2 && Math.random() < eliteChance && type !== 'mini');
 
-    // Overcharged Champions nur bei hochgradig ausgerüsteten Spielern (PowerScore >= 6), Chance max 25%
-    const isOvercharged = isElite && (powerScore >= 6.0) && (Math.random() < Math.min(0.25, (powerScore - 5.0) * 0.05));
+    // Overcharged Champions bei stärkerem Build oder höherem Threat
+    const isOvercharged = isElite && (powerScore >= 4.0 || threat >= 2.2) && (Math.random() < Math.min(0.38, Math.max(0, powerScore - 3.0) * 0.045 + Math.max(0, threat - 1.8) * 0.05));
 
-    // Faire HP-Multiplikatoren: 2.2x für Elite, 3.5x für Overcharged
-    const finalHpMul = hpMul * (isOvercharged ? 3.5 : (isElite ? 2.2 : 1.0));
-    const finalSpdMul = spdMul * (isOvercharged ? 1.20 : (isElite ? 1.12 : 1.0));
+    const finalHpMul = hpMul * (isOvercharged ? 3.8 : (isElite ? 2.4 : 1.0));
+    const finalSpdMul = spdMul * (isOvercharged ? 1.22 : (isElite ? 1.12 : 1.0));
     const finalR = isOvercharged ? def.r * 1.35 : (isElite ? def.r * 1.20 : def.r);
     const finalCol = isOvercharged ? '#ff0055' : (isElite ? '#ffd23f' : def.col);
 
@@ -369,7 +385,7 @@ class EntityManager {
       hp: def.hp * finalHpMul,
       maxHp: def.hp * finalHpMul,
       spd: def.spd * finalSpdMul * (0.92 + Math.random() * 0.16),
-      dmg: def.dmg * (1 + m * 0.03) * adaptiveDmgMul * (isOvercharged ? 1.4 : (isElite ? 1.2 : 1.0)),
+      dmg: def.dmg * dmgMul * (isOvercharged ? 1.45 : (isElite ? 1.25 : 1.0)),
       xp: def.xp * (isOvercharged ? 5 : (isElite ? 2.5 : 1)),
       col: finalCol,
       shape: def.shape,
@@ -379,7 +395,8 @@ class EntityManager {
       dead: false,
       st: 1 + Math.random() * 2,
       telegraph: 0,
-      oc: 0, frozen: 0, stunned: 0,
+      oc: 0, frozen: 0, stunned: 0, stunImmune: 0, leechCd: 0,
+      spawnTime: window.GameState ? window.GameState.time : 0,
       isBoss: false,
       isElite: !!isElite,
       isOvercharged: !!isOvercharged,
@@ -392,8 +409,13 @@ class EntityManager {
     if (!def) return null;
     const m = window.GameState.time / 60;
     const powerScore = this.getPlayerPowerScore();
-    const bossPowerHp = 1.0 + Math.min(0.55, powerScore * 0.06);
-    const hp = def.hp * (1 + m * 0.03) * bossPowerHp;
+    const threat = (window.GameState && window.GameState.threatLevel) || 1.0;
+    const timeMul = 1.0 + m * 0.09;
+    const powerMul = 1.0 + powerScore * 0.30;
+    const threatMul = 1.0 + (Math.max(1.0, threat) - 1.0) * 0.55;
+    const hp = def.hp * timeMul * (0.55 * powerMul + 0.45 * threatMul + 0.30 * (powerMul - 1) * (threatMul - 1));
+    const bossSpd = def.spd * (1.0 + Math.min(0.55, (Math.max(1.0, threat) - 1.0) * 0.09 + m * 0.01));
+    const bossDmg = def.dmg * (1.0 + m * 0.04) * (1.0 + Math.min(0.90, (Math.max(1.0, threat) - 1.0) * 0.16));
 
     const b = {
       id: bossKey,
@@ -404,8 +426,8 @@ class EntityManager {
       r: def.r,
       hp: hp,
       maxHp: hp,
-      spd: def.spd,
-      dmg: def.dmg,
+      spd: bossSpd,
+      dmg: bossDmg,
       col: def.col,
       shape: 'star',
       phases: def.phases,
@@ -416,7 +438,9 @@ class EntityManager {
       dead: false,
       st: 2.0,
       pat: 0,
-      telegraph: 0
+      telegraph: 0,
+      stunImmune: 0,
+      spawnTime: window.GameState ? window.GameState.time : 0
     };
 
     window.GameState.currentBoss = b;
@@ -427,7 +451,8 @@ class EntityManager {
       window.SoundSystem.setTheme('boss');
     }
     if (window.UI) {
-      window.UI.showBanner('⚠ ' + def.name.toUpperCase() + ' NAHT ⚠', def.col);
+      const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+      window.UI.showBanner('⚠ ' + def.name.toUpperCase() + (lang === 'en' ? ' APPROACHING ⚠' : ' NAHT ⚠'), def.col);
     }
     return b;
   }
@@ -889,6 +914,7 @@ class EntityManager {
   updateEnemyAI(e, dt, P) {
     e.flash -= dt;
     if (e.oc > 0) e.oc -= dt;
+    if (e.stunImmune > 0) e.stunImmune -= dt;
     if (e.stunned > 0) {
       e.stunned -= dt;
       const dampS = Math.max(0, 1 - dt * 7);
@@ -903,15 +929,16 @@ class EntityManager {
     if (e.frozen > 0) {
       e.frozen -= dt;
       freezeSlow = (window.GameState.weapons.cryo && window.GameState.weapons.cryo.evolved) ? 0.25 : 0.35;
-    }
-    if (e.stunned > 0) {
-      e.stunned -= dt;
-      freezeSlow = 0;
+      if (e.isOvercharged || e.afkHunter) freezeSlow = Math.max(freezeSlow, 0.65);
+      else if (e.isElite) freezeSlow = Math.max(freezeSlow, 0.50);
     }
 
     const dx = P.x - e.x, dy = P.y - e.y, d = Math.hypot(dx, dy) || 1;
     let mvx = dx / d, mvy = dy / d;
     let currentSpd = e.spd * freezeSlow;
+    const threat = (window.GameState && window.GameState.threatLevel) || 1.0;
+    const aggro = 1.0 + Math.min(1.1, (Math.max(1.0, threat) - 1.0) * 0.22);
+    const projSpd = 1.0 + Math.min(0.65, (Math.max(1.0, threat) - 1.0) * 0.13);
 
     // Boss special AI + distance catch-up speed
     if (e.isBoss) {
@@ -939,8 +966,8 @@ class EntityManager {
           else if (d < 340) { mvx *= 0.1; mvy *= 0.1; }
           e.st -= dt;
           if (e.st <= 0 && d < 550) {
-            e.st = 2.4;
-            this.ebullets.push({ x: e.x, y: e.y, vx: mvx * 260, vy: mvy * 260, r: 6, dmg: e.dmg, life: 4 });
+            e.st = 2.4 / aggro;
+            this.ebullets.push({ x: e.x, y: e.y, vx: mvx * 260 * projSpd, vy: mvy * 260 * projSpd, r: 6, dmg: e.dmg, life: 4 });
             if (window.SoundSystem) window.SoundSystem.sfx('shoot');
           }
           break;
@@ -952,9 +979,10 @@ class EntityManager {
             currentSpd = 10; // Pause before burst
           }
           if (e.st <= 0) {
-            e.st = 3.0;
-            e.kx = mvx * 480;
-            e.ky = mvy * 480;
+            e.st = 3.0 / aggro;
+            const dashSpd = 480 * Math.min(1.4, projSpd);
+            e.kx = mvx * dashSpd;
+            e.ky = mvy * dashSpd;
             this.spawnParticle(e.x, e.y, '#ff0055', 8, 180, 3, 0.4);
             if (window.SoundSystem) window.SoundSystem.sfx('dash');
           }
@@ -967,7 +995,7 @@ class EntityManager {
         case 'teleporter':
           e.st -= dt;
           if (e.st <= 0) {
-            e.st = 3.5;
+            e.st = 3.5 / aggro;
             this.spawnParticle(e.x, e.y, '#d500f9', 16, 200, 3, 0.4);
             const a = Math.random() * Math.PI * 2;
             e.x = P.x + Math.cos(a) * 220;
@@ -980,8 +1008,8 @@ class EntityManager {
         case 'summoner':
           if (d < 380) { mvx *= -0.8; mvy *= -0.8; }
           e.st -= dt;
-          if (e.st <= 0 && this.enemies.length < 240) {
-            e.st = 4.0;
+          if (e.st <= 0 && this.enemies.length < 260) {
+            e.st = 4.0 / aggro;
             const r = this.createEnemy('runner', e.x, e.y);
             this.enemies.push(r);
             this.spawnParticle(e.x, e.y, '#ff6d00', 8, 140, 3, 0.3);
@@ -993,8 +1021,9 @@ class EntityManager {
           e.st -= dt;
           if (e.st <= 0.8) e.telegraph = e.st;
           if (e.st <= 0 && d < 700) {
-            e.st = 3.8;
-            this.ebullets.push({ x: e.x, y: e.y, vx: mvx * 680, vy: mvy * 680, r: 5, dmg: e.dmg, life: 2.5 });
+            e.st = 3.8 / aggro;
+            const snSpd = 680 * Math.min(1.35, projSpd);
+            this.ebullets.push({ x: e.x, y: e.y, vx: mvx * snSpd, vy: mvy * snSpd, r: 5, dmg: e.dmg, life: 2.5 });
             if (window.SoundSystem) window.SoundSystem.sfx('laser');
           }
           break;
@@ -1003,10 +1032,11 @@ class EntityManager {
           if (d < 320) { mvx *= -0.6; mvy *= -0.6; }
           e.st -= dt;
           if (e.st <= 0 && d < 650) {
-            e.st = 4.2;
+            e.st = 4.2 / aggro;
+            const mLife = Math.max(0.95, 1.5 / Math.sqrt(aggro));
             const tx = P.x + (Math.random() * 80 - 40);
             const ty = P.y + (Math.random() * 80 - 40);
-            this.fx.push({ type: 'mortar_target', x: tx, y: ty, r: 60, life: 1.5, max: 1.5, dmg: e.dmg });
+            this.fx.push({ type: 'mortar_target', x: tx, y: ty, r: 60, life: mLife, max: mLife, dmg: e.dmg });
             if (window.SoundSystem) window.SoundSystem.sfx('missile');
           }
           break;
@@ -1023,9 +1053,12 @@ class EntityManager {
 
         case 'leech':
           if (d < 300) {
-            // Drain beam
-            window.GameState.damagePlayer(e.dmg * dt * 0.4);
-            P.speedModifier = 0.75;
+            e.leechCd = (e.leechCd || 0) - dt;
+            if (e.leechCd <= 0) {
+              e.leechCd = 0.65;
+              window.GameState.damagePlayer(e.dmg * 0.65);
+            }
+            P.speedModifier = 0.72;
           }
           break;
 
@@ -1140,7 +1173,10 @@ class EntityManager {
   updateBossAI(b, dt, P, nx, ny, d) {
     b.st -= dt;
     const isEnraged = b.hp < b.maxHp * 0.4;
-    const cooldown = isEnraged ? 1.4 : 2.2;
+    const threat = (window.GameState && window.GameState.threatLevel) || 1.0;
+    const bossAggro = 1.0 + Math.min(0.65, (Math.max(1.0, threat) - 1.0) * 0.13);
+    const bossProj = 1.0 + Math.min(0.50, (Math.max(1.0, threat) - 1.0) * 0.10);
+    const cooldown = (isEnraged ? 1.4 : 2.2) / bossAggro;
 
     if (b.st <= 0) {
       b.st = cooldown;
@@ -1153,14 +1189,14 @@ class EntityManager {
             const n = isEnraged ? 28 : 20;
             for (let i = 0; i < n; i++) {
               const a = (i / n) * Math.PI * 2;
-              this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 230, vy: Math.sin(a) * 230, r: 7, dmg: b.dmg * 0.6, life: 5 });
+              this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 230 * bossProj, vy: Math.sin(a) * 230 * bossProj, r: 7, dmg: b.dmg * 0.6, life: 5 });
             }
             if (window.SoundSystem) window.SoundSystem.sfx('nova');
           } else if (b.pat === 1) {
             // Stinger laser spread
             for (let i = -2; i <= 2; i++) {
               const a = Math.atan2(ny, nx) + i * 0.16;
-              this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 340, vy: Math.sin(a) * 340, r: 8, dmg: b.dmg * 0.7, life: 4 });
+              this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 340 * bossProj, vy: Math.sin(a) * 340 * bossProj, r: 8, dmg: b.dmg * 0.7, life: 4 });
             }
             if (window.SoundSystem) window.SoundSystem.sfx('laser');
           } else {
@@ -1174,15 +1210,16 @@ class EntityManager {
           // Giant spiral bullet spray
           for (let i = 0; i < 16; i++) {
             const a = (i / 16) * Math.PI * 2 + window.GameState.time * 2;
-            this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 210, vy: Math.sin(a) * 210, r: 7, dmg: b.dmg * 0.6, life: 5 });
+            this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 210 * bossProj, vy: Math.sin(a) * 210 * bossProj, r: 7, dmg: b.dmg * 0.6, life: 5 });
           }
           break;
 
         case 'titan':
           // Laser ring & missile barrage
-          for (let i = 0; i < 4; i++) {
+          const titanCount = isEnraged ? 12 : 8;
+          for (let i = 0; i < titanCount; i++) {
             const a = Math.random() * Math.PI * 2;
-            this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 280, vy: Math.sin(a) * 280, r: 9, dmg: b.dmg * 0.8, life: 4.5 });
+            this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 280 * bossProj, vy: Math.sin(a) * 280 * bossProj, r: 9, dmg: b.dmg * 0.8, life: 4.5 });
           }
           this.fx.push({ type: 'ring', x: b.x, y: b.y, r0: 20, r1: 300, life: 0.6, max: 0.6, col: b.col });
           break;
@@ -1196,7 +1233,7 @@ class EntityManager {
           const vrCount = isEnraged ? 18 : 12;
           for (let i = 0; i < vrCount; i++) {
             const a = (i / vrCount) * Math.PI * 2 + b.pat * 0.3;
-            this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 195, vy: Math.sin(a) * 195, r: 7, dmg: b.dmg * 0.65, life: 4.5 });
+            this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 195 * bossProj, vy: Math.sin(a) * 195 * bossProj, r: 7, dmg: b.dmg * 0.65, life: 4.5 });
           }
           this.fx.push({ type: 'ring', x: b.x, y: b.y, r0: 15, r1: 280, life: 0.6, max: 0.6, col: '#651fff' });
           break;
@@ -1212,7 +1249,7 @@ class EntityManager {
           }
           for (let i = 0; i < 12; i++) {
             const a = (i / 12) * Math.PI * 2;
-            this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 240, vy: Math.sin(a) * 240, r: 7, dmg: b.dmg * 0.7, life: 4 });
+            this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 240 * bossProj, vy: Math.sin(a) * 240 * bossProj, r: 7, dmg: b.dmg * 0.7, life: 4 });
           }
           if (window.SoundSystem) window.SoundSystem.sfx('zap');
           break;
@@ -1222,7 +1259,7 @@ class EntityManager {
           const count = isEnraged ? 36 : 24;
           for (let i = 0; i < count; i++) {
             const a = (i / count) * Math.PI * 2;
-            this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 250, vy: Math.sin(a) * 250, r: 8, dmg: b.dmg * 0.7, life: 5 });
+            this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 250 * bossProj, vy: Math.sin(a) * 250 * bossProj, r: 8, dmg: b.dmg * 0.7, life: 5 });
           }
           if (window.SoundSystem) window.SoundSystem.sfx('overload');
           break;

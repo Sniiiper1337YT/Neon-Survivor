@@ -164,6 +164,24 @@ class GameController {
     }
 
     this.time = 0;
+    this.threatLevel = 1.0;
+    this.threatTier = 1;
+    this.lastThreatBannerTime = -30;
+    this.spawnAcc = 0;
+    this.director = {
+      timer: 0,
+      interval: 8.0,            // Frequently re-evaluates every 8 seconds
+      windowDamageTaken: 0,
+      windowHitsTaken: 0,
+      windowKills: 0,
+      windowKillAgeSum: 0,
+      windowEnemySum: 0,
+      windowSamples: 0,
+      timeSinceLastHit: 0,
+      easyStreak: 0,
+      hardStreak: 0,
+      lastVerdict: 'balanced'
+    };
     this.isEndlessOvertime = false;
     this.endlessWave = 1;
     this.endlessWaveTimer = 60.0;
@@ -263,16 +281,26 @@ class GameController {
     // Shield barrier absorption
     if (this.player.shieldHits > 0) {
       this.player.shieldHits--;
-      this.player.inv = 0.5;
+      this.player.inv = 0.45;
+      if (this.director) {
+        this.director.windowHitsTaken++;
+        this.director.timeSinceLastHit *= 0.4;
+      }
       this.shake = Math.max(this.shake, 6);
       if (window.SoundSystem) window.SoundSystem.sfx('shield_break');
       window.Entities.addText(this.player.x, this.player.y - 20, 'SCHILD BLOCK', '#76ff03', true);
       return;
     }
 
-    const finalDmg = Math.max(1, dmg - this.player.armor);
+    const minFloor = Math.max(1, Math.ceil(dmg * 0.40));
+    const finalDmg = Math.max(minFloor, dmg - this.player.armor);
     this.player.hp -= finalDmg;
-    this.player.inv = 0.6;
+    this.player.inv = 0.45;
+    if (this.director) {
+      this.director.windowDamageTaken += finalDmg;
+      this.director.windowHitsTaken++;
+      this.director.timeSinceLastHit = 0;
+    }
     this.shake = Math.max(this.shake, 12);
     this.hurtFlash = 0.35;
     if (window.SoundSystem) window.SoundSystem.sfx('hurt');
@@ -374,19 +402,185 @@ class GameController {
     this.shake = Math.max(this.shake, 10);
   }
 
+  recordEnemyKill(e) {
+    if (!this.director || this.selectedMode === 'sandbox' || this.selectedMode === 'minigame') return;
+    this.director.windowKills++;
+    const age = Math.max(0.1, this.time - (e && typeof e.spawnTime === 'number' ? e.spawnTime : this.time));
+    this.director.windowKillAgeSum += age;
+  }
+
+  onDirectorBossDefeated(fightDuration) {
+    if (!this.director || this.selectedMode === 'sandbox' || this.selectedMode === 'minigame') return;
+    const maxThreat = (this.selectedMode === 'endless' || this.isEndlessOvertime) ? 25.0 : (this.selectedMode === 'hardcore' ? 6.0 : 8.5);
+    if (fightDuration < 12) {
+      this.threatLevel = Math.min(maxThreat, this.threatLevel + 0.85);
+      this.director.easyStreak += 2;
+    } else if (fightDuration < 22) {
+      this.threatLevel = Math.min(maxThreat, this.threatLevel + 0.40);
+      this.director.easyStreak += 1;
+    }
+    this.checkThreatTierUp(true);
+  }
+
+  checkThreatTierUp(deferBanner = false) {
+    const thresholds = [1.0, 1.6, 2.2, 3.0, 4.0, 5.2, 6.5, 8.0, 10.0, 13.0, 16.0, 20.0];
+    let newTier = 1;
+    for (let i = 0; i < thresholds.length; i++) {
+      if ((this.threatLevel || 1.0) >= thresholds[i]) newTier = i + 1;
+    }
+    if (newTier > (this.threatTier || 1)) {
+      this.threatTier = newTier;
+      if (!deferBanner && (this.time - (this.lastThreatBannerTime || -30)) >= 18 && (!this.banner || this.banner.t <= 0.2)) {
+        this.lastThreatBannerTime = this.time;
+        const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+        if (window.UI) {
+          window.UI.showBanner(
+            lang === 'en' ? `🔥 THREAT TIER ${newTier}! ENEMIES EMPOWERED!` : `🔥 GEFAHR STUFE ${newTier}! FEINDE VERSTÄRKT!`,
+            newTier >= 5 ? '#ff0055' : '#ff6d00'
+          );
+        }
+        if (window.SoundSystem) window.SoundSystem.sfx('nova');
+      }
+    }
+  }
+
+  spawnHunterSquad(streak) {
+    const P = this.player;
+    if (!P || !window.Entities) return;
+    const count = Math.min(10, 3 + Math.floor((this.threatLevel || 1.0) * 0.9) + Math.min(3, Math.max(0, streak - 1)));
+    const types = (this.time < 150)
+      ? ['runner', 'dasher', 'shooter']
+      : ['dasher', 'sniper', 'mortar', 'teleporter', 'shooter', 'kamikaze'];
+    const R = (window.Renderer ? Math.hypot(window.Renderer.W, window.Renderer.H) / 2 : 550) + 50;
+
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + (Math.random() * 0.35 - 0.175);
+      const ex = P.x + Math.cos(a) * R;
+      const ey = P.y + Math.sin(a) * R;
+      const chosenType = types[Math.floor(Math.random() * types.length)];
+      const forceElite = streak >= 3 && (i % 2 === 1);
+      const e = window.Entities.createEnemy(chosenType, ex, ey, forceElite);
+      e.spd *= 1.12;
+      window.Entities.enemies.push(e);
+    }
+  }
+
+  evaluateDifficultyDirector() {
+    if (!this.director || this.selectedMode === 'sandbox' || this.selectedMode === 'minigame') return;
+    const P = this.player;
+    const d = this.director;
+    if (!P) return;
+
+    const m = this.time / 60;
+    const hpRatio = P.maxHp > 0 ? (P.hp / P.maxHp) : 1;
+    const isHardcore = (this.selectedMode === 'hardcore');
+    const avgKillAge = d.windowKills > 0 ? (d.windowKillAgeSum / d.windowKills) : 6.0;
+    const avgEnemies = d.windowSamples > 0 ? (d.windowEnemySum / d.windowSamples) : 0;
+    const powerScore = (window.Entities && window.Entities.getPlayerPowerScore) ? window.Entities.getPlayerPowerScore() : 0;
+
+    let ease = 0;
+
+    // 1. Damage / survival comfort
+    if (d.windowDamageTaken === 0 && d.windowHitsTaken === 0) {
+      if (isHardcore) {
+        ease += 0.6;
+        if (d.timeSinceLastHit >= 25) ease += 0.5;
+      } else {
+        ease += 1.4;
+        if (d.timeSinceLastHit >= 18) ease += 0.8;
+        if (d.timeSinceLastHit >= 35) ease += 0.8;
+      }
+    } else if (!isHardcore && d.windowDamageTaken < P.maxHp * 0.08 && hpRatio >= 0.85) {
+      ease += 0.6;
+    } else if (d.windowDamageTaken >= P.maxHp * 0.35 || hpRatio < 0.38) {
+      ease -= 2.2;
+    } else if (d.windowDamageTaken >= P.maxHp * 0.20 || hpRatio < 0.55) {
+      ease -= 1.0;
+    }
+
+    // 2. High HP comfort (non-hardcore only)
+    if (!isHardcore && hpRatio >= 0.92 && m >= 1.0) {
+      ease += 0.7;
+    }
+
+    // 3. Instant-kill / fast clear check
+    if (d.windowKills >= 6) {
+      if (avgKillAge < 1.6) ease += 1.5;
+      else if (avgKillAge < 2.8) ease += 0.7;
+      else if (avgKillAge > 6.5) ease -= 0.8;
+    }
+
+    // 4. Empty-arena wipe check
+    const expectedPop = Math.min(90, 12 + m * 3.5);
+    if (m >= 1.5 && d.windowKills >= 8 && avgEnemies < expectedPop * 0.55) {
+      ease += 0.9;
+    }
+
+    // Baseline & cap
+    const baselineThreat = 1.0 + m * 0.14 + Math.min(1.5, powerScore * 0.06);
+    const maxThreat = (this.selectedMode === 'endless' || this.isEndlessOvertime) ? 25.0 : (isHardcore ? 6.0 : 8.5);
+
+    let delta = 0;
+    if (ease >= 3.0) {
+      d.easyStreak++;
+      d.hardStreak = 0;
+      d.lastVerdict = 'too_easy';
+      delta = 0.32 + Math.min(0.40, d.easyStreak * 0.08);
+    } else if (ease >= 1.4) {
+      d.easyStreak++;
+      d.hardStreak = 0;
+      d.lastVerdict = 'easy';
+      delta = 0.16 + Math.min(0.20, d.easyStreak * 0.04);
+    } else if (ease <= -1.2) {
+      d.hardStreak++;
+      d.easyStreak = 0;
+      d.lastVerdict = 'hard';
+      delta = -0.22;
+    } else {
+      d.easyStreak = Math.max(0, d.easyStreak - 1);
+      d.hardStreak = 0;
+      d.lastVerdict = 'balanced';
+      delta = 0.04;
+    }
+
+    // Early warmup damper
+    if (this.time < 45 && delta > 0) delta *= 0.45;
+
+    this.threatLevel = Math.max(baselineThreat, Math.min(maxThreat, this.threatLevel + delta));
+
+    // Dispatch hunters when coasting
+    if (d.easyStreak >= 2 && m >= 1.5 && d.lastVerdict === 'too_easy') {
+      this.spawnHunterSquad(d.easyStreak);
+    }
+
+    this.checkThreatTierUp();
+
+    // Reset window counters
+    d.timer = 0;
+    d.windowDamageTaken = 0;
+    d.windowHitsTaken = 0;
+    d.windowKills = 0;
+    d.windowKillAgeSum = 0;
+    d.windowEnemySum = 0;
+    d.windowSamples = 0;
+  }
+
   triggerAntiAfkPressure() {
     if (this.selectedMode === 'sandbox') return;
     const P = this.player;
     if (!P) return;
 
     const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
-    if (window.UI) window.UI.showBanner(lang === 'en' ? '⚠ MOVE! SWARM INCOMING!' : '⚠ BEWEGUNG ERFORDERLICH! HORDE FORMIERT SICH!', '#ff0055');
+    if (window.UI) window.UI.showBanner(lang === 'en' ? '⚠ MOVE! SWARM INCOMING!' : '⚠ BEWEG DICH! SCHWARM NAHT!', '#ff0055');
     if (window.SoundSystem) window.SoundSystem.sfx('nova');
 
-    // Spawne 4-6 Eliten & Hetzer, die direkt auf die AFK-Position zustürmen
-    const types = ['dasher', 'kamikaze', 'runner', 'teleporter', 'tank'];
-    const count = 4 + Math.floor(Math.random() * 3);
-    const R = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 50;
+    const maxThreat = (this.selectedMode === 'endless' || this.isEndlessOvertime) ? 25.0 : (this.selectedMode === 'hardcore' ? 6.0 : 8.5);
+    this.threatLevel = Math.min(maxThreat, (this.threatLevel || 1.0) + 0.25);
+
+    // Spawne verstärkte Eliten & Hetzer, die direkt auf die AFK-Position zustürmen
+    const types = ['dasher', 'kamikaze', 'sniper', 'mortar', 'teleporter'];
+    const count = 5 + Math.min(6, Math.floor(this.threatLevel || 1));
+    const R = (window.Renderer ? Math.hypot(window.Renderer.W, window.Renderer.H) / 2 : 550) + 50;
 
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2 + (Math.random() * 0.4 - 0.2);
@@ -394,7 +588,10 @@ class GameController {
       const ey = P.y + Math.sin(a) * R;
       const chosenType = types[Math.floor(Math.random() * types.length)];
       const e = window.Entities.createEnemy(chosenType, ex, ey, true);
-      e.spd *= 1.30;
+      e.spd *= 1.35;
+      e.hp *= 1.35;
+      e.maxHp = e.hp;
+      e.afkHunter = true;
       window.Entities.enemies.push(e);
     }
   }
@@ -436,6 +633,17 @@ class GameController {
     }
 
     const P = this.player;
+
+    // Live Adaptive Difficulty Director (checks every 8s if the run is too easy)
+    if (this.director && this.selectedMode !== 'sandbox' && this.selectedMode !== 'minigame') {
+      this.director.timer += dt;
+      this.director.timeSinceLastHit += dt;
+      this.director.windowEnemySum += (window.Entities ? window.Entities.enemies.length : 0) * dt;
+      this.director.windowSamples += dt;
+      if (this.director.timer >= this.director.interval) {
+        this.evaluateDifficultyDirector();
+      }
+    }
 
     // Buff timers
     if (P.overdriveTimer > 0) P.overdriveTimer -= dt;
@@ -631,7 +839,8 @@ class GameController {
 
     // Swarm scheduling
     if (this.time >= this.nextSwarmTime) {
-      this.nextSwarmTime += 50;
+      const swarmInterval = Math.max(26, 50 - ((this.threatLevel || 1) - 1) * 4.5);
+      this.nextSwarmTime = this.time + swarmInterval;
       this.spawnSwarm();
     }
 
@@ -756,12 +965,15 @@ class GameController {
   spawnSwarm() {
     if (this.selectedMode === 'sandbox') return;
     const powerScore = (window.Entities && window.Entities.getPlayerPowerScore) ? window.Entities.getPlayerPowerScore() : 0;
-    const n = Math.min(38, 12 + Math.floor(this.time / 40) + Math.floor(powerScore * 1.5));
-    const R = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 50;
-    const type = (this.time > 120 || powerScore >= 4) ? 'runner' : 'grunt';
+    const threat = this.threatLevel || 1.0;
+    const n = Math.min(54, 14 + Math.floor(this.time / 35) + Math.floor(powerScore * 1.5) + Math.floor((threat - 1) * 4));
+    const R = (window.Renderer ? Math.hypot(window.Renderer.W, window.Renderer.H) / 2 : 550) + 50;
+    const baseType = (this.time > 120 || powerScore >= 4) ? 'runner' : 'grunt';
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
-      const e = window.Entities.createEnemy(type, this.player.x + Math.cos(a) * R, this.player.y + Math.sin(a) * R);
+      const isEl = threat >= 2.5 && (i % 5 === 0);
+      const type = isEl ? (Math.random() < 0.5 ? 'dasher' : 'shooter') : baseType;
+      const e = window.Entities.createEnemy(type, this.player.x + Math.cos(a) * R, this.player.y + Math.sin(a) * R, isEl);
       window.Entities.enemies.push(e);
     }
     const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
@@ -772,18 +984,23 @@ class GameController {
   updateSpawning(dt) {
     if (this.selectedMode === 'sandbox' || this.sandboxPauseSpawns) return;
     const powerScore = (window.Entities && window.Entities.getPlayerPowerScore) ? window.Entities.getPlayerPowerScore() : 0;
+    const threat = this.threatLevel || 1.0;
     const m = this.time / 60;
-    // Dynamisches Gegnerlimit: 110 früh -> 180-210 spät bei starkem Build (kein 300er-Klumpen)
-    const maxEnemies = Math.min(210, 110 + Math.floor(m * 4) + Math.floor(powerScore * 3));
+    const maxEnemies = Math.min(260, 120 + Math.floor(m * 4.5) + Math.floor(powerScore * 3.5) + Math.floor((threat - 1) * 18));
     if (window.Entities.enemies.length >= maxEnemies) return;
     const chaosMul = this.activeChaosEvent === 'turbo_horde' ? 1.7 : 1.0;
     const glitchMul = this.selectedMap === 'glitch' ? 1.2 : 1.0;
-    const powerSpawnMul = 1.0 + Math.min(0.45, powerScore * 0.05);
-    const spawnRate = (1.1 + m * 0.50 + Math.min(m * 0.12, 1.8)) * chaosMul * glitchMul * powerSpawnMul * dt;
-    if (Math.random() < spawnRate) {
+    const powerSpawnMul = 1.0 + Math.min(1.0, powerScore * 0.08);
+    const threatSpawnMul = 1.0 + Math.min(2.2, (threat - 1.0) * 0.38);
+    const spawnPerSec = (1.35 + m * 0.65 + Math.min(m * 0.16, 2.8)) * chaosMul * glitchMul * powerSpawnMul * threatSpawnMul;
+    this.spawnAcc = Math.min(6, (this.spawnAcc || 0) + spawnPerSec * dt);
+    let spawned = 0;
+    while (this.spawnAcc >= 1 && window.Entities.enemies.length < maxEnemies && spawned < 4) {
+      this.spawnAcc -= 1;
+      spawned++;
       const type = this.pickSpawnType();
       const a = Math.random() * Math.PI * 2;
-      const d = Math.hypot(window.Renderer.W, window.Renderer.H) / 2 + 60 + Math.random() * 80;
+      const d = (window.Renderer ? Math.hypot(window.Renderer.W, window.Renderer.H) / 2 : 550) + 60 + Math.random() * 80;
       const e = window.Entities.createEnemy(type, this.player.x + Math.cos(a) * d, this.player.y + Math.sin(a) * d);
       window.Entities.enemies.push(e);
     }
@@ -791,23 +1008,26 @@ class GameController {
 
   pickSpawnType() {
     const powerScore = (window.Entities && window.Entities.getPlayerPowerScore) ? window.Entities.getPlayerPowerScore() : 0;
-    const t = this.time + (this.selectedMap === 'glitch' ? 120 : 0) + (powerScore * 18);
-    const pool = [['grunt', 10]];
+    const threat = this.threatLevel || 1.0;
+    const t = this.time + (this.selectedMap === 'glitch' ? 120 : 0) + (powerScore * 20) + (threat - 1) * 75;
+    const gruntW = Math.max(2.5, 10 - (threat - 1) * 1.4 - (this.time / 60) * 0.25);
+    const dangerMul = 1 + Math.min(1.2, (threat - 1) * 0.25);
+    const pool = [['grunt', gruntW]];
     if (t > 30) pool.push(['runner', 4]);
-    if (t > 70) pool.push(['dasher', 3]);
-    if (t > 100) pool.push(['tank', 2.5]);
-    if (t > 130) pool.push(['shooter', 2.5]);
+    if (t > 70) pool.push(['dasher', 3 * dangerMul]);
+    if (t > 100) pool.push(['tank', 2.5 * dangerMul]);
+    if (t > 130) pool.push(['shooter', 2.5 * dangerMul]);
     if (t > 160) pool.push(['splitter', 2.5]);
-    if (t > 200) pool.push(['shielder', 2]);
+    if (t > 200) pool.push(['shielder', 2 * dangerMul]);
     if (t > 210) pool.push(['repulsor', 2]);
-    if (t > 240) pool.push(['teleporter', 2]);
-    if (t > 280) pool.push(['summoner', 1.8]);
-    if (t > 320) pool.push(['sniper', 1.8]);
-    if (t > 360) pool.push(['mortar', 1.6]);
-    if (t > 400) pool.push(['kamikaze', 2]);
+    if (t > 240) pool.push(['teleporter', 2 * dangerMul]);
+    if (t > 280) pool.push(['summoner', 1.8 * dangerMul]);
+    if (t > 320) pool.push(['sniper', 1.8 * dangerMul]);
+    if (t > 360) pool.push(['mortar', 1.6 * dangerMul]);
+    if (t > 400) pool.push(['kamikaze', 2 * dangerMul]);
     if (t > 450) pool.push(['orbiter', 2]);
     if (t > 500) pool.push(['phantom', 1.8]);
-    if (t > 550) pool.push(['leech', 1.8]);
+    if (t > 550) pool.push(['leech', 1.8 * dangerMul]);
 
     let sum = 0;
     for (const p of pool) sum += p[1];
@@ -1003,7 +1223,7 @@ class GameController {
 
   recalcPlayerStats() {
     if (!this.player) return;
-    const charDef = window.GAME_DATA.CHARACTERS[this.selectedCharacter] || window.GAME_DATA.CHARACTERS.striker;
+    const charDef = window.GAME_DATA.CHARACTERS[this.selectedCharacter] || window.GAME_DATA.CHARACTERS.apex;
     const skillMods = window.SaveSystem.getSkillModifiers();
     const P = this.player;
 
@@ -1022,8 +1242,15 @@ class GameController {
     P.regen = (charDef.stats.regen + (skillMods.regen || 0)) + (this.passives.regen || 0) * 0.8;
     P.crit = (charDef.stats.crit + (skillMods.crit || 0)) + (this.passives.crit || 0) * 0.10;
     P.multi = (this.passives.multi || 0);
+    P.xpMul = skillMods.xp || 1;
     P.overloadChargeRate = (skillMods.overloadRate || 1) * (charDef.stats.overloadRate || 1) * Math.pow(1.2, this.passives.overload_boost || 0);
     P.overloadDurMul = 1.0 + (this.passives.overload_boost || 0) * 0.2;
+
+    if (this.activeModules) {
+      for (const mKey in this.activeModules) {
+        if (this.activeModules[mKey]) this.applyModuleEffect(mKey);
+      }
+    }
   }
 
   pauseGame() {

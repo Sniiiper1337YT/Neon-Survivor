@@ -1434,6 +1434,24 @@ class RenderEngine {
     ctx.fillStyle = '#00ffcc';
     ctx.fillText('💎 ' + (window.GameState.creditsEarned || 0), W - 24, 68);
 
+    // Live Adaptive Threat Indicator
+    const gs = window.GameState;
+    if (gs && gs.selectedMode !== 'sandbox' && gs.selectedMode !== 'minigame') {
+      const threat = gs.threatLevel || 1.0;
+      const lang = (window.SaveSystem && window.SaveSystem.getSettings().lang) || 'de';
+      const dict = window.GAME_DATA && window.GAME_DATA.UI_TEXTS ? (window.GAME_DATA.UI_TEXTS[lang] || window.GAME_DATA.UI_TEXTS.de) : null;
+      const label = (dict && dict.threatLabel) || (lang === 'en' ? 'THREAT' : 'GEFAHR');
+      const trend = (gs.director && (gs.director.lastVerdict === 'too_easy' || gs.director.lastVerdict === 'easy')) ? ' ▲' : '';
+      const tCol = threat >= 6.0 ? '#d500f9'
+        : threat >= 4.0 ? '#ff0055'
+        : threat >= 2.5 ? '#ff6d00'
+        : threat >= 1.6 ? '#ffd23f'
+        : '#3dfcff';
+      ctx.font = '800 13px Segoe UI';
+      ctx.fillStyle = tCol;
+      ctx.fillText(`🔥 ${label} x${threat.toFixed(1)}${trend}`, W - 24, 90);
+    }
+
     // Bottom Weapon & Evolution Rack
     let wx = 22;
     const wy = H - 64;
@@ -1570,18 +1588,58 @@ class RenderEngine {
     // Corner Minimap (Bottom-Right Radar)
     this.drawMinimap(P, window.Entities, now);
 
-    // In-game Banner
-    if (banner && banner.t > 0) {
+    // In-game Banner (Responsive auto-fit & balanced 2-line wrap)
+    if (banner && banner.t > 0 && banner.text) {
+      const text = String(banner.text);
       const a = Math.max(0, Math.min(1, banner.t / 0.5));
+      const maxBannerW = Math.max(240, W * 0.86);
+      let fontSize = Math.min(44, Math.max(20, Math.floor(W * 0.038)));
+
       ctx.save();
-      ctx.translate(W / 2, H * 0.32);
+      ctx.translate(W / 2, H * 0.30);
       ctx.globalAlpha = a;
       ctx.textAlign = 'center';
-      ctx.font = '900 52px Segoe UI';
+      ctx.textBaseline = 'middle';
       ctx.fillStyle = banner.col || '#3dfcff';
       ctx.shadowColor = banner.col || '#3dfcff';
-      ctx.shadowBlur = 25;
-      ctx.fillText(banner.text, 0, 0);
+      ctx.shadowBlur = 22;
+
+      ctx.font = `900 ${fontSize}px Segoe UI`;
+      let measured = ctx.measureText(text).width;
+      if (measured > maxBannerW) {
+        fontSize = Math.max(18, Math.floor(fontSize * (maxBannerW / measured)));
+        ctx.font = `900 ${fontSize}px Segoe UI`;
+        measured = ctx.measureText(text).width;
+      }
+
+      if (measured > maxBannerW && text.includes(' ')) {
+        const words = text.split(/\s+/);
+        let bestL1 = text;
+        let bestL2 = '';
+        let bestDiff = Infinity;
+        for (let split = 1; split < words.length; split++) {
+          const l1 = words.slice(0, split).join(' ');
+          const l2 = words.slice(split).join(' ');
+          const w1 = ctx.measureText(l1).width;
+          const w2 = ctx.measureText(l2).width;
+          const diff = Math.abs(w1 - w2) + Math.max(0, Math.max(w1, w2) - maxBannerW) * 2;
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            bestL1 = l1;
+            bestL2 = l2;
+          }
+        }
+        const widest = Math.max(ctx.measureText(bestL1).width, ctx.measureText(bestL2).width);
+        if (widest > maxBannerW) {
+          fontSize = Math.max(16, Math.floor(fontSize * (maxBannerW / widest)));
+          ctx.font = `900 ${fontSize}px Segoe UI`;
+        }
+        const lineGap = Math.round(fontSize * 1.18);
+        ctx.fillText(bestL1, 0, -lineGap * 0.5, maxBannerW);
+        ctx.fillText(bestL2, 0, lineGap * 0.5, maxBannerW);
+      } else {
+        ctx.fillText(text, 0, 0, maxBannerW);
+      }
       ctx.restore();
     }
   }

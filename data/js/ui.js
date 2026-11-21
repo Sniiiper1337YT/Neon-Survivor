@@ -54,7 +54,7 @@ class UIEngine {
     const titleDivs = document.querySelectorAll('#title > div');
     if (titleDivs.length >= 2) {
       titleDivs[titleDivs.length - 2].innerHTML = t.controlsHint;
-      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.4.0';
+      const ver = (window.NeonNative && window.NeonNative.appVersion) || '1.4.1';
       titleDivs[titleDivs.length - 1].innerHTML = `Neon Survivor <span id="lblCurrentVer">v${ver}</span> &nbsp;·&nbsp; ${t.footerDev}`;
     }
 
